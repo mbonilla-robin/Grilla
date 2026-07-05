@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
-  Sparkles,
   ArrowLeft,
   Calendar,
   Tag,
@@ -16,12 +16,14 @@ import {
   Circle,
   Check,
   ExternalLink,
+  Copy,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { updatePost, updatePostStatus } from "@/lib/actions";
+import { updatePost, updatePostStatus, duplicatePost, deletePost } from "@/lib/actions";
 import { PostAssetUploader } from "@/components/grilla/post-asset-uploader";
-import { BriefDisplay } from "@/components/grilla/brief-display";
+import { BriefPanel } from "@/components/grilla/brief-panel";
 import { CreativeBriefForm } from "@/components/grilla/creative-brief-form";
 import { PostMetricsForm } from "@/components/grilla/post-metrics-form";
 import { PostComments } from "@/components/grilla/post-comments";
@@ -30,12 +32,12 @@ import {
   STATUS_LABELS,
   FORMAT_LABELS,
   type Post,
-  type DesignBrief,
   type PostAsset,
   type PostFormat,
   type PostStatus,
   type PostMetrics,
   type PostComment,
+  type BriefHistoryEntry,
 } from "@/lib/types";
 import {
   formatDate,
@@ -90,6 +92,8 @@ interface PostDetailProps {
   comments?: PostComment[];
   members?: { user_id: string; name: string }[];
   currentUserId?: string;
+  isAdmin?: boolean;
+  briefHistory?: BriefHistoryEntry[];
 }
 
 export function PostDetail({
@@ -101,9 +105,10 @@ export function PostDetail({
   comments = [],
   members = [],
   currentUserId = "",
+  isAdmin = false,
+  briefHistory = [],
 }: PostDetailProps) {
-  const [brief, setBrief] = useState<DesignBrief | null>(post.brief);
-  const [generating, setGenerating] = useState(false);
+  const router = useRouter();
   const [status, setStatus] = useState(post.status);
   const [inDrive, setInDrive] = useState(post.in_drive);
   const [driveLoading, setDriveLoading] = useState(false);
@@ -111,6 +116,8 @@ export function PostDetail({
   const [caption, setCaption] = useState(post.caption || "");
   const [captionSaving, setCaptionSaving] = useState(false);
   const [captionSaved, setCaptionSaved] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const FormatIcon = formatIcons[post.format] || ImageIcon;
   const designer = parseDesignerCopy(post.copy);
   const hasDesignerContent =
@@ -119,28 +126,28 @@ export function PostDetail({
     designer.subtitle ||
     designer.body;
 
-  async function generateBrief() {
-    setGenerating(true);
-    try {
-      const res = await fetch("/api/brief", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId: post.id, orgId }),
-      });
-      const data = await res.json();
-      if (data.brief) {
-        setBrief(data.brief);
-        setStatus("brief_ready");
-      }
-    } catch {
-      // silent
-    }
-    setGenerating(false);
-  }
-
   async function handleStatusChange(newStatus: PostStatus) {
     setStatus(newStatus);
     await updatePostStatus(post.id, newStatus, orgId);
+  }
+
+  async function handleDuplicate() {
+    setDuplicating(true);
+    const result = await duplicatePost(orgId, post.id);
+    setDuplicating(false);
+    if (result.data?.id) {
+      router.push(`/org/${orgId}/grilla/${result.data.id}`);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm("¿Eliminar este post? Esta acción no se puede deshacer.")) return;
+    setDeleting(true);
+    const result = await deletePost(orgId, post.id);
+    setDeleting(false);
+    if (!result.error) {
+      router.push(`/org/${orgId}/grilla`);
+    }
   }
 
   async function handleCaptionSave() {
@@ -366,31 +373,13 @@ export function PostDetail({
   const briefSection = (
     <>
       <SectionDivider label="Brief de diseño" />
-
-      <section className="space-y-4">
-        {!brief && (
-          <div className="flex justify-end">
-            <Button size="sm" onClick={generateBrief} loading={generating}>
-              <Sparkles size={13} />
-              Generar brief
-            </Button>
-          </div>
-        )}
-
-        {brief && (
-          <div className="space-y-3">
-            <BriefDisplay brief={brief} />
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={generateBrief}
-              loading={generating}
-            >
-              Regenerar
-            </Button>
-          </div>
-        )}
-      </section>
+      <BriefPanel
+        postId={post.id}
+        orgId={orgId}
+        initialBrief={post.brief}
+        initialHistory={briefHistory}
+        onStatusChange={setStatus}
+      />
     </>
   );
 
@@ -419,13 +408,38 @@ export function PostDetail({
           Grilla
         </Link>
 
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight leading-tight">
-            {post.title}
-          </h1>
-          {orgName && (
-            <p className="text-sm text-muted mt-1">{orgName}</p>
-          )}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight leading-tight">
+              {post.title}
+            </h1>
+            {orgName && (
+              <p className="text-sm text-muted mt-1">{orgName}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleDuplicate}
+              loading={duplicating}
+              title="Duplicar post"
+            >
+              <Copy size={13} />
+            </Button>
+            {isAdmin && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleDelete}
+                loading={deleting}
+                title="Eliminar post"
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 size={13} />
+              </Button>
+            )}
+          </div>
         </div>
 
         <PostPhaseTimeline status={status} />

@@ -7,16 +7,19 @@ import type { PostAsset, PostWithAssets } from "@/lib/types";
 function FeedContent({
   posts,
   accountName,
+  bio,
   initialPostId,
 }: {
   posts: PostWithAssets[];
   accountName: string;
+  bio?: string;
   initialPostId?: string;
 }) {
   return (
     <FeedPreview
       posts={posts}
       accountName={accountName}
+      bio={bio}
       initialPostId={initialPostId}
     />
   );
@@ -33,13 +36,14 @@ export default async function FeedPage({
   const { post: initialPostId } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: posts }, { data: org }] = await Promise.all([
+  const [{ data: posts }, { data: org }, { data: brandKit }] = await Promise.all([
     supabase
       .from("posts")
       .select("*, post_assets(*)")
       .eq("organization_id", orgId)
       .order("scheduled_at", { ascending: false, nullsFirst: false }),
     supabase.from("organizations").select("name").eq("id", orgId).single(),
+    supabase.from("brand_kits").select("objective, tone_of_voice").eq("organization_id", orgId).single(),
   ]);
 
   const postsWithAssets: PostWithAssets[] = (posts || []).map((p) => ({
@@ -56,6 +60,7 @@ export default async function FeedPage({
         <FeedContent
           posts={postsWithAssets}
           accountName={org?.name || "cuenta"}
+          bio={brandKit?.objective || brandKit?.tone_of_voice || undefined}
           initialPostId={initialPostId}
         />
       </Suspense>

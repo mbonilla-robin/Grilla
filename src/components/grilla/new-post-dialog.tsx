@@ -247,7 +247,6 @@ export function NewPostDialog({
               value={caption}
               onChange={setCaption}
               hashtagGroups={hashtagGroups}
-              rows={4}
             />
           </div>
 

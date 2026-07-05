@@ -4,7 +4,7 @@ import type { DesignBrief, DesignBriefSlide, PostFormat } from "@/lib/types";
 import { brandKitToPalette, isBrandKitConfigured } from "@/lib/brief-colors";
 
 export async function POST(request: Request) {
-  const { postId, orgId } = await request.json();
+  const { postId, orgId, instructions } = await request.json();
   const supabase = await createClient();
 
   const { data: post } = await supabase
@@ -31,15 +31,24 @@ export async function POST(request: Request) {
     post.copy,
     post.references_text,
     post.format as PostFormat,
-    configuredBrandKit
+    configuredBrandKit,
+    instructions
   );
+
+  const existingHistory = (post.brief_history as unknown[]) || [];
+  const newHistory = post.brief
+    ? [
+        { ...(post.brief as DesignBrief), archived_at: new Date().toISOString() },
+        ...existingHistory,
+      ].slice(0, 10)
+    : existingHistory;
 
   await supabase
     .from("posts")
-    .update({ brief, status: "brief_ready" })
+    .update({ brief, brief_history: newHistory, status: "brief_ready" })
     .eq("id", postId);
 
-  return NextResponse.json({ brief });
+  return NextResponse.json({ brief, history: newHistory });
 }
 
 const BRIEF_SYSTEM_PROMPT = `Eres un director creativo senior de social media para marcas premium e industriales. Generas briefs de diseño detallados, accionables y con tono profesional.
@@ -110,7 +119,8 @@ async function generateBrief(
     fonts: { heading: string; body: string };
     tone_of_voice: string | null;
     guidelines: string | null;
-  } | null
+  } | null,
+  instructions?: string
 ): Promise<DesignBrief> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   const models = (
@@ -130,6 +140,7 @@ async function generateBrief(
           references,
           format,
           brandKit,
+          instructions,
         });
         if (result) return result;
       } catch (error) {
@@ -138,10 +149,10 @@ async function generateBrief(
       }
     }
 
-    return generateMockBrief(title, copy, format, brandKit, lastError);
+    return generateMockBrief(title, copy, format, brandKit, lastError, instructions);
   }
 
-  return generateMockBrief(title, copy, format, brandKit);
+  return generateMockBrief(title, copy, format, brandKit, undefined, instructions);
 }
 
 async function callGemini(
@@ -158,6 +169,7 @@ async function callGemini(
       tone_of_voice: string | null;
       guidelines: string | null;
     } | null;
+    instructions?: string;
   }
 ): Promise<DesignBrief | null> {
   const url = new URL(
@@ -182,6 +194,7 @@ async function callGemini(
                 copy: input.copy,
                 references: input.references,
                 format: input.format,
+                instructions: input.instructions || null,
                 brandKit: input.brandKit
                   ? {
                       colors: input.brandKit.colors,
@@ -289,7 +302,8 @@ function generateMockBrief(
   copy: string | null,
   format: PostFormat,
   brandKit: { colors: string[]; fonts: { heading: string; body: string } } | null,
-  geminiError?: string
+  geminiError?: string,
+  instructions?: string
 ): DesignBrief {
   const configured = isBrandKitConfigured(brandKit);
   const brand_palette = configured ? buildBrandPalette(brandKit) : undefined;
@@ -340,8 +354,9 @@ function generateMockBrief(
     brand_palette,
     slides,
     strategic_note: configured
-      ? "Diseño minimalista pero contundente. Prioriza contraste limpio y estética Industrial-Premium. Respeta el idioma del copy del post."
-      : "Esta marca no tiene Brand Kit configurado. Coordinar colores y tipografías con el equipo de marca antes de diseñar, o configurar el Brand Kit en la plataforma.",
+      ? `Diseño minimalista pero contundente. Prioriza contraste limpio y estética Industrial-Premium. Respeta el idioma del copy del post.${instructions ? ` Instrucciones adicionales: ${instructions}` : ""}`
+      : `Esta marca no tiene Brand Kit configurado. Coordinar colores y tipografías con el equipo de marca antes de diseñar, o configurar el Brand Kit en la plataforma.${instructions ? ` Instrucciones: ${instructions}` : ""}`,
+    instructions: instructions || undefined,
     notes: geminiError
       ? `Gemini falló: ${geminiError}`
       : "Brief generado localmente. Configura GEMINI_API_KEY para briefs con IA real.",

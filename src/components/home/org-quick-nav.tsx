@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { Users, Palette, FolderOpen, BarChart3, CalendarDays, SlidersHorizontal } from "lucide-react";
+import { Users, SlidersHorizontal, FolderOpen, BarChart3, CalendarDays, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function OrgQuickNav({ orgId }: { orgId: string }) {
   const links = [
     { href: `/org/${orgId}/marca`, label: "Marca", icon: SlidersHorizontal },
+    { href: `/org/${orgId}/revision`, label: "Revisión", icon: ClipboardCheck },
     { href: `/org/${orgId}/estadisticas`, label: "Estadísticas", icon: BarChart3 },
     { href: `/org/${orgId}/calendario`, label: "Calendario", icon: CalendarDays },
     { href: `/org/${orgId}/team`, label: "Equipo", icon: Users },
-    { href: `/org/${orgId}/brand-kit`, label: "Brand kit", icon: Palette },
     { href: `/org/${orgId}/assets`, label: "Assets", icon: FolderOpen },
   ] as const;
 

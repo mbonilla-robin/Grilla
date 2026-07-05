@@ -158,7 +158,12 @@ export interface DesignBrief {
   slides: DesignBriefSlide[];
   strategic_note?: string;
   notes?: string;
+  instructions?: string;
   generated_at: string;
+}
+
+export interface BriefHistoryEntry extends DesignBrief {
+  archived_at: string;
 }
 
 export interface ContentPillar {
@@ -209,6 +214,7 @@ export interface Post {
   cta: string | null;
   status: PostStatus;
   brief: DesignBrief | null;
+  brief_history?: BriefHistoryEntry[];
   created_by: string;
   assigned_to: string | null;
   community_manager_id: string | null;

@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { SubPageHeader, SectionCard } from "@/components/home/home-ui";
 import { PillarsDashboard } from "@/components/pillars/pillars-dashboard";
 import { WeeklyActivityChart } from "@/components/home/weekly-activity-chart";
+import { MetricsCsvImport } from "@/components/pillars/metrics-csv-import";
+import { MonthComparison, FormatBreakdown } from "@/components/pillars/stats-comparison";
 import { getOrgStatsData } from "@/lib/pillars-data";
 import { getOrgWeeklyActivity } from "@/lib/home-data";
 
@@ -45,6 +47,31 @@ export default async function EstadisticasPage({
       <SectionCard title="Actividad de la semana">
         <p className="text-xs text-muted mb-3">Posts programados por día</p>
         <WeeklyActivityChart days={weeklyActivity} />
+      </SectionCard>
+
+      <MonthComparison
+        current={{
+          totalReach: data.totalReach,
+          totalLikes: data.totalLikes,
+          totalComments: data.totalComments,
+          avgEngagement: data.avgEngagement,
+        }}
+        previous={{
+          totalReach: data.prevMonth.totalReach,
+          totalLikes: data.prevMonth.totalLikes,
+          totalComments: data.prevMonth.totalComments,
+          avgEngagement: data.prevMonth.avgEngagement,
+        }}
+        monthLabel={data.monthLabel}
+      />
+
+      <FormatBreakdown breakdown={data.formatBreakdown} />
+
+      <SectionCard title="Importar métricas">
+        <p className="text-xs text-muted mb-3">
+          Sube un CSV con métricas de Instagram para actualizar posts publicados.
+        </p>
+        <MetricsCsvImport orgId={orgId} />
       </SectionCard>
 
       <PillarsDashboard

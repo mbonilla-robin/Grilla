@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Calendar,
   ExternalLink,
@@ -9,10 +10,12 @@ import {
   Hash,
   ImagePlus,
   Tag,
+  Copy,
 } from "lucide-react";
 import { EditPostDialog } from "@/components/grilla/edit-post-dialog";
 import { PostAssetUploader } from "@/components/grilla/post-asset-uploader";
 import { PostStatusBadge } from "@/components/grilla/post-status-badge";
+import { duplicatePost } from "@/lib/actions";
 import {
   formatDate,
   parseCopyFields,
@@ -35,11 +38,24 @@ export function GrillaCard({
   pillarOptions,
   hashtagGroups,
 }: GrillaCardProps) {
+  const router = useRouter();
   const [post, setPost] = useState(initialPost);
+  const [duplicating, setDuplicating] = useState(false);
 
   useEffect(() => {
     setPost(initialPost);
   }, [initialPost]);
+
+  async function handleDuplicate(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDuplicating(true);
+    const result = await duplicatePost(orgId, post.id);
+    setDuplicating(false);
+    if (result.data?.id) {
+      router.push(`/org/${orgId}/grilla/${result.data.id}`);
+    }
+  }
 
   const assets = sortPostAssets(post.assets || []);
   const cover = assets[0];
@@ -59,6 +75,15 @@ export function GrillaCard({
             hashtagGroups={hashtagGroups}
             onSaved={(updates) => setPost((p) => ({ ...p, ...updates }))}
           />
+          <button
+            type="button"
+            onClick={handleDuplicate}
+            disabled={duplicating}
+            className="p-1 rounded text-muted hover:text-foreground hover:bg-neutral-100 transition-colors disabled:opacity-50"
+            title="Duplicar post"
+          >
+            <Copy size={12} />
+          </button>
           <Link
             href={`/org/${orgId}/feed?post=${post.id}`}
             onClick={(e) => e.stopPropagation()}

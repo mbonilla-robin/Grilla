@@ -13,6 +13,7 @@ export interface PostWithMetrics {
   id: string;
   title: string;
   pillar: string | null;
+  format: string;
   scheduled_at: string | null;
   status: PostStatus;
   reach: number | null;
@@ -34,13 +35,30 @@ export interface OrgStatsData {
   avgEngagement: number;
   topPosts: PostWithMetrics[];
   balanceAlerts: string[];
+  monthLabel: string;
+  prevMonth: {
+    totalReach: number;
+    totalLikes: number;
+    totalComments: number;
+    totalSaves: number;
+    avgEngagement: number;
+    publishedCount: number;
+  };
+  formatBreakdown: { format: string; count: number; avgEngagement: number }[];
 }
 
-function monthRangeUtc() {
+function monthRangeUtc(offset = 0) {
   const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  return { start: start.toISOString(), end: end.toISOString() };
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() + offset;
+  const start = new Date(Date.UTC(year, month, 1));
+  const end = new Date(Date.UTC(year, month + 1, 1));
+  const label = start.toLocaleDateString("es", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return { start: start.toISOString(), end: end.toISOString(), label };
 }
 
 export async function getOrgPillars(orgId: string): Promise<ContentPillar[]> {
@@ -61,12 +79,14 @@ export async function getOrgPillars(orgId: string): Promise<ContentPillar[]> {
 
 export async function getOrgStatsData(orgId: string): Promise<OrgStatsData> {
   const supabase = await createClient();
-  const { start, end } = monthRangeUtc();
+  const { start, end, label } = monthRangeUtc(0);
+  const prev = monthRangeUtc(-1);
 
   const [
     { data: pillars, error: pillarsError },
     { data: monthPosts, error: monthError },
     { data: publishedPosts, error: publishedError },
+    { data: prevPublished },
   ] = await Promise.all([
     supabase
       .from("content_pillars")
@@ -75,17 +95,24 @@ export async function getOrgStatsData(orgId: string): Promise<OrgStatsData> {
       .order("sort_order", { ascending: true }),
     supabase
       .from("posts")
-      .select("id, pillar, status")
+      .select("id, pillar, status, format")
       .eq("organization_id", orgId)
       .gte("scheduled_at", start)
       .lt("scheduled_at", end),
     supabase
       .from("posts")
-      .select("id, title, pillar, scheduled_at, status")
+      .select("id, title, pillar, scheduled_at, status, format")
       .eq("organization_id", orgId)
       .eq("status", "published")
       .order("scheduled_at", { ascending: false })
       .limit(50),
+    supabase
+      .from("posts")
+      .select("id, format")
+      .eq("organization_id", orgId)
+      .eq("status", "published")
+      .gte("scheduled_at", prev.start)
+      .lt("scheduled_at", prev.end),
   ]);
 
   if (pillarsError) console.error("getOrgStatsData pillars:", pillarsError.message);
@@ -167,6 +194,7 @@ export async function getOrgStatsData(orgId: string): Promise<OrgStatsData> {
       id: p.id,
       title: p.title,
       pillar: p.pillar,
+      format: p.format || "image",
       scheduled_at: p.scheduled_at,
       status: p.status,
       reach: m?.reach ?? null,
@@ -191,6 +219,63 @@ export async function getOrgStatsData(orgId: string): Promise<OrgStatsData> {
         )
       : 0;
 
+  // Previous month metrics
+  const prevIds = (prevPublished || []).map((p) => p.id);
+  const prevMonthData = {
+    totalReach: 0,
+    totalLikes: 0,
+    totalComments: 0,
+    totalSaves: 0,
+    avgEngagement: 0,
+    publishedCount: prevIds.length,
+  };
+
+  if (prevIds.length > 0) {
+    const { data: prevMetrics } = await supabase
+      .from("post_metrics")
+      .select("*")
+      .in("post_id", prevIds);
+
+    const prevEngagements: number[] = [];
+    for (const m of prevMetrics || []) {
+      const likes = m.likes ?? 0;
+      const comments = m.comments ?? 0;
+      const saves = m.saves ?? 0;
+      prevMonthData.totalReach += m.reach ?? 0;
+      prevMonthData.totalLikes += likes;
+      prevMonthData.totalComments += comments;
+      prevMonthData.totalSaves += saves;
+      const eng = likes + comments + saves;
+      if (eng > 0) prevEngagements.push(eng);
+    }
+    prevMonthData.avgEngagement =
+      prevEngagements.length > 0
+        ? Math.round(
+            prevEngagements.reduce((a, b) => a + b, 0) / prevEngagements.length
+          )
+        : 0;
+  }
+
+  // Format breakdown
+  const formatMap = new Map<string, { count: number; engagements: number[] }>();
+  for (const p of topPosts) {
+    const entry = formatMap.get(p.format) || { count: 0, engagements: [] };
+    entry.count++;
+    if (p.engagement > 0) entry.engagements.push(p.engagement);
+    formatMap.set(p.format, entry);
+  }
+
+  const formatBreakdown = Array.from(formatMap.entries()).map(([format, data]) => ({
+    format,
+    count: data.count,
+    avgEngagement:
+      data.engagements.length > 0
+        ? Math.round(
+            data.engagements.reduce((a, b) => a + b, 0) / data.engagements.length
+          )
+        : 0,
+  }));
+
   return {
     pillars: pillarList,
     distribution,
@@ -203,6 +288,9 @@ export async function getOrgStatsData(orgId: string): Promise<OrgStatsData> {
     avgEngagement,
     topPosts: topPosts.slice(0, 5),
     balanceAlerts,
+    monthLabel: label,
+    prevMonth: prevMonthData,
+    formatBreakdown,
   };
 }
 
@@ -219,7 +307,7 @@ export async function getBrandsPillarProgress(
   if (brands.length === 0) return [];
 
   const supabase = await createClient();
-  const { start, end } = monthRangeUtc();
+  const { start, end } = monthRangeUtc(0);
   const orgIds = brands.map((b) => b.id);
 
   const [{ data: allPillars }, { data: monthPosts }] = await Promise.all([

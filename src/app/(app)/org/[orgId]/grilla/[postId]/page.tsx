@@ -20,7 +20,7 @@ export default async function PostPage({
 
   if (!user) redirect("/login");
 
-  const [{ data: post }, { data: metrics }, { data: org }] = await Promise.all([
+  const [{ data: post }, { data: metrics }, { data: org }, { data: membership }] = await Promise.all([
     supabase
       .from("posts")
       .select("*, post_assets(*)")
@@ -33,6 +33,12 @@ export default async function PostPage({
       .eq("post_id", postId)
       .maybeSingle(),
     supabase.from("organizations").select("name").eq("id", orgId).single(),
+    supabase
+      .from("organization_members")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("organization_id", orgId)
+      .single(),
   ]);
 
   if (!post) notFound();
@@ -59,6 +65,8 @@ export default async function PostPage({
           avatar_url: m.avatar_url,
         }))}
       currentUserId={user.id}
+      isAdmin={membership?.role === "admin"}
+      briefHistory={(post.brief_history as Post["brief_history"]) || []}
     />
   );
 }

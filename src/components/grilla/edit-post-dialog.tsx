@@ -170,7 +170,6 @@ export function EditPostDialog({
                   value={caption}
                   onChange={setCaption}
                   hashtagGroups={hashtagGroups}
-                  rows={3}
                 />
               </div>
 
