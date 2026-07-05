@@ -75,7 +75,7 @@ export function NotificationsList({ notifications: initial }: NotificationsListP
             return (
               <li
                 key={n.id}
-                className={cn(!n.read && "bg-blue-50/30")}
+                className={cn(!n.read && "bg-brand/15")}
               >
                 {n.link ? (
                   <Link

@@ -17,6 +17,7 @@ import {
   type OrgRoleSlotInput,
   type PostFormat,
 } from "@/lib/types";
+import { PILLAR_PALETTE } from "@/lib/pillar-colors";
 
 const STEPS = [
   "Nombre",
@@ -37,7 +38,7 @@ const SETUP_ROLES: MemberRole[] = [
 
 const ONBOARDING_FORMATS: PostFormat[] = ["story", "reel", "image", "carousel"];
 
-const PILLAR_COLORS = ["#3b82f6", "#ef4444", "#8b5cf6", "#f59e0b", "#10b981", "#ec4899"];
+const PILLAR_COLORS = [...PILLAR_PALETTE];
 
 function defaultPillars(): OrgPillarInput[] {
   return [

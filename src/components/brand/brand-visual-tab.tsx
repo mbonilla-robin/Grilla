@@ -66,7 +66,7 @@ export function BrandVisualTab({ orgId, brandKit, canEdit }: BrandVisualTabProps
   return (
     <section className="home-card p-5 space-y-5 max-w-lg">
       <div>
-        <h2 className="text-sm font-medium">Identidad visual</h2>
+        <h2 className="text-title-section">Identidad visual</h2>
         <p className="text-xs text-muted mt-1">
           Colores, tipografías y guías que usa la IA al generar briefs.
         </p>

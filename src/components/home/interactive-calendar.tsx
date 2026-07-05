@@ -8,6 +8,7 @@ import { reschedulePost } from "@/lib/actions";
 import { formatPostLabel } from "@/lib/post-display";
 import { STATUS_LABELS, type PostStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { statusCalendarStyles } from "@/lib/status-colors";
 import type { CatalogEvent } from "@/lib/calendar-types";
 import { catalogEventsForDate } from "@/lib/calendar-types";
 import {
@@ -67,16 +68,6 @@ function isTodayUtc(day: Date) {
     day.getUTCDate() === now.getUTCDate()
   );
 }
-
-const statusColors: Record<string, string> = {
-  draft: "bg-neutral-100 text-neutral-700",
-  brief_ready: "bg-blue-50 text-blue-800",
-  in_design: "bg-amber-50 text-amber-800",
-  review: "bg-purple-50 text-purple-800",
-  approved: "bg-green-50 text-green-800",
-  scheduled: "bg-sky-50 text-sky-800",
-  published: "bg-neutral-200 text-neutral-800",
-};
 
 export function InteractiveCalendar({
   posts: initialPosts,
@@ -212,7 +203,7 @@ export function InteractiveCalendar({
           onClick={(e) => draggingId && e.preventDefault()}
           className={cn(
             "block rounded-md hover:opacity-80 transition-opacity",
-            statusColors[status] || statusColors.draft,
+            statusCalendarStyles[status] || statusCalendarStyles.draft,
             variant === "compact"
               ? "text-[11px] leading-snug truncate px-1.5 py-0.5"
               : "p-3 border border-border"
@@ -254,7 +245,7 @@ export function InteractiveCalendar({
       <div
         className={cn(
           "bg-surface min-h-[108px] p-1.5 transition-colors",
-          isDropTarget && enableDragDrop && "bg-purple-50 ring-2 ring-purple-200 ring-inset",
+          isDropTarget && enableDragDrop && "bg-brand/20 ring-2 ring-brand-dark/40 ring-inset",
           rescheduling && "opacity-60"
         )}
         onDragOver={(e) => {
@@ -332,7 +323,7 @@ export function InteractiveCalendar({
       <div
         className={cn(
           "rounded-lg border border-border overflow-hidden transition-colors",
-          isDropTarget && enableDragDrop && "ring-2 ring-purple-200",
+          isDropTarget && enableDragDrop && "ring-2 ring-brand-dark/40",
           rescheduling && "opacity-60"
         )}
         onDragOver={(e) => {

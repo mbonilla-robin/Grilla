@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TaskStatus } from "@/lib/types";
 import type { TaskWithPost } from "@/lib/task-due";
 
-export const OPEN_TASK_STATUSES: TaskStatus[] = ["contenido"];
+export const OPEN_TASK_STATUSES: TaskStatus[] = ["contenido", "brief_listo"];
 
 const LEGACY_OPEN = new Set(["pending", "in_progress"]);
 const CLOSED_STATUSES = new Set([
@@ -21,7 +21,12 @@ const POST_CLOSED_STATUSES = new Set([
 export function normalizeTaskStatus(status: string): TaskStatus {
   if (status === "pending" || status === "in_progress") return "contenido";
   if (status === "done") return "aprobado";
-  if (status === "contenido" || status === "en_revision" || status === "aprobado") {
+  if (
+    status === "contenido" ||
+    status === "brief_listo" ||
+    status === "en_revision" ||
+    status === "aprobado"
+  ) {
     return status;
   }
   return "contenido";
@@ -34,7 +39,11 @@ export function isOpenTask(task: TaskWithPost): boolean {
   const postStatus = (task.post as { status?: string } | null)?.status;
   if (postStatus && POST_CLOSED_STATUSES.has(postStatus)) return false;
 
-  return status === "contenido" || LEGACY_OPEN.has(status);
+  return (
+    status === "contenido" ||
+    status === "brief_listo" ||
+    LEGACY_OPEN.has(status)
+  );
 }
 
 export function taskStatusFromPost(
@@ -47,6 +56,9 @@ export function taskStatusFromPost(
   if (hasAssets || postStatus === "review") {
     return "en_revision";
   }
+  if (postStatus === "brief_ready") {
+    return "brief_listo";
+  }
   return "contenido";
 }
 
@@ -54,6 +66,7 @@ export function taskStatusFromPost(
 export function dbTaskStatus(status: TaskStatus): string {
   const map: Record<TaskStatus, string> = {
     contenido: "contenido",
+    brief_listo: "brief_listo",
     en_revision: "en_revision",
     aprobado: "aprobado",
   };

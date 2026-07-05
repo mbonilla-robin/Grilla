@@ -9,9 +9,10 @@ import {
   deleteContentPillar,
   upsertContentPillar,
 } from "@/lib/actions";
+import { PILLAR_PALETTE } from "@/lib/pillar-colors";
 import type { ContentPillar } from "@/lib/types";
 
-const PILLAR_COLORS = ["#3b82f6", "#ef4444", "#8b5cf6", "#f59e0b", "#10b981", "#ec4899"];
+const PILLAR_COLORS = [...PILLAR_PALETTE];
 
 type PillarRow = ContentPillar | {
   id: string;
@@ -115,7 +116,7 @@ export function BrandPillarsTab({
   return (
     <section className="home-card p-5 space-y-4 max-w-2xl">
       <div>
-        <h2 className="text-sm font-medium">Pilares de contenido</h2>
+        <h2 className="text-title-section">Pilares de contenido</h2>
         <p className="text-xs text-muted mt-1">
           Temas que guían el contenido de {orgName}. Ajusta nombre, color y meta mensual.
         </p>

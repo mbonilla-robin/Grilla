@@ -49,7 +49,7 @@ export function BrandStrategyTab({
   return (
     <section className="home-card p-5 space-y-4 max-w-2xl">
       <div>
-        <h2 className="text-sm font-medium">Estrategia de marca</h2>
+        <h2 className="text-title-section">Estrategia de marca</h2>
         <p className="text-xs text-muted mt-1">
           Define cómo comunica {orgName} y hacia dónde va el contenido.
         </p>

@@ -19,6 +19,11 @@ import { CreateOrgDialog } from "@/components/org/create-org-dialog";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import type { Organization, OrganizationMember } from "@/lib/types";
 
+const navLinkBase =
+  "flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-sm transition-colors";
+const navLinkActive = "bg-foreground text-background font-medium";
+const navLinkInactive = "text-muted hover:text-foreground hover:bg-neutral-50";
+
 interface AppShellProps {
   children: React.ReactNode;
   memberships: (OrganizationMember & { organizations: Organization })[];
@@ -53,6 +58,8 @@ export function AppShell({
   const feedHref = `/org/${currentOrgId}/feed`;
   const grillaHref = `/org/${currentOrgId}/grilla`;
   const settingsHref = `/org/${currentOrgId}/settings`;
+  const isHomeWithDayRail =
+    pathname === "/home" || /^\/org\/[^/]+\/home$/.test(pathname);
 
   return (
     <div className="flex h-screen">
@@ -67,10 +74,8 @@ export function AppShell({
           <Link
             href="/home"
             className={cn(
-              "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors",
-              pathname === "/home"
-                ? "bg-neutral-100 text-foreground font-medium"
-                : "text-muted hover:text-foreground hover:bg-neutral-50"
+              navLinkBase,
+              pathname === "/home" ? navLinkActive : navLinkInactive
             )}
           >
             <Home size={16} strokeWidth={1.5} />
@@ -85,10 +90,9 @@ export function AppShell({
               key={org.id}
               href={`/org/${org.id}/home`}
               className={cn(
-                "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors truncate",
-                pathname === `/org/${org.id}/home`
-                  ? "bg-neutral-100 text-foreground font-medium"
-                  : "text-muted hover:text-foreground hover:bg-neutral-50"
+                navLinkBase,
+                "truncate",
+                pathname === `/org/${org.id}/home` ? navLinkActive : navLinkInactive
               )}
             >
               <Building2 size={16} strokeWidth={1.5} className="shrink-0" />
@@ -99,7 +103,7 @@ export function AppShell({
           <button
             type="button"
             onClick={() => setShowCreateOrg(true)}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted hover:text-foreground hover:bg-neutral-50 mt-1"
+            className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-xs text-muted hover:text-foreground hover:bg-neutral-50 mt-1"
           >
             <Plus size={12} />
             Nueva organización
@@ -112,10 +116,10 @@ export function AppShell({
             <Link
               href={grillaHref}
               className={cn(
-                "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors",
+                navLinkBase,
                 pathname.startsWith(`/org/${currentOrgId}/grilla`)
-                  ? "bg-neutral-100 text-foreground font-medium"
-                  : "text-muted hover:text-foreground hover:bg-neutral-50"
+                  ? navLinkActive
+                  : navLinkInactive
               )}
             >
               <LayoutGrid size={16} strokeWidth={1.5} />
@@ -125,10 +129,10 @@ export function AppShell({
           <Link
             href={feedHref}
             className={cn(
-              "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors",
+              navLinkBase,
               pathname.startsWith(`/org/${currentOrgId}/feed`)
-                ? "bg-neutral-100 text-foreground font-medium"
-                : "text-muted hover:text-foreground hover:bg-neutral-50"
+                ? navLinkActive
+                : navLinkInactive
             )}
           >
             <Rss size={16} strokeWidth={1.5} />
@@ -140,10 +144,8 @@ export function AppShell({
           <Link
             href={settingsHref}
             className={cn(
-              "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors",
-              pathname.startsWith(settingsHref)
-                ? "bg-neutral-100 text-foreground font-medium"
-                : "text-muted hover:text-foreground hover:bg-neutral-50"
+              navLinkBase,
+              pathname.startsWith(settingsHref) ? navLinkActive : navLinkInactive
             )}
           >
             <Settings size={16} strokeWidth={1.5} />
@@ -151,7 +153,7 @@ export function AppShell({
           </Link>
           <button
             onClick={handleSignOut}
-            className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-muted hover:text-foreground hover:bg-neutral-50 transition-colors"
+            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-sm text-muted hover:text-foreground hover:bg-neutral-50 transition-colors"
           >
             <LogOut size={16} strokeWidth={1.5} />
             Salir
@@ -159,12 +161,27 @@ export function AppShell({
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto bg-background min-w-0 flex flex-col">
-        <header className="flex items-center justify-end px-4 py-2 border-b border-border bg-surface shrink-0">
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-background">
+        <header className="flex h-14 items-center justify-between px-4 border-b border-border bg-surface shrink-0">
+          <span className="text-sm font-medium">Inicio</span>
           <NotificationBell userId={userId} initialCount={unreadNotifications} />
         </header>
-        <div className="flex-1 overflow-auto">{children}</div>
+        <div
+          className={cn(
+            "flex flex-1 min-h-0 min-w-0",
+            isHomeWithDayRail ? "overflow-hidden" : "overflow-auto"
+          )}
+        >
+          {children}
+        </div>
       </main>
+
+      {isHomeWithDayRail && (
+        <aside
+          id="home-day-rail"
+          className="hidden md:flex w-64 shrink-0 h-screen flex-col border-l border-border overflow-hidden"
+        />
+      )}
 
       <CreateOrgDialog open={showCreateOrg} onClose={() => setShowCreateOrg(false)} />
     </div>

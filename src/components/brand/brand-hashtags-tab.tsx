@@ -94,7 +94,7 @@ export function BrandHashtagsTab({
   return (
     <section className="home-card p-5 space-y-4 max-w-2xl">
       <div>
-        <h2 className="text-sm font-medium">Grupos de hashtags</h2>
+        <h2 className="text-title-section">Grupos de hashtags</h2>
         <p className="text-xs text-muted mt-1">
           Presets de hashtags por categoría para usar en captions.
         </p>

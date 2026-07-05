@@ -54,7 +54,7 @@ export default async function FeedPage({
   return (
     <div className="p-6 flex flex-col items-center">
       <div className="mb-6">
-        <h1 className="text-lg font-semibold">Feed</h1>
+        <h1 className="text-title-sub">Feed</h1>
       </div>
       <Suspense fallback={null}>
         <FeedContent

@@ -10,9 +10,10 @@ import {
   updateBrandStrategy,
   upsertContentPillar,
 } from "@/lib/actions";
+import { PILLAR_PALETTE } from "@/lib/pillar-colors";
 import type { BrandKit, ContentPillar } from "@/lib/types";
 
-const PILLAR_COLORS = ["#3b82f6", "#ef4444", "#8b5cf6", "#f59e0b", "#10b981", "#ec4899"];
+const PILLAR_COLORS = [...PILLAR_PALETTE];
 
 type PillarRow = ContentPillar | {
   id: string;
@@ -131,7 +132,7 @@ export function BrandConfigEditor({
     <div className="space-y-6 max-w-2xl">
       <section className="home-card p-5 space-y-4">
         <div>
-          <h2 className="text-sm font-medium">Estrategia de marca</h2>
+          <h2 className="text-title-section">Estrategia de marca</h2>
           <p className="text-xs text-muted mt-1">
             Define cómo comunica {orgName} y hacia dónde va el contenido.
           </p>
@@ -164,7 +165,7 @@ export function BrandConfigEditor({
 
       <section className="home-card p-5 space-y-4">
         <div>
-          <h2 className="text-sm font-medium">Pilares de contenido</h2>
+          <h2 className="text-title-section">Pilares de contenido</h2>
           <p className="text-xs text-muted mt-1">
             Cada marca tiene sus propios pilares. Ajusta nombre, color y meta mensual.
           </p>

@@ -2,7 +2,7 @@ import { type ButtonHTMLAttributes, forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "destructive";
+  variant?: "primary" | "secondary" | "brand" | "ghost" | "destructive";
   size?: "sm" | "md" | "lg";
   loading?: boolean;
 }
@@ -22,8 +22,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const variants = {
       primary: "bg-accent text-accent-foreground hover:bg-accent/90",
-      secondary: "bg-surface border border-border text-foreground hover:bg-background",
-      ghost: "text-muted hover:text-foreground hover:bg-background",
+      secondary: "bg-surface border border-border text-foreground hover:bg-neutral-50",
+      brand: "bg-brand text-brand-foreground hover:bg-brand-dark font-semibold",
+      ghost: "text-muted hover:text-foreground hover:bg-neutral-50",
       destructive: "bg-destructive text-white hover:bg-destructive/90",
     };
 
@@ -38,7 +39,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none",
+          "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none",
           variants[variant],
           sizes[size],
           className

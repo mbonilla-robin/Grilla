@@ -117,7 +117,7 @@ export function NotificationBell({ userId, initialCount = 0 }: NotificationBellP
                         onClick={() => handleClick(n)}
                         className={cn(
                           "block px-4 py-3 hover:bg-neutral-50 transition-colors border-b border-border last:border-0",
-                          !n.read && "bg-blue-50/50"
+                          !n.read && "bg-brand/15"
                         )}
                       >
                         <NotificationItem notification={n} />
@@ -128,7 +128,7 @@ export function NotificationBell({ userId, initialCount = 0 }: NotificationBellP
                         onClick={() => handleClick(n)}
                         className={cn(
                           "w-full text-left px-4 py-3 hover:bg-neutral-50 transition-colors border-b border-border last:border-0",
-                          !n.read && "bg-blue-50/50"
+                          !n.read && "bg-brand/15"
                         )}
                       >
                         <NotificationItem notification={n} />

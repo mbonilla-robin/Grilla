@@ -18,14 +18,25 @@ export function postStatusProgress(status: string | undefined | null): number {
 }
 
 export const WORKFLOW_PHASES = [
-  { key: "draft", label: "Ideación", statuses: ["draft"] as PostStatus[] },
-  { key: "brief", label: "Brief", statuses: ["brief_ready"] as PostStatus[] },
-  { key: "design", label: "Diseño", statuses: ["in_design"] as PostStatus[] },
-  { key: "review", label: "Revisión", statuses: ["review", "approved"] as PostStatus[] },
   {
-    key: "publish",
-    label: "Publicación",
-    statuses: ["scheduled", "published"] as PostStatus[],
+    key: "contenido",
+    label: "Contenido",
+    statuses: ["draft", "in_design"] as PostStatus[],
+  },
+  {
+    key: "brief_listo",
+    label: "Brief listo",
+    statuses: ["brief_ready"] as PostStatus[],
+  },
+  {
+    key: "en_revision",
+    label: "En revisión",
+    statuses: ["review"] as PostStatus[],
+  },
+  {
+    key: "aprobado",
+    label: "Aprobado",
+    statuses: ["approved", "scheduled", "published"] as PostStatus[],
   },
 ] as const;
 

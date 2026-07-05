@@ -35,7 +35,7 @@ export function MonthComparison({ current, previous, monthLabel }: MonthComparis
   return (
     <section className="home-card p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-medium">Comparación mensual</h2>
+        <h2 className="text-title-section">Comparación mensual</h2>
         <span className="text-xs text-muted capitalize">{monthLabel} vs mes anterior</span>
       </div>
 
@@ -89,7 +89,7 @@ export function FormatBreakdown({ breakdown }: FormatBreakdownProps) {
 
   return (
     <section className="home-card p-5">
-      <h2 className="text-sm font-medium mb-4">Rendimiento por formato</h2>
+      <h2 className="text-title-section mb-4">Rendimiento por formato</h2>
       <div className="space-y-3">
         {breakdown.map((item) => (
           <div key={item.format} className="space-y-1">

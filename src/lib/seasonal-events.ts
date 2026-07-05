@@ -38,7 +38,7 @@ export function eventsForMonth(year: number, month: number) {
 }
 
 export const EVENT_CATEGORY_COLORS: Record<SeasonalEvent["category"], string> = {
-  comercial: "bg-amber-100 text-amber-800",
-  cultural: "bg-sky-100 text-sky-800",
-  social: "bg-rose-100 text-rose-800",
+  comercial: "bg-brand text-brand-foreground",
+  cultural: "bg-white text-foreground border border-border",
+  social: "bg-foreground text-background",
 };

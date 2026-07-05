@@ -16,7 +16,7 @@ export default async function ProfileSettingsPage() {
 
   return (
     <div className="p-6 max-w-lg">
-      <h1 className="text-lg font-semibold mb-6">Perfil</h1>
+      <h1 className="text-title-sub mb-6">Perfil</h1>
       <ProfileEditor
         profile={
           (profile as Profile) || {

@@ -49,7 +49,7 @@ export default async function TeamPage({
           <ArrowLeft size={14} />
           Volver a {org?.name || "marca"}
         </Link>
-        <h1 className="text-xl font-semibold">Equipo</h1>
+        <h1 className="text-title-sub">Equipo</h1>
         <p className="text-sm text-muted">
           Define quién trabaja en {org?.name || "esta marca"} y con qué rol.
         </p>

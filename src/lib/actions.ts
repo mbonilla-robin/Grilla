@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/utils";
 import { MAX_SLOT_WIDGETS } from "@/lib/widget-config";
+import { PILLAR_DEFAULTS } from "@/lib/pillar-colors";
 import type { CreateOrganizationInput, MemberRole, PostFormat } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
@@ -130,12 +131,7 @@ export async function createOrganization(input: CreateOrganizationInput | string
   const pillars =
     payload.pillars.length > 0
       ? payload.pillars
-      : [
-          { name: "Valor", color: "#3b82f6", target_pct: 30 },
-          { name: "Ventas", color: "#ef4444", target_pct: 25 },
-          { name: "Información", color: "#8b5cf6", target_pct: 25 },
-          { name: "Entretenimiento", color: "#f59e0b", target_pct: 20 },
-        ];
+      : [...PILLAR_DEFAULTS];
 
   await supabase.from("content_pillars").insert(
     pillars.map((p, i) => ({

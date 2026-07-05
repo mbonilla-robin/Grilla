@@ -56,8 +56,9 @@ export function CalendarTodaySection({
                 <Link
                   key={post.id}
                   href={`/org/${post.organization_id}/grilla/${post.id}`}
-                  className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-neutral-50 -mx-1 px-1 rounded transition-colors"
+                  className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-neutral-50 -mx-1 px-1 rounded-xl transition-colors"
                 >
+                  <div className="w-1 h-8 rounded-full bg-brand-dark shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">
                       {formatPostLabel(post.format, post.title)}

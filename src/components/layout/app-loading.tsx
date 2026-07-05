@@ -29,7 +29,7 @@ function LoadingContent() {
   return (
     <>
       <div className="absolute inset-0 flex items-center justify-center px-6">
-        <p className="flex items-baseline text-base text-foreground">
+        <p className="flex items-baseline text-base text-brand-foreground">
           <span className="shrink-0">Cargando&nbsp;</span>
           <span
             className="relative inline-block h-[1.25em] overflow-hidden align-bottom font-bold"
@@ -83,7 +83,7 @@ function buildPersistHtml() {
 
   return `
     <div class="absolute inset-0 flex items-center justify-center px-6">
-      <p class="flex items-baseline text-base text-foreground">
+      <p class="flex items-baseline text-base text-brand-foreground">
         <span class="shrink-0">Cargando&nbsp;</span>
         <span class="relative inline-block h-[1.25em] overflow-hidden align-bottom font-bold">
           <span class="block animate-loading-words">${wordsHtml}</span>
@@ -105,7 +105,7 @@ function persistOverlay(startAt: number) {
 
   const shell = document.createElement("div");
   shell.id = OVERLAY_ID;
-  shell.className = "fixed inset-0 z-[9999] bg-background pointer-events-none";
+  shell.className = "fixed inset-0 z-[9999] brand-screen pointer-events-none";
   shell.setAttribute("aria-live", "polite");
   shell.setAttribute("aria-busy", "true");
   shell.innerHTML = buildPersistHtml();
@@ -138,7 +138,7 @@ export function LoadingOverlay() {
   return createPortal(
     <div
       id={OVERLAY_ID}
-      className="fixed inset-0 z-[9999] bg-background"
+      className="fixed inset-0 z-[9999] brand-screen"
       aria-live="polite"
       aria-busy="true"
     >

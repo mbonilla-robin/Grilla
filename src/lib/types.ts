@@ -14,7 +14,7 @@ export type PostStatus =
   | "scheduled"
   | "published";
 export type InvitationStatus = "pending" | "accepted" | "expired";
-export type TaskStatus = "contenido" | "en_revision" | "aprobado";
+export type TaskStatus = "contenido" | "brief_listo" | "en_revision" | "aprobado";
 export type NotificationType = "mention" | "assignment" | "status_change" | "comment";
 
 export interface Profile {
@@ -284,6 +284,7 @@ export interface Notification {
 
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   contenido: "Contenido",
+  brief_listo: "Brief listo",
   en_revision: "En revisión",
   aprobado: "Aprobado",
 };
@@ -297,13 +298,13 @@ export const ROLE_LABELS: Record<MemberRole, string> = {
 };
 
 export const STATUS_LABELS: Record<PostStatus, string> = {
-  draft: "Ideación",
+  draft: "Contenido",
   brief_ready: "Brief listo",
-  in_design: "En diseño",
+  in_design: "Contenido",
   review: "En revisión",
-  approved: "Listo para publicar",
-  scheduled: "Programado",
-  published: "Publicado",
+  approved: "Aprobado",
+  scheduled: "Aprobado",
+  published: "Aprobado",
 };
 
 export const FORMAT_LABELS: Record<PostFormat, string> = {

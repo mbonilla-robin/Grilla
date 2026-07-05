@@ -61,7 +61,7 @@ export function WidgetsPage({
           <ArrowLeft size={14} />
           Volver
         </Link>
-        <h1 className="text-lg font-semibold">{title}</h1>
+        <h1 className="text-title-sub">{title}</h1>
         <p className="text-sm text-muted">
           Elige hasta {MAX_SLOT_WIDGETS} widgets para la fila horizontal de tu inicio.
         </p>

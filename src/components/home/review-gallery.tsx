@@ -121,7 +121,7 @@ export function ReviewGallery({ posts: initialPosts }: ReviewGalleryProps) {
                 className={cn(
                   "absolute top-2 right-2 h-8 w-8 rounded-full flex items-center justify-center",
                   "bg-white/90 shadow-sm border border-border",
-                  "hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors",
+                  "hover:bg-brand/20 hover:border-brand-dark/50 hover:text-foreground transition-colors",
                   "disabled:opacity-50"
                 )}
                 title="Aprobar"

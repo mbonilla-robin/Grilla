@@ -46,7 +46,7 @@ export function TeamPanel({
       <section>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-sm font-medium">Equipo</h2>
+            <h2 className="text-title-section">Equipo</h2>
             <p className="text-xs text-muted mt-0.5">
               {teamMembers.length === 1
                 ? "1 persona en esta marca"

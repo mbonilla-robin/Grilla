@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Logo } from "@/components/layout/logo";
+import { AuthLayout } from "@/components/auth/auth-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
@@ -78,79 +78,76 @@ function RegisterForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
-      <div className="w-full max-w-sm space-y-8">
-        <div className="flex justify-center">
-          <Logo size="lg" />
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Nombre"
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              placeholder="Miguel"
-              required
-            />
-            <Input
-              label="Apellido"
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              placeholder="Bonilla"
-              required
-            />
-          </div>
+    <AuthLayout
+      title="Crea tu cuenta"
+      subtitle="Empieza a organizar tu contenido"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Correo"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="tu@correo.com"
-            required
-          />
-          <Input
-            label="Cargo"
+            label="Nombre"
             type="text"
-            value={jobTitle}
-            onChange={(e) => setJobTitle(e.target.value)}
-            placeholder="Diseñador gráfico"
-          />
-          <Input
-            label="Teléfono"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+57 300 000 0000"
-          />
-          <Input
-            label="Contraseña"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Mínimo 6 caracteres"
-            minLength={6}
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            placeholder="Miguel"
             required
           />
+          <Input
+            label="Apellido"
+            type="text"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            placeholder="Bonilla"
+            required
+          />
+        </div>
+        <Input
+          label="Correo"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="tu@correo.com"
+          required
+        />
+        <Input
+          label="Cargo"
+          type="text"
+          value={jobTitle}
+          onChange={(e) => setJobTitle(e.target.value)}
+          placeholder="Diseñador gráfico"
+        />
+        <Input
+          label="Teléfono"
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+57 300 000 0000"
+        />
+        <Input
+          label="Contraseña"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Mínimo 6 caracteres"
+          minLength={6}
+          required
+        />
 
-          {error && (
-            <p className="text-sm text-destructive text-center">{error}</p>
-          )}
+        {error && (
+          <p className="text-sm text-foreground text-center font-medium">{error}</p>
+        )}
 
-          <Button type="submit" className="w-full" loading={loading}>
-            Crear cuenta
-          </Button>
-        </form>
+        <Button type="submit" className="w-full" size="lg" loading={loading}>
+          Crear cuenta
+        </Button>
+      </form>
 
-        <p className="text-center text-sm text-muted">
-          ¿Ya tienes cuenta?{" "}
-          <Link href="/login" className="text-foreground hover:underline">
-            Entrar
-          </Link>
-        </p>
-      </div>
-    </div>
+      <p className="text-center text-sm text-muted pt-2">
+        ¿Ya tienes cuenta?{" "}
+        <Link href="/login" className="font-medium text-foreground hover:underline">
+          Entrar
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

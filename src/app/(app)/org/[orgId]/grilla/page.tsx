@@ -118,7 +118,7 @@ export default async function GrillaPage({
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-lg font-semibold">Grilla</h1>
+              <h1 className="text-title-sub">Grilla</h1>
               <p className="text-xs text-muted mt-0.5">
                 Tarjetas editoriales · conectadas al Feed
               </p>

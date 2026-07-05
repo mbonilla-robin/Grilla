@@ -9,6 +9,13 @@ interface PostPhaseTimelineProps {
   className?: string;
 }
 
+const PHASE_BAR_STYLES = [
+  "bg-white border border-border",
+  "bg-brand-muted",
+  "bg-brand",
+  "bg-brand-dark",
+] as const;
+
 export function PostPhaseTimeline({ status, className }: PostPhaseTimelineProps) {
   const activeIdx = currentPhaseIndex(status);
 
@@ -26,8 +33,7 @@ export function PostPhaseTimeline({ status, className }: PostPhaseTimelineProps)
               <div
                 className={cn(
                   "h-2 rounded-full transition-colors",
-                  isPast && "bg-foreground/40",
-                  isActive && "bg-foreground",
+                  (isPast || isActive) && PHASE_BAR_STYLES[i],
                   isFuture && "bg-neutral-100"
                 )}
               />

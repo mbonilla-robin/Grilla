@@ -52,7 +52,7 @@ export function HomeAlertBanner({
       className={cn(
         "flex items-center gap-3 rounded-full px-4 py-2.5 text-sm",
         isPositive
-          ? "bg-neutral-100 text-foreground border border-border"
+          ? "bg-surface text-foreground border border-border"
           : "bg-foreground text-background"
       )}
     >

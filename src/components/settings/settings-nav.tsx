@@ -36,9 +36,9 @@ export function SettingsNav({ orgId, isAdmin }: SettingsNavProps) {
               key={href}
               href={linkHref}
               className={cn(
-                "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors",
+                "flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-sm transition-colors",
                 active
-                  ? "bg-neutral-100 text-foreground font-medium"
+                  ? "bg-foreground text-background font-medium"
                   : "text-muted hover:text-foreground hover:bg-neutral-50"
               )}
             >

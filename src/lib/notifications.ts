@@ -173,6 +173,7 @@ export async function notifyTaskStatusChange(
 
   const labels: Record<TaskStatus, string> = {
     contenido: TASK_STATUS_LABELS.contenido,
+    brief_listo: TASK_STATUS_LABELS.brief_listo,
     en_revision: TASK_STATUS_LABELS.en_revision,
     aprobado: TASK_STATUS_LABELS.aprobado,
   };

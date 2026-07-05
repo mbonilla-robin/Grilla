@@ -42,7 +42,7 @@ export default async function JoinPage() {
           </Link>
         )}
         <div className="text-center space-y-2">
-          <h1 className="text-xl font-semibold">Unirme a una organización</h1>
+          <h1 className="text-title-sub">Unirme a una organización</h1>
           <p className="text-sm text-muted">
             Acepta una invitación para trabajar con un equipo
           </p>

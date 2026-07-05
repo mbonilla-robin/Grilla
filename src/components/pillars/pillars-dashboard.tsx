@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { upsertContentPillar } from "@/lib/actions";
 import { cn } from "@/lib/utils";
+import { resolvePillarDisplayColor } from "@/lib/pillar-colors";
 import type { ContentPillar } from "@/lib/types";
 import type { OrgStatsData } from "@/lib/pillars-data";
 
@@ -20,7 +21,7 @@ function DonutChart({ distribution }: { distribution: OrgStatsData["distribution
   const total = distribution.reduce((s, d) => s + d.count, 0);
   if (total === 0) {
     return (
-      <div className="flex items-center justify-center h-40 text-sm text-muted">
+      <div className="flex items-center justify-center h-40 text-body-muted">
         Sin posts este mes
       </div>
     );
@@ -28,12 +29,18 @@ function DonutChart({ distribution }: { distribution: OrgStatsData["distribution
 
   let cumulative = 0;
   const segments = distribution
+    .map((d, index) => ({ ...d, index }))
     .filter((d) => d.count > 0)
     .map((d) => {
       const pct = (d.count / total) * 100;
       const start = cumulative;
       cumulative += pct;
-      return { ...d, start, end: cumulative };
+      return {
+        ...d,
+        color: resolvePillarDisplayColor(d.index),
+        start,
+        end: cumulative,
+      };
     });
 
   const gradient = segments
@@ -55,20 +62,22 @@ function DonutChart({ distribution }: { distribution: OrgStatsData["distribution
       </div>
 
       <div className="flex-1 space-y-2 w-full">
-        {distribution.map((d) => (
+        {distribution.map((d, i) => {
+          const color = resolvePillarDisplayColor(i);
+          return (
           <div key={d.name} className="space-y-1">
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center justify-between text-caption">
               <span className="flex items-center gap-2">
                 <span
                   className="h-2.5 w-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: d.color }}
+                  style={{ backgroundColor: color }}
                 />
                 {d.name}
               </span>
               <span className="text-muted tabular-nums">
                 {d.count} ({d.actualPct}%)
                 {d.targetPct > 0 && (
-                  <span className="text-[10px] ml-1">meta {d.targetPct}%</span>
+                  <span className="text-micro ml-1">meta {d.targetPct}%</span>
                 )}
               </span>
             </div>
@@ -77,7 +86,7 @@ function DonutChart({ distribution }: { distribution: OrgStatsData["distribution
                 className="h-full rounded-full transition-all"
                 style={{
                   width: `${Math.min(d.actualPct, 100)}%`,
-                  backgroundColor: d.color,
+                  backgroundColor: color,
                 }}
               />
               {d.targetPct > 0 && (
@@ -88,7 +97,8 @@ function DonutChart({ distribution }: { distribution: OrgStatsData["distribution
               )}
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
     </div>
   );
@@ -142,7 +152,7 @@ export function PillarsDashboard({ orgId, data, isAdmin }: PillarsDashboardProps
 
       <section className="home-card p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-medium">Distribución por pilares</h2>
+          <h2 className="text-title-section">Distribución por pilares</h2>
           <span className="text-xs text-muted">Este mes</span>
         </div>
         <DonutChart distribution={data.distribution} />
@@ -151,7 +161,7 @@ export function PillarsDashboard({ orgId, data, isAdmin }: PillarsDashboardProps
       <section className="home-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 size={16} className="text-muted" />
-          <h2 className="text-sm font-medium">Rendimiento de la cuenta</h2>
+          <h2 className="text-title-section">Rendimiento de la cuenta</h2>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
@@ -216,7 +226,7 @@ export function PillarsDashboard({ orgId, data, isAdmin }: PillarsDashboardProps
       {isAdmin && (
         <section className="home-card p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-medium">Configurar pilares</h2>
+            <h2 className="text-title-section">Configurar pilares</h2>
             <Button
               size="sm"
               variant="secondary"

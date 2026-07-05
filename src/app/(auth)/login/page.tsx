@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Logo } from "@/components/layout/logo";
+import { AuthLayout } from "@/components/auth/auth-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
@@ -53,46 +53,43 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-8">
-        <div className="flex justify-center">
-          <Logo size="lg" />
-        </div>
+    <AuthLayout
+      title="Bienvenido de vuelta"
+      subtitle="Entra a tu espacio creativo"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          label="Correo"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="tu@correo.com"
+          required
+        />
+        <Input
+          label="Contraseña"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••"
+          required
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Correo"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="tu@correo.com"
-            required
-          />
-          <Input
-            label="Contraseña"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-          />
+        {error && (
+          <p className="text-sm text-foreground text-center font-medium">{error}</p>
+        )}
 
-          {error && (
-            <p className="text-sm text-destructive text-center">{error}</p>
-          )}
+        <Button type="submit" className="w-full" size="lg" loading={loading}>
+          Entrar
+        </Button>
+      </form>
 
-          <Button type="submit" className="w-full" loading={loading}>
-            Entrar
-          </Button>
-        </form>
-
-        <p className="text-center text-sm text-muted">
-          ¿No tienes cuenta?{" "}
-          <Link href="/register" className="text-foreground hover:underline">
-            Regístrate
-          </Link>
-        </p>
-      </div>
-    </div>
+      <p className="text-center text-sm text-muted pt-2">
+        ¿No tienes cuenta?{" "}
+        <Link href="/register" className="font-medium text-foreground hover:underline">
+          Regístrate
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

@@ -64,7 +64,7 @@ export function GrillaCard({
   const excerpt = captionExcerpt(post.caption);
 
   return (
-    <article className="group flex flex-col rounded-lg border border-border bg-surface overflow-hidden hover:border-foreground/15 transition-colors">
+    <article className="group flex flex-col rounded-2xl border border-border bg-surface overflow-hidden shadow-sm hover:border-brand/40 transition-colors">
       <div className="flex items-center justify-between px-2.5 pt-2 pb-1">
         <PostStatusBadge status={post.status} />
         <div className="flex items-center gap-0.5">

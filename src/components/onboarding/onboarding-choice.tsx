@@ -30,7 +30,7 @@ export function OnboardingChoice({
           ← Volver
         </button>
         <div className="text-center space-y-2">
-          <h1 className="text-xl font-semibold">Configura tu organización</h1>
+          <h1 className="text-title-sub">Configura tu organización</h1>
           <p className="text-sm text-muted">
             Nombre, equipo, pilares, formatos y brand kit en unos minutos
           </p>
@@ -50,7 +50,7 @@ export function OnboardingChoice({
           ← Volver
         </button>
         <div className="text-center space-y-2">
-          <h1 className="text-xl font-semibold">Únete a una organización</h1>
+          <h1 className="text-title-sub">Únete a una organización</h1>
           <p className="text-sm text-muted">
             Si te invitaron, acepta la invitación aquí
           </p>
@@ -66,7 +66,7 @@ export function OnboardingChoice({
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
-        <h1 className="text-xl font-semibold">¿Cómo quieres empezar?</h1>
+        <h1 className="text-title-sub">¿Cómo quieres empezar?</h1>
         <p className="text-sm text-muted">
           Elige según tu rol en el equipo
         </p>

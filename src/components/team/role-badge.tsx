@@ -12,9 +12,9 @@ const ROLE_ICON: Record<MemberRole, typeof Shield> = {
 const ROLE_STYLES: Record<MemberRole, string> = {
   admin: "bg-neutral-900 text-white border-neutral-900",
   creator: "bg-neutral-100 text-foreground border-border",
-  community_manager: "bg-violet-50 text-violet-700 border-violet-200",
-  designer: "bg-blue-50 text-blue-700 border-blue-200",
-  client: "bg-amber-50 text-amber-800 border-amber-200",
+  community_manager: "bg-brand/25 text-foreground border-brand/40",
+  designer: "bg-white text-foreground border-border",
+  client: "bg-brand text-brand-foreground border-brand-dark",
 };
 
 export function RoleIcon({

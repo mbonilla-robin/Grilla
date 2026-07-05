@@ -1,18 +1,16 @@
 import { PendientesList } from "./pendientes-list";
 import {
   GlobalHomeHeader,
+  HomeDayRailLayout,
   SectionCard,
-  StatRow,
-  TimelineItem,
-  EmptyState,
 } from "./home-ui";
+import { DayRailSidebar } from "./day-rail-sidebar";
 import { HomeQuickNav } from "./home-quick-nav";
 import { BrandPillarsChart } from "./brand-pillars-chart";
 import { HomeAlertBanner } from "./home-alert-banner";
 import { TeamAvatarRow } from "./team-avatar-row";
 import { FeaturedTaskCards } from "./featured-task-cards";
-import { formatTaskLabel, taskActionLabel } from "@/lib/post-display";
-import { formatTaskDue, type TaskWithPost } from "@/lib/task-due";
+import { filterUpcomingTasks, filterUrgentTasks, type TaskWithPost } from "@/lib/task-due";
 import type { BrandPillarProgress } from "@/lib/pillars-data";
 import type { TeamMemberPreview } from "@/lib/home-data";
 
@@ -25,6 +23,13 @@ interface GlobalHomeViewProps {
   collaborators?: TeamMemberPreview[];
 }
 
+function taskHref(task: TaskWithPost) {
+  if (task.post_id && task.organization_id) {
+    return `/org/${task.organization_id}/grilla/${task.post_id}`;
+  }
+  return undefined;
+}
+
 export function GlobalHomeView({
   profileName,
   tasks = [],
@@ -34,9 +39,19 @@ export function GlobalHomeView({
   collaborators = [],
 }: GlobalHomeViewProps) {
   const featuredTasks = urgentTasks.length > 0 ? urgentTasks : tasks;
+  const tuDiaTasks = filterUrgentTasks(tasks);
+  const upcomingTasks = filterUpcomingTasks(tasks);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <HomeDayRailLayout
+      dayPanel={
+        <DayRailSidebar
+          tuDiaTasks={tuDiaTasks}
+          upcomingTasks={upcomingTasks}
+          getTaskHref={taskHref}
+        />
+      }
+    >
       <GlobalHomeHeader
         profileName={profileName || undefined}
         teamRow={
@@ -53,45 +68,6 @@ export function GlobalHomeView({
 
       <HomeQuickNav />
 
-      <SectionCard title="Tu día">
-        <StatRow
-          items={[
-            { label: "Urgentes", value: myDay.urgentes },
-            { label: "Pendientes", value: myDay.pendientes },
-            { label: "Marcas", value: myDay.brands },
-          ]}
-        />
-        <div className="mt-4">
-          {urgentTasks.length > 0 ? (
-            urgentTasks.map((task, i) => (
-              <TimelineItem
-                key={task.id}
-                href={
-                  task.post_id && task.organization_id
-                    ? `/org/${task.organization_id}/grilla/${task.post_id}`
-                    : undefined
-                }
-                title={formatTaskLabel(task)}
-                subtitle={
-                  [
-                    taskActionLabel(task.title) && task.post
-                      ? taskActionLabel(task.title)
-                      : null,
-                    task.organization?.name,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") || undefined
-                }
-                meta={formatTaskDue(task) ? `Límite ${formatTaskDue(task)}` : undefined}
-                isLast={i === urgentTasks.length - 1}
-              />
-            ))
-          ) : (
-            <EmptyState text="Nada urgente en los próximos 5 días." />
-          )}
-        </div>
-      </SectionCard>
-
       {featuredTasks.length > 0 && (
         <SectionCard title="Destacadas">
           <FeaturedTaskCards tasks={featuredTasks} />
@@ -105,6 +81,6 @@ export function GlobalHomeView({
       <SectionCard title="Pendientes">
         <PendientesList tasks={tasks} />
       </SectionCard>
-    </div>
+    </HomeDayRailLayout>
   );
 }

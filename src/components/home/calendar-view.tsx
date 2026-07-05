@@ -144,7 +144,7 @@ export function CalendarView({ posts }: CalendarViewProps) {
                     <Link
                       key={p.id}
                       href={`/org/${p.organization_id}/grilla/${p.id}`}
-                      className="block text-[9px] leading-tight truncate rounded px-1 py-0.5 bg-purple-50 text-purple-800 hover:bg-purple-100"
+                      className="block text-[9px] leading-tight truncate rounded px-1 py-0.5 bg-brand/25 text-foreground hover:bg-brand/40"
                     >
                       {formatPostLabel(p.format, p.title)}
                     </Link>

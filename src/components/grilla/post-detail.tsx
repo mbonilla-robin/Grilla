@@ -258,7 +258,7 @@ export function PostDetail({
   const captionSection = (
     <section>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[11px] font-medium text-muted uppercase tracking-wide">
+        <h2 className="text-label">
           Caption
         </h2>
         <div className="flex items-center gap-2">
@@ -286,7 +286,7 @@ export function PostDetail({
   const assetsSection = (
     <section>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[11px] font-medium text-muted uppercase tracking-wide">
+        <h2 className="text-label">
           Archivos
         </h2>
         <Link
@@ -410,7 +410,7 @@ export function PostDetail({
 
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight leading-tight">
+            <h1 className="text-title-sub leading-tight">
               {post.title}
             </h1>
             {orgName && (
@@ -460,7 +460,7 @@ export function PostDetail({
       </div>
 
       <div className="min-h-0 overflow-y-auto px-6 py-6 space-y-8">
-        <h2 className="text-[11px] font-medium text-muted uppercase tracking-wide">
+        <h2 className="text-label">
           Para diseño
         </h2>
 
