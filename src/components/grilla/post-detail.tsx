@@ -22,6 +22,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { updatePost, updatePostStatus } from "@/lib/actions";
 import { PostAssetUploader } from "@/components/grilla/post-asset-uploader";
+import { BriefDisplay } from "@/components/grilla/brief-display";
 import {
   STATUS_LABELS,
   FORMAT_LABELS,
@@ -357,45 +358,7 @@ export function PostDetail({ post, orgId, assets: initialAssets }: PostDetailPro
 
         {brief ? (
           <div className="space-y-3">
-            {brief.slides.map((slide) => (
-              <div
-                key={slide.slide}
-                className="rounded-lg border border-border px-4 py-3 space-y-1.5 bg-neutral-50/50"
-              >
-                <p className="text-[10px] font-medium text-muted uppercase tracking-wide">
-                  Slide {slide.slide}
-                </p>
-                {slide.title && (
-                  <p className="text-sm font-semibold">{slide.title}</p>
-                )}
-                {slide.subtitle && (
-                  <p className="text-sm text-muted">{slide.subtitle}</p>
-                )}
-                {slide.body && (
-                  <p className="text-sm leading-relaxed">{slide.body}</p>
-                )}
-                {slide.image_prompt && (
-                  <p className="text-xs text-muted border border-border rounded px-2 py-1.5 bg-surface mt-2">
-                    {slide.image_prompt}
-                  </p>
-                )}
-                {slide.colors && slide.colors.length > 0 && (
-                  <div className="flex gap-1.5 pt-1">
-                    {slide.colors.map((color) => (
-                      <div
-                        key={color}
-                        className="h-5 w-5 rounded-full border border-border"
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-            {brief.notes && (
-              <p className="text-xs text-muted px-1">{brief.notes}</p>
-            )}
+            <BriefDisplay brief={brief} />
             <Button
               size="sm"
               variant="secondary"

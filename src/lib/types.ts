@@ -86,8 +86,22 @@ export interface OrgAssetLink {
   updated_at: string;
 }
 
+export interface BriefColorRef {
+  hex: string;
+  name?: string;
+  role?: string;
+}
+
 export interface DesignBriefSlide {
   slide: number;
+  focus?: string;
+  format_label?: string;
+  visual_concept?: string;
+  text_instructions?: string;
+  image_treatment?: string;
+  layout?: string;
+  colors_used?: BriefColorRef[];
+  /** Campos legacy — briefs anteriores */
   title?: string;
   subtitle?: string;
   body?: string;
@@ -98,7 +112,13 @@ export interface DesignBriefSlide {
 
 export interface DesignBrief {
   format: PostFormat;
+  execution_title?: string;
+  brand_palette?: {
+    colors: BriefColorRef[];
+    fonts: { heading: string; body: string };
+  };
   slides: DesignBriefSlide[];
+  strategic_note?: string;
   notes?: string;
   generated_at: string;
 }
