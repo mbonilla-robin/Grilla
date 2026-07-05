@@ -43,10 +43,17 @@ export async function POST(request: Request) {
       ].slice(0, 10)
     : existingHistory;
 
-  await supabase
+  const withHistory = await supabase
     .from("posts")
     .update({ brief, brief_history: newHistory, status: "brief_ready" })
     .eq("id", postId);
+
+  if (withHistory.error?.message?.includes("brief_history")) {
+    await supabase
+      .from("posts")
+      .update({ brief, status: "brief_ready" })
+      .eq("id", postId);
+  }
 
   return NextResponse.json({ brief, history: newHistory });
 }
