@@ -2,7 +2,13 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function GlobalHomeHeader({ greeting }: { greeting: string }) {
+export function GlobalHomeHeader({
+  profileName,
+  teamRow,
+}: {
+  profileName?: string;
+  teamRow?: React.ReactNode;
+}) {
   const today = new Date().toLocaleDateString("es-ES", {
     weekday: "long",
     day: "numeric",
@@ -10,9 +16,21 @@ export function GlobalHomeHeader({ greeting }: { greeting: string }) {
   });
 
   return (
-    <header>
-      <p className="text-sm text-muted capitalize">{today}</p>
-      <h1 className="text-2xl font-semibold tracking-tight mt-0.5">{greeting}</h1>
+    <header className="space-y-3">
+      <div>
+        <p className="text-sm text-muted capitalize">{today}</p>
+        <h1 className="text-2xl font-semibold tracking-tight mt-0.5">
+          Hola
+          {profileName ? (
+            <>
+              {", "}
+              <span className="font-bold">{profileName}</span>
+            </>
+          ) : null}
+        </h1>
+        <p className="text-sm text-muted mt-1">Empieza tu día con foco.</p>
+      </div>
+      {teamRow}
     </header>
   );
 }
@@ -42,12 +60,15 @@ export function SubPageHeader({
 
 export function OrgHomeHeader({
   orgName,
+  teamRow,
 }: {
   orgName: string;
+  teamRow?: React.ReactNode;
 }) {
   return (
-    <header>
+    <header className="space-y-3">
       <h1 className="text-2xl font-semibold tracking-tight">{orgName}</h1>
+      {teamRow}
     </header>
   );
 }

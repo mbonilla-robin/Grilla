@@ -1,20 +1,40 @@
-import { Grid3x3 } from "lucide-react";
+"use client";
+
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
+  showText?: boolean;
 }
 
-export function Logo({ size = "md" }: LogoProps) {
-  const iconSize = size === "sm" ? 18 : 22;
-  const textSize = size === "sm" ? "text-base" : "text-lg";
+const imageSizes = {
+  sm: "h-7 w-auto",
+  md: "h-9 w-auto",
+  lg: "h-11 w-auto",
+} as const;
 
+const textSizes = {
+  sm: "text-base",
+  md: "text-lg",
+  lg: "text-xl",
+} as const;
+
+export function Logo({ size = "md", showText = false }: LogoProps) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-accent">
-        <Grid3x3 size={iconSize} className="text-accent-foreground" strokeWidth={1.5} />
-      </div>
-      <span className={cn("font-semibold tracking-tight", textSize)}>Grilla</span>
+    <div className="flex items-center gap-2.5">
+      <img
+        src="/grilla-logo.png"
+        srcSet="/grilla-logo.png 1x, /grilla-logo@2x.png 2x"
+        alt="Grilla"
+        width={188}
+        height={100}
+        className={cn("shrink-0", imageSizes[size])}
+      />
+      {showText && (
+        <span className={cn("font-semibold tracking-tight", textSizes[size])}>
+          Grilla
+        </span>
+      )}
     </div>
   );
 }

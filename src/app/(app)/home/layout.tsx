@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/app-shell";
+import { getUnreadNotificationCount } from "@/lib/notifications-data";
 import type { Organization, OrganizationMember } from "@/lib/types";
 
 export default async function GlobalHomeLayout({
@@ -30,11 +31,14 @@ export default async function GlobalHomeLayout({
   })) as (OrganizationMember & { organizations: Organization })[];
 
   const currentOrgId = formattedMemberships[0].organizations.id;
+  const unreadNotifications = await getUnreadNotificationCount(user.id);
 
   return (
     <AppShell
       memberships={formattedMemberships}
       currentOrgId={currentOrgId}
+      userId={user.id}
+      unreadNotifications={unreadNotifications}
     >
       {children}
     </AppShell>

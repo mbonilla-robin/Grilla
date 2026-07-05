@@ -25,10 +25,6 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const isAuthRoute =
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/register") ||
@@ -39,6 +35,23 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/invite") ||
     request.nextUrl.pathname.startsWith("/join/org") ||
     isAuthRoute;
+
+  let user = null;
+  try {
+    const result = await supabase.auth.getUser();
+    if (result.error) {
+      console.error("middleware auth error:", result.error.message);
+    }
+    user = result.data.user;
+  } catch (err) {
+    console.error("middleware auth fetch failed:", err);
+    if (!isPublicRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      return NextResponse.redirect(url);
+    }
+    return supabaseResponse;
+  }
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();

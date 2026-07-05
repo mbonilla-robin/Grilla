@@ -33,7 +33,7 @@ export default async function JoinOrgPage({
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="w-full max-w-sm space-y-8 text-center">
-          <Logo />
+          <Logo size="lg" />
           <p className="text-sm text-muted">
             Inicia sesión para unirte a <strong>{org.name}</strong>
           </p>
@@ -58,7 +58,7 @@ export default async function JoinOrgPage({
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="flex justify-center">
-          <Logo />
+          <Logo size="lg" />
         </div>
         <JoinOrgByLink orgName={org.name} token={token} />
       </div>

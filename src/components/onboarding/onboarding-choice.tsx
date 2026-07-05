@@ -30,9 +30,9 @@ export function OnboardingChoice({
           ← Volver
         </button>
         <div className="text-center space-y-2">
-          <h1 className="text-xl font-semibold">Crea tu organización</h1>
+          <h1 className="text-xl font-semibold">Configura tu organización</h1>
           <p className="text-sm text-muted">
-            Para equipos que administran cuentas o marcas
+            Nombre, equipo, pilares, formatos y brand kit en unos minutos
           </p>
         </div>
         <OnboardingForm />

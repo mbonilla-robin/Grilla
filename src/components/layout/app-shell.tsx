@@ -10,23 +10,29 @@ import {
   Building2,
   LayoutGrid,
   Rss,
+  Settings,
 } from "lucide-react";
 import { Logo } from "./logo";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { CreateOrgDialog } from "@/components/org/create-org-dialog";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import type { Organization, OrganizationMember } from "@/lib/types";
 
 interface AppShellProps {
   children: React.ReactNode;
   memberships: (OrganizationMember & { organizations: Organization })[];
   currentOrgId: string;
+  userId: string;
+  unreadNotifications?: number;
 }
 
 export function AppShell({
   children,
   memberships,
   currentOrgId,
+  userId,
+  unreadNotifications = 0,
 }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -46,13 +52,14 @@ export function AppShell({
 
   const feedHref = `/org/${currentOrgId}/feed`;
   const grillaHref = `/org/${currentOrgId}/grilla`;
+  const settingsHref = `/org/${currentOrgId}/settings`;
 
   return (
     <div className="flex h-screen">
       <aside className="flex h-screen w-52 flex-col border-r border-border bg-surface shrink-0">
         <div className="flex h-14 items-center px-4 border-b border-border">
           <Link href="/home">
-            <Logo size="sm" />
+            <Logo size="md" showText={false} />
           </Link>
         </div>
 
@@ -129,7 +136,19 @@ export function AppShell({
           </Link>
         </nav>
 
-        <div className="px-3 py-3 border-t border-border">
+        <div className="px-3 py-3 border-t border-border space-y-0.5">
+          <Link
+            href={settingsHref}
+            className={cn(
+              "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors",
+              pathname.startsWith(settingsHref)
+                ? "bg-neutral-100 text-foreground font-medium"
+                : "text-muted hover:text-foreground hover:bg-neutral-50"
+            )}
+          >
+            <Settings size={16} strokeWidth={1.5} />
+            Ajustes
+          </Link>
           <button
             onClick={handleSignOut}
             className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-muted hover:text-foreground hover:bg-neutral-50 transition-colors"
@@ -140,7 +159,12 @@ export function AppShell({
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto bg-background min-w-0">{children}</main>
+      <main className="flex-1 overflow-auto bg-background min-w-0 flex flex-col">
+        <header className="flex items-center justify-end px-4 py-2 border-b border-border bg-surface shrink-0">
+          <NotificationBell userId={userId} initialCount={unreadNotifications} />
+        </header>
+        <div className="flex-1 overflow-auto">{children}</div>
+      </main>
 
       <CreateOrgDialog open={showCreateOrg} onClose={() => setShowCreateOrg(false)} />
     </div>

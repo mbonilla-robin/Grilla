@@ -21,6 +21,7 @@ export function BrandKitEditor({ brandKit, orgId }: BrandKitEditorProps) {
   const [headingFont, setHeadingFont] = useState(brandKit.fonts.heading || "Inter");
   const [bodyFont, setBodyFont] = useState(brandKit.fonts.body || "Inter");
   const [tone, setTone] = useState(brandKit.tone_of_voice || "");
+  const [objective, setObjective] = useState(brandKit.objective || "");
   const [guidelines, setGuidelines] = useState(brandKit.guidelines || "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -52,6 +53,7 @@ export function BrandKitEditor({ brandKit, orgId }: BrandKitEditorProps) {
         colors,
         fonts: { heading: headingFont, body: bodyFont },
         tone_of_voice: tone || null,
+        objective: objective || null,
         guidelines: guidelines || null,
       })
       .eq("id", brandKit.id);
@@ -124,6 +126,17 @@ export function BrandKitEditor({ brandKit, orgId }: BrandKitEditorProps) {
           onChange={(e) => setTone(e.target.value)}
           rows={2}
           placeholder="Profesional, cercano, divertido..."
+          className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm text-muted">Objetivo de marca</label>
+        <textarea
+          value={objective}
+          onChange={(e) => setObjective(e.target.value)}
+          rows={2}
+          placeholder="Posicionamiento, metas de comunicación..."
           className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
         />
       </div>

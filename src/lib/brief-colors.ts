@@ -18,6 +18,20 @@ export function extractHexColors(text: string): string[] {
   return [...new Set(matches.map(normalizeHex))];
 }
 
+export function isBrandKitConfigured(
+  brandKit: {
+    colors?: string[];
+    fonts?: { heading?: string; body?: string };
+  } | null
+): boolean {
+  if (!brandKit) return false;
+  const hasColors = (brandKit.colors ?? []).some((c) => c?.trim());
+  const hasFonts = Boolean(
+    brandKit.fonts?.heading?.trim() && brandKit.fonts?.body?.trim()
+  );
+  return hasColors || hasFonts;
+}
+
 export function brandKitToPalette(
   colors: string[],
   fonts: { heading: string; body: string }

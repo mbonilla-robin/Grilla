@@ -114,9 +114,6 @@ export function FeedPreview({
             })}
           </div>
         </div>
-        <p className="text-[10px] text-muted text-center mt-3">
-          Lo más reciente arriba a la izquierda
-        </p>
       </div>
 
       {selectedPost && (

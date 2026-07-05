@@ -90,18 +90,44 @@ export async function syncTasksForPost(
   supabase: SupabaseClient,
   postId: string
 ) {
-  const [{ data: post }, { count }] = await Promise.all([
-    supabase.from("posts").select("status").eq("id", postId).single(),
+  const [{ data: post }, { count }, { data: task }] = await Promise.all([
+    supabase
+      .from("posts")
+      .select("status, title, organization_id")
+      .eq("id", postId)
+      .single(),
     supabase
       .from("post_assets")
       .select("*", { count: "exact", head: true })
       .eq("post_id", postId),
+    supabase
+      .from("tasks")
+      .select("status, assigned_to")
+      .eq("post_id", postId)
+      .maybeSingle(),
   ]);
 
   if (!post) return;
 
   const status = taskStatusFromPost(post.status, (count ?? 0) > 0);
+  const previousStatus = task?.status ?? "contenido";
+
   await setTasksStatusForPost(supabase, postId, status);
+
+  if (
+    task?.assigned_to &&
+    normalizeTaskStatus(previousStatus) !== status
+  ) {
+    const { notifyTaskStatusChange } = await import("@/lib/notifications");
+    await notifyTaskStatusChange(
+      post.organization_id,
+      postId,
+      post.title,
+      task.assigned_to,
+      previousStatus,
+      status
+    );
+  }
 }
 
 export function primaryTaskAssignee(post: {

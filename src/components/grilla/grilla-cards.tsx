@@ -1,12 +1,19 @@
 import { GrillaCard } from "@/components/grilla/grilla-card";
-import type { PostWithAssets } from "@/lib/types";
+import type { OrgHashtagGroup, PostWithAssets } from "@/lib/types";
 
 interface GrillaCardsProps {
   posts: PostWithAssets[];
   orgId: string;
+  pillarOptions?: string[];
+  hashtagGroups?: OrgHashtagGroup[];
 }
 
-export function GrillaCards({ posts, orgId }: GrillaCardsProps) {
+export function GrillaCards({
+  posts,
+  orgId,
+  pillarOptions,
+  hashtagGroups,
+}: GrillaCardsProps) {
   if (posts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -21,7 +28,13 @@ export function GrillaCards({ posts, orgId }: GrillaCardsProps) {
   return (
     <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
       {posts.map((post) => (
-        <GrillaCard key={post.id} post={post} orgId={orgId} />
+        <GrillaCard
+          key={post.id}
+          post={post}
+          orgId={orgId}
+          pillarOptions={pillarOptions}
+          hashtagGroups={hashtagGroups}
+        />
       ))}
     </div>
   );

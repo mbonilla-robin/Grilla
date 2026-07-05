@@ -5,28 +5,38 @@ import { Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updatePost } from "@/lib/actions";
+import { CaptionEditor } from "@/components/grilla/caption-editor";
 import { toDateInputValue } from "@/lib/utils";
 import {
   PILLAR_OPTIONS,
   FORMAT_LABELS,
   type PostFormat,
   type PostWithAssets,
+  type OrgHashtagGroup,
 } from "@/lib/types";
 
 interface EditPostDialogProps {
   post: PostWithAssets;
   orgId: string;
   onSaved?: (updates: Partial<PostWithAssets>) => void;
+  pillarOptions?: string[];
+  hashtagGroups?: OrgHashtagGroup[];
 }
 
 const formats = Object.entries(FORMAT_LABELS) as [PostFormat, string][];
 
-export function EditPostDialog({ post, orgId, onSaved }: EditPostDialogProps) {
+export function EditPostDialog({
+  post,
+  orgId,
+  onSaved,
+  pillarOptions = [...PILLAR_OPTIONS],
+  hashtagGroups = [],
+}: EditPostDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState(post.title);
   const [format, setFormat] = useState<PostFormat>(post.format);
-  const [pillar, setPillar] = useState(post.pillar || PILLAR_OPTIONS[0]);
+  const [pillar, setPillar] = useState(post.pillar || pillarOptions[0] || PILLAR_OPTIONS[0]);
   const [scheduledAt, setScheduledAt] = useState(
     toDateInputValue(post.scheduled_at)
   );
@@ -38,7 +48,7 @@ export function EditPostDialog({ post, orgId, onSaved }: EditPostDialogProps) {
   function handleOpen() {
     setTitle(post.title);
     setFormat(post.format);
-    setPillar(post.pillar || PILLAR_OPTIONS[0]);
+    setPillar(post.pillar || pillarOptions[0] || PILLAR_OPTIONS[0]);
     setScheduledAt(toDateInputValue(post.scheduled_at));
     setCopy(post.copy || "");
     setCaption(post.caption || "");
@@ -124,7 +134,7 @@ export function EditPostDialog({ post, orgId, onSaved }: EditPostDialogProps) {
                     onChange={(e) => setPillar(e.target.value)}
                     className="flex h-8 w-full rounded-md border border-border bg-surface px-2 text-xs focus:outline-none focus:ring-1 focus:ring-foreground/10"
                   >
-                    {PILLAR_OPTIONS.map((p) => (
+                    {pillarOptions.map((p) => (
                       <option key={p} value={p}>
                         {p}
                       </option>
@@ -156,11 +166,11 @@ export function EditPostDialog({ post, orgId, onSaved }: EditPostDialogProps) {
 
               <div className="space-y-1">
                 <label className="text-xs text-muted">Caption</label>
-                <textarea
+                <CaptionEditor
                   value={caption}
-                  onChange={(e) => setCaption(e.target.value)}
+                  onChange={setCaption}
+                  hashtagGroups={hashtagGroups}
                   rows={3}
-                  className="flex w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-foreground/10"
                 />
               </div>
 

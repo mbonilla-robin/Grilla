@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
+    "dev:turbo": "next dev --turbopack",
+    "clean": "rm -rf .next",
+    "dev:clean": "for p in 3000 3001 3002; do lsof -ti:$p | xargs kill -9 2>/dev/null; done; rm -rf .next && next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:push": "bash scripts/db-push.sh"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",

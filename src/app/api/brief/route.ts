@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { DesignBrief, DesignBriefSlide, PostFormat } from "@/lib/types";
-import { brandKitToPalette } from "@/lib/brief-colors";
+import { brandKitToPalette, isBrandKitConfigured } from "@/lib/brief-colors";
 
 export async function POST(request: Request) {
   const { postId, orgId } = await request.json();
@@ -23,12 +23,15 @@ export async function POST(request: Request) {
     .eq("organization_id", orgId)
     .single();
 
+  const configuredBrandKit =
+    brandKit && isBrandKitConfigured(brandKit) ? brandKit : null;
+
   const brief = await generateBrief(
     post.title,
     post.copy,
     post.references_text,
     post.format as PostFormat,
-    brandKit
+    configuredBrandKit
   );
 
   await supabase
@@ -75,7 +78,12 @@ REGLAS DE ESTILO (obligatorias):
 - En colors_used de cada slide, lista cada color del brand kit que uses con hex, name descriptivo y role (título, subtítulo, acento, fondo, logo, degradado).
 - En text_instructions cita el hex exacto del brand kit junto al color (ej: Blanco #E5E5E5) — la UI mostrará muestras visuales del color.
 - Usa las fuentes del brand kit por nombre exacto en título (heading) y cuerpo/subtítulo (body).
-- Si no hay brand kit, infiere una paleta coherente y documéntala en brand_palette.
+- Si brandKit es null en el input (sin Brand Kit configurado):
+  - NO inventes colores hex, fuentes tipográficas, paletas ni nombres de marca visual.
+  - Omite brand_palette del JSON o envíalo como null.
+  - En text_instructions, indica "Sin Brand Kit configurado" y describe solo jerarquía de texto (Título, Subtítulo, Cuerpo) con el copy — sin fuentes ni colores inventados.
+  - Deja colors_used como array vacío en cada slide.
+  - En strategic_note, indica que la marca no tiene Brand Kit y debe configurarse o coordinarse con el equipo.
 - El tono es "Industrial-Premium": minimalista pero contundente, documental, operacional.
 - Para carousels: un slide por tarjeta, cada uno con su propio focus y variación visual coherente.
 - Para reels/stories: adapta format_label y layout al formato vertical.
@@ -241,7 +249,8 @@ function normalizeBrief(
   const raw = content as Record<string, unknown>;
   if (!Array.isArray(raw.slides) || raw.slides.length === 0) return null;
 
-  const slides = raw.slides as DesignBriefSlide[];
+  const configured = isBrandKitConfigured(brandKit);
+  let slides = raw.slides as DesignBriefSlide[];
   const hasStructured = slides.some(
     (s) => s.visual_concept || s.text_instructions
   );
@@ -249,14 +258,23 @@ function normalizeBrief(
 
   if (!hasStructured && !hasLegacy) return null;
 
-  const brand_palette =
-    (raw.brand_palette as DesignBrief["brand_palette"]) ||
-    buildBrandPalette(brandKit);
+  if (!configured) {
+    slides = slides.map((s) => ({
+      ...s,
+      colors_used: undefined,
+    }));
+  }
+
+  const brand_palette = configured
+    ? (raw.brand_palette as DesignBrief["brand_palette"]) ||
+      buildBrandPalette(brandKit)
+    : undefined;
 
   return {
     format: (raw.format as PostFormat) || fallbackFormat,
     execution_title:
       typeof raw.execution_title === "string" ? raw.execution_title : undefined,
+    brand_kit_configured: configured,
     brand_palette,
     slides,
     strategic_note:
@@ -273,17 +291,20 @@ function generateMockBrief(
   brandKit: { colors: string[]; fonts: { heading: string; body: string } } | null,
   geminiError?: string
 ): DesignBrief {
-  const brand_palette = buildBrandPalette(brandKit);
+  const configured = isBrandKitConfigured(brandKit);
+  const brand_palette = configured ? buildBrandPalette(brandKit) : undefined;
   const primary = brandKit?.colors?.[0] || "#E5E5E5";
   const accent = brandKit?.colors?.[1] || brandKit?.colors?.[0] || "#DA4928";
   const headingFont = brandKit?.fonts?.heading || "Montserrat";
   const bodyFont = brandKit?.fonts?.body || "Montserrat";
   const slideCount = format === "carousel" ? 3 : 1;
 
-  const colorRefs = brand_palette?.colors ?? [
-    { hex: primary, name: "Principal", role: "título" },
-    { hex: accent, name: "Acento", role: "subtítulo" },
-  ];
+  const colorRefs = configured
+    ? (brand_palette?.colors ?? [
+        { hex: primary, name: "Principal", role: "título" },
+        { hex: accent, name: "Acento", role: "subtítulo" },
+      ])
+    : undefined;
 
   const slides: DesignBriefSlide[] = Array.from({ length: slideCount }, (_, i) => ({
     slide: i + 1,
@@ -296,24 +317,31 @@ function generateMockBrief(
       i === 0
         ? `Fotografía documental de gran angular relacionada con "${title}". Entorno real de trabajo, iluminación natural, actitud de "lista para la acción". Sin retoques plásticos.`
         : `Visual complementario slide ${i + 1} coherente con la estética Industrial-Premium del tema "${title}".`,
-    text_instructions:
-      i === 0
+    text_instructions: configured
+      ? i === 0
         ? `Título: ${title.toUpperCase()}. (${headingFont} Extra Bold, ${primary}, tamaño masivo).\n${copy ? `Cuerpo: ${copy}. (${bodyFont} Regular/Medium, ${accent}, tracking abierto).` : `Subtítulo: [copy del post]. (${bodyFont} Regular/Medium, ${accent}, tracking abierto).`}`
-        : `Texto slide ${i + 1}: [contenido]. (${bodyFont} Medium, ${accent}).`,
-    image_treatment:
-      `Degradado ${primary} suave desde la base (opacidad 70% a 0%) para legibilidad. Mantener saturación en el sujeto principal, entorno ligeramente desaturado.`,
-    layout:
-      `Alineación a la izquierda, tercio inferior o lateral. Logo de marca en esquina superior derecha, ${primary}, pequeño y equilibrado.`,
+        : `Texto slide ${i + 1}: [contenido]. (${bodyFont} Medium, ${accent}).`
+      : i === 0
+        ? `Sin Brand Kit configurado.\nTítulo: ${title.toUpperCase()}.\n${copy ? `Cuerpo: ${copy}.` : "Subtítulo: [copy del post]."}`
+        : `Sin Brand Kit configurado.\nTexto slide ${i + 1}: [contenido].`,
+    image_treatment: configured
+      ? `Degradado ${primary} suave desde la base (opacidad 70% a 0%) para legibilidad. Mantener saturación en el sujeto principal, entorno ligeramente desaturado.`
+      : "Degradado suave desde la base para legibilidad del texto. Mantener saturación en el sujeto principal, entorno ligeramente desaturado.",
+    layout: configured
+      ? `Alineación a la izquierda, tercio inferior o lateral. Logo de marca en esquina superior derecha, ${primary}, pequeño y equilibrado.`
+      : "Alineación a la izquierda, tercio inferior o lateral. Logo de marca en esquina superior derecha, pequeño y equilibrado.",
     colors_used: colorRefs,
   }));
 
   return {
     format,
     execution_title: title,
+    brand_kit_configured: configured,
     brand_palette,
     slides,
-    strategic_note:
-      "Diseño minimalista pero contundente. Prioriza contraste limpio y estética Industrial-Premium. Respeta el idioma del copy del post.",
+    strategic_note: configured
+      ? "Diseño minimalista pero contundente. Prioriza contraste limpio y estética Industrial-Premium. Respeta el idioma del copy del post."
+      : "Esta marca no tiene Brand Kit configurado. Coordinar colores y tipografías con el equipo de marca antes de diseñar, o configurar el Brand Kit en la plataforma.",
     notes: geminiError
       ? `Gemini falló: ${geminiError}`
       : "Brief generado localmente. Configura GEMINI_API_KEY para briefs con IA real.",

@@ -32,6 +32,8 @@ export default async function OrgHomePage({
       stats={data.stats}
       tasks={data.tasks}
       urgentTasks={data.urgentTasks}
+      reviewPosts={data.reviewPosts}
+      teamMembers={data.teamMembers}
     />
   );
 }

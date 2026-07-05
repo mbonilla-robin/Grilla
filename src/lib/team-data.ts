@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TeamMemberPreview } from "@/lib/home-data";
 import type { MemberRole } from "@/lib/types";
+import { getProfileDisplayName } from "@/lib/profile-display-name";
 
 const ROLE_ORDER: MemberRole[] = [
   "admin",
@@ -34,10 +35,7 @@ export async function getOrgTeamMembers(
   return members
     .map((m) => {
       const p = profileById.get(m.user_id);
-      const name =
-        [p?.first_name, p?.last_name].filter(Boolean).join(" ") ||
-        p?.full_name ||
-        "Sin nombre";
+      const name = getProfileDisplayName(p);
 
       return {
         id: m.id,

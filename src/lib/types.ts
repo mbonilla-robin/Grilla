@@ -36,8 +36,43 @@ export interface Organization {
   created_by: string;
   invite_token: string;
   default_invite_role: MemberRole;
+  post_formats?: PostFormat[];
+  client_name?: string | null;
+  client_email?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface OrgRoleSlot {
+  id: string;
+  organization_id: string;
+  role: MemberRole;
+  label: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface OrgRoleSlotInput {
+  role: MemberRole;
+  label?: string;
+}
+
+export interface OrgPillarInput {
+  name: string;
+  color: string;
+  target_pct: number;
+}
+
+export interface CreateOrganizationInput {
+  name: string;
+  roleSlots?: OrgRoleSlotInput[];
+  pillars: OrgPillarInput[];
+  postFormats: PostFormat[];
+  clientName?: string;
+  clientEmail?: string;
+  toneOfVoice?: string;
+  objective?: string;
+  colors?: string[];
 }
 
 export interface OrganizationMember {
@@ -71,6 +106,8 @@ export interface BrandKit {
   fonts: { heading: string; body: string };
   tone_of_voice: string | null;
   guidelines: string | null;
+  objective: string | null;
+  kit_file_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -113,6 +150,7 @@ export interface DesignBriefSlide {
 export interface DesignBrief {
   format: PostFormat;
   execution_title?: string;
+  brand_kit_configured?: boolean;
   brand_palette?: {
     colors: BriefColorRef[];
     fonts: { heading: string; body: string };
@@ -121,6 +159,37 @@ export interface DesignBrief {
   strategic_note?: string;
   notes?: string;
   generated_at: string;
+}
+
+export interface ContentPillar {
+  id: string;
+  organization_id: string;
+  name: string;
+  color: string;
+  target_pct: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface OrgHashtagGroup {
+  id: string;
+  organization_id: string;
+  category: string;
+  tags: string[];
+  sort_order: number;
+  created_at: string;
+}
+
+export interface PostMetrics {
+  id: string;
+  post_id: string;
+  reach: number | null;
+  likes: number | null;
+  comments: number | null;
+  saves: number | null;
+  recorded_at: string;
+  recorded_by: string;
+  created_at: string;
 }
 
 export interface Post {
@@ -136,6 +205,8 @@ export interface Post {
   in_drive: boolean;
   published: boolean;
   references_text: string | null;
+  objective: string | null;
+  cta: string | null;
   status: PostStatus;
   brief: DesignBrief | null;
   created_by: string;
@@ -179,6 +250,18 @@ export interface Task {
   post?: Post;
 }
 
+export interface PostComment {
+  id: string;
+  post_id: string;
+  organization_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  author_name?: string;
+  author_avatar_url?: string | null;
+}
+
 export interface Notification {
   id: string;
   user_id: string;
@@ -208,11 +291,11 @@ export const ROLE_LABELS: Record<MemberRole, string> = {
 };
 
 export const STATUS_LABELS: Record<PostStatus, string> = {
-  draft: "Borrador",
+  draft: "Ideación",
   brief_ready: "Brief listo",
   in_design: "En diseño",
-  review: "Revisión",
-  approved: "Aprobado",
+  review: "En revisión",
+  approved: "Listo para publicar",
   scheduled: "Programado",
   published: "Publicado",
 };

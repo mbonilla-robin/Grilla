@@ -7,9 +7,13 @@ import {
   EmptyState,
 } from "./home-ui";
 import { OrgQuickNav } from "./org-quick-nav";
+import { ReviewGallery } from "./review-gallery";
+import { HomeAlertBanner } from "./home-alert-banner";
+import { TeamAvatarRow } from "./team-avatar-row";
+import { FeaturedTaskCards } from "./featured-task-cards";
 import { formatTaskLabel, taskActionLabel } from "@/lib/post-display";
 import { formatTaskDue, type TaskWithPost } from "@/lib/task-due";
-import type { HomeStats } from "@/lib/home-data";
+import type { HomeStats, ReviewPostItem, TeamMemberPreview } from "@/lib/home-data";
 
 interface OrgHomeViewProps {
   orgId: string;
@@ -17,6 +21,8 @@ interface OrgHomeViewProps {
   stats: HomeStats;
   tasks: TaskWithPost[];
   urgentTasks: TaskWithPost[];
+  reviewPosts: ReviewPostItem[];
+  teamMembers?: TeamMemberPreview[];
 }
 
 export function OrgHomeView({
@@ -25,10 +31,32 @@ export function OrgHomeView({
   stats,
   tasks = [],
   urgentTasks = [],
+  reviewPosts = [],
+  teamMembers = [],
 }: OrgHomeViewProps) {
+  const featuredTasks = urgentTasks.length > 0 ? urgentTasks : tasks;
+
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <OrgHomeHeader orgName={orgName} />
+      <OrgHomeHeader
+        orgName={orgName}
+        teamRow={
+          teamMembers.length > 0 ? (
+            <TeamAvatarRow
+              members={teamMembers}
+              teamHref={`/org/${orgId}/team`}
+              label="Equipo"
+            />
+          ) : undefined
+        }
+      />
+
+      <HomeAlertBanner
+        urgentCount={urgentTasks.length}
+        pendingCount={stats.tasksOpen}
+        storageKey={`org-home-alert-${orgId}`}
+      />
+
       <OrgQuickNav orgId={orgId} />
 
       <SectionCard title="Tu día">
@@ -63,6 +91,16 @@ export function OrgHomeView({
             <EmptyState text="Nada urgente en los próximos 5 días." />
           )}
         </div>
+      </SectionCard>
+
+      {featuredTasks.length > 0 && (
+        <SectionCard title="Destacadas">
+          <FeaturedTaskCards tasks={featuredTasks} />
+        </SectionCard>
+      )}
+
+      <SectionCard title="En revisión">
+        <ReviewGallery posts={reviewPosts} />
       </SectionCard>
 
       <SectionCard title="Pendientes">

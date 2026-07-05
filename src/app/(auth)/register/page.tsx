@@ -81,7 +81,7 @@ function RegisterForm() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-sm space-y-8">
         <div className="flex justify-center">
-          <Logo />
+          <Logo size="lg" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

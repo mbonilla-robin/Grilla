@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { GlobalHomeView } from "@/components/home/global-home-view";
 import { getGlobalHomeData } from "@/lib/home-data";
+import { getBrandsPillarProgress } from "@/lib/pillars-data";
 
 export default async function GlobalHomePage() {
   const supabase = await createClient();
@@ -12,14 +13,18 @@ export default async function GlobalHomePage() {
   if (!user) redirect("/login");
 
   const data = await getGlobalHomeData(user.id);
+  const brandPillars = await getBrandsPillarProgress(
+    data.brands.map((b) => ({ id: b.id, name: b.name }))
+  );
 
   return (
     <GlobalHomeView
       profileName={data.profileName}
       tasks={data.tasks}
       urgentTasks={data.urgentTasks}
-      reviewPosts={data.reviewPosts}
+      brandPillars={brandPillars}
       myDay={data.myDay}
+      collaborators={data.collaborators}
     />
   );
 }

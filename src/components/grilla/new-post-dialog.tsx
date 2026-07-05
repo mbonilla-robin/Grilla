@@ -6,22 +6,26 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createPost } from "@/lib/actions";
-import { PILLAR_OPTIONS, type PostFormat } from "@/lib/types";
+import { CaptionEditor } from "@/components/grilla/caption-editor";
+import { PILLAR_OPTIONS, FORMAT_LABELS, type PostFormat, type OrgHashtagGroup } from "@/lib/types";
 import type { PostAssignmentOptions } from "@/lib/team-assignments";
 
 interface NewPostDialogProps {
   orgId: string;
   assignmentOptions: PostAssignmentOptions;
   currentUserId: string;
+  pillarOptions?: string[];
+  hashtagGroups?: OrgHashtagGroup[];
+  allowedFormats?: PostFormat[];
 }
 
-const formats: { value: PostFormat; label: string }[] = [
-  { value: "image", label: "Imagen" },
-  { value: "carousel", label: "Carrusel" },
-  { value: "video_carousel", label: "Video carrusel" },
-  { value: "feed", label: "Feed" },
-  { value: "reel", label: "Reel" },
-  { value: "story", label: "Story" },
+const ALL_FORMATS: PostFormat[] = [
+  "image",
+  "carousel",
+  "video_carousel",
+  "feed",
+  "reel",
+  "story",
 ];
 
 function titleFromCopy(copy: string): string {
@@ -39,13 +43,20 @@ export function NewPostDialog({
   orgId,
   assignmentOptions,
   currentUserId,
+  pillarOptions = [...PILLAR_OPTIONS],
+  hashtagGroups = [],
+  allowedFormats,
 }: NewPostDialogProps) {
+  const formats = (allowedFormats ?? ALL_FORMATS).map((value) => ({
+    value,
+    label: FORMAT_LABELS[value],
+  }));
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [autoTitle, setAutoTitle] = useState(true);
-  const [format, setFormat] = useState<PostFormat>("image");
-  const [pillar, setPillar] = useState<string>(PILLAR_OPTIONS[0]);
+  const [format, setFormat] = useState<PostFormat>(formats[0]?.value ?? "image");
+  const [pillar, setPillar] = useState<string>(pillarOptions[0] || PILLAR_OPTIONS[0]);
   const [scheduledAt, setScheduledAt] = useState("");
   const [copy, setCopy] = useState("");
   const [caption, setCaption] = useState("");
@@ -82,7 +93,7 @@ export function NewPostDialog({
     setTitle("");
     setAutoTitle(true);
     setFormat("image");
-    setPillar(PILLAR_OPTIONS[0]);
+    setPillar(pillarOptions[0] || PILLAR_OPTIONS[0]);
     setScheduledAt("");
     setCopy("");
     setCaption("");
@@ -166,7 +177,7 @@ export function NewPostDialog({
                 onChange={(e) => setPillar(e.target.value)}
                 className="flex h-9 w-full rounded-md border border-border bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
               >
-                {PILLAR_OPTIONS.map((p) => (
+                {pillarOptions.map((p) => (
                   <option key={p} value={p}>
                     {p}
                   </option>
@@ -232,12 +243,11 @@ export function NewPostDialog({
 
           <div className="space-y-1.5">
             <label className="text-sm text-muted">Caption (publicación)</label>
-            <textarea
+            <CaptionEditor
               value={caption}
-              onChange={(e) => setCaption(e.target.value)}
+              onChange={setCaption}
+              hashtagGroups={hashtagGroups}
               rows={4}
-              placeholder="Texto del caption con hashtags..."
-              className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
             />
           </div>
 

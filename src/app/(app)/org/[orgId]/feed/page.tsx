@@ -51,9 +51,6 @@ export default async function FeedPage({
     <div className="p-6 flex flex-col items-center">
       <div className="mb-6">
         <h1 className="text-lg font-semibold">Feed</h1>
-        <p className="text-xs text-muted mt-0.5">
-          Preview de Instagram · portada = archivo 1 · caption de la grilla
-        </p>
       </div>
       <Suspense fallback={null}>
         <FeedContent

@@ -17,6 +17,12 @@
 @layer base {
   * {
     @apply border-border;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
   }
 
   body {
@@ -27,5 +33,53 @@
 @layer utilities {
   .home-card {
     @apply rounded-lg bg-surface border border-border;
+  }
+
+  @keyframes loading-word-cycle {
+    0%,
+    18% {
+      transform: translateY(0);
+    }
+    22%,
+    40% {
+      transform: translateY(-1.25em);
+    }
+    44%,
+    62% {
+      transform: translateY(-2.5em);
+    }
+    66%,
+    88% {
+      transform: translateY(-3.75em);
+    }
+    92%,
+    100% {
+      transform: translateY(-3.75em);
+    }
+  }
+
+  .animate-loading-words {
+    animation: loading-word-cycle 3.6s ease-in-out infinite;
+  }
+
+  @keyframes loading-dots {
+    0%,
+    20% {
+      opacity: 0;
+      transform: translateY(0);
+    }
+    40% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+    60%,
+    100% {
+      opacity: 0;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-loading-dot {
+    animation: loading-dots 1.2s ease-in-out infinite;
   }
 }

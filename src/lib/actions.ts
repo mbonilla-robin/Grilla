@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/utils";
 import { MAX_SLOT_WIDGETS } from "@/lib/widget-config";
-import type { MemberRole } from "@/lib/types";
+import type { CreateOrganizationInput, MemberRole, PostFormat } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
 export async function updateProfile(data: {
@@ -57,7 +57,7 @@ export async function joinOrgByInviteToken(token: string) {
   return { data: data as string };
 }
 
-export async function createOrganization(name: string) {
+export async function createOrganization(input: CreateOrganizationInput | string) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -65,11 +65,28 @@ export async function createOrganization(name: string) {
 
   if (!user) return { error: "No autenticado" };
 
+  const payload: CreateOrganizationInput =
+    typeof input === "string" ? { name: input, pillars: [], postFormats: ["image", "carousel", "reel", "story"] } : input;
+
+  const name = payload.name.trim();
+  if (!name) return { error: "Nombre requerido" };
+
   const slug = slugify(name) + "-" + Date.now().toString(36);
+  const postFormats =
+    payload.postFormats.length > 0
+      ? payload.postFormats
+      : (["image", "carousel", "reel", "story"] as PostFormat[]);
 
   const { data: org, error: orgError } = await supabase
     .from("organizations")
-    .insert({ name, slug, created_by: user.id })
+    .insert({
+      name,
+      slug,
+      created_by: user.id,
+      post_formats: postFormats,
+      client_name: payload.clientName?.trim() || null,
+      client_email: payload.clientEmail?.trim().toLowerCase() || null,
+    })
     .select()
     .single();
 
@@ -85,14 +102,73 @@ export async function createOrganization(name: string) {
 
   if (memberError) return { error: memberError.message };
 
-  await supabase.from("brand_kits").insert({
-    organization_id: org.id,
-    name: `${name} Brand Kit`,
-  });
+  const { data: brandKit, error: brandKitError } = await supabase
+    .from("brand_kits")
+    .insert({
+      organization_id: org.id,
+      name: `${name} Brand Kit`,
+      tone_of_voice: payload.toneOfVoice?.trim() || null,
+      objective: payload.objective?.trim() || null,
+      colors: payload.colors?.length ? payload.colors : [],
+    })
+    .select("id")
+    .single();
+
+  if (brandKitError) return { error: brandKitError.message };
+
+  if (payload.roleSlots?.length) {
+    await supabase.from("org_role_slots").insert(
+      payload.roleSlots.map((slot, i) => ({
+        organization_id: org.id,
+        role: slot.role,
+        label: slot.label?.trim() || null,
+        sort_order: i,
+      }))
+    );
+  }
+
+  const pillars =
+    payload.pillars.length > 0
+      ? payload.pillars
+      : [
+          { name: "Valor", color: "#3b82f6", target_pct: 30 },
+          { name: "Ventas", color: "#ef4444", target_pct: 25 },
+          { name: "Información", color: "#8b5cf6", target_pct: 25 },
+          { name: "Entretenimiento", color: "#f59e0b", target_pct: 20 },
+        ];
+
+  await supabase.from("content_pillars").insert(
+    pillars.map((p, i) => ({
+      organization_id: org.id,
+      name: p.name.trim(),
+      color: p.color,
+      target_pct: p.target_pct,
+      sort_order: i,
+    }))
+  );
+
+  const defaultHashtags = [
+    { category: "Marca", tags: ["#marca", "#brand"], sort_order: 0 },
+    { category: "Sector", tags: ["#industria", "#negocio"], sort_order: 1 },
+    { category: "Campaña", tags: ["#promo", "#oferta"], sort_order: 2 },
+  ];
+  await supabase.from("org_hashtag_groups").insert(
+    defaultHashtags.map((h) => ({ organization_id: org.id, ...h }))
+  );
+
+  const clientEmail = payload.clientEmail?.trim().toLowerCase();
+  if (clientEmail) {
+    await supabase.from("invitations").insert({
+      organization_id: org.id,
+      email: clientEmail,
+      role: "client" as MemberRole,
+      invited_by: user.id,
+    });
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/home");
-  return { data: org };
+  return { data: { ...org, brandKitId: brandKit.id } };
 }
 
 export async function addMemberByEmail(
@@ -520,6 +596,17 @@ export async function createPost(
         status: "pending",
       });
     }
+
+    if (data.assigned_to) {
+      const { notifyPostAssignment } = await import("@/lib/notifications");
+      await notifyPostAssignment(
+        orgId,
+        post.id,
+        data.title,
+        data.assigned_to,
+        user.id
+      );
+    }
   }
 
   revalidatePath(`/org/${orgId}/grilla`);
@@ -539,6 +626,8 @@ export async function updatePost(
     plate?: string | null;
     in_drive?: boolean;
     references_text?: string | null;
+    objective?: string | null;
+    cta?: string | null;
   }
 ) {
   const supabase = await createClient();
@@ -559,6 +648,8 @@ export async function updatePost(
   if (data.in_drive !== undefined) updates.in_drive = data.in_drive;
   if (data.references_text !== undefined)
     updates.references_text = data.references_text;
+  if (data.objective !== undefined) updates.objective = data.objective;
+  if (data.cta !== undefined) updates.cta = data.cta;
 
   const { error } = await supabase
     .from("posts")
@@ -574,6 +665,12 @@ export async function updatePost(
 export async function updatePostStatus(postId: string, status: string, orgId: string) {
   const supabase = await createClient();
 
+  const { data: post } = await supabase
+    .from("posts")
+    .select("title")
+    .eq("id", postId)
+    .single();
+
   const { error } = await supabase
     .from("posts")
     .update({ status })
@@ -584,13 +681,245 @@ export async function updatePostStatus(postId: string, status: string, orgId: st
   const { syncTasksForPost } = await import("@/lib/task-sync");
   await syncTasksForPost(supabase, postId);
 
+  if (post?.title) {
+    const { notifyPostStatusChange } = await import("@/lib/notifications");
+    await notifyPostStatusChange(postId, orgId, status, post.title);
+  }
+
+  revalidatePath(`/org/${orgId}/grilla`);
+  revalidatePath(`/org/${orgId}/estadisticas`);
+  return { success: true };
+}
+
+export async function reschedulePost(
+  orgId: string,
+  postId: string,
+  scheduledAt: string
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const { error } = await supabase
+    .from("posts")
+    .update({ scheduled_at: scheduledAt })
+    .eq("id", postId)
+    .eq("organization_id", orgId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/org/${orgId}/calendario`);
+  revalidatePath(`/org/${orgId}/grilla`);
+  revalidatePath("/home/calendario");
+  return { success: true };
+}
+
+export async function savePostMetrics(
+  orgId: string,
+  postId: string,
+  data: {
+    reach?: number | null;
+    likes?: number | null;
+    comments?: number | null;
+    saves?: number | null;
+  }
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const { error } = await supabase.from("post_metrics").upsert(
+    {
+      post_id: postId,
+      reach: data.reach ?? null,
+      likes: data.likes ?? null,
+      comments: data.comments ?? null,
+      saves: data.saves ?? null,
+      recorded_by: user.id,
+      recorded_at: new Date().toISOString(),
+    },
+    { onConflict: "post_id" }
+  );
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/org/${orgId}/grilla/${postId}`);
+  revalidatePath(`/org/${orgId}/estadisticas`);
+  return { success: true };
+}
+
+export async function upsertContentPillar(
+  orgId: string,
+  data: {
+    id?: string;
+    name: string;
+    color: string;
+    target_pct: number;
+    sort_order?: number;
+  }
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("organization_id", orgId)
+    .single();
+
+  if (!membership || !["admin", "creator"].includes(membership.role)) {
+    return { error: "Sin permiso para editar pilares" };
+  }
+
+  if (data.id) {
+    const { error } = await supabase
+      .from("content_pillars")
+      .update({
+        name: data.name,
+        color: data.color,
+        target_pct: data.target_pct,
+        sort_order: data.sort_order ?? 0,
+      })
+      .eq("id", data.id)
+      .eq("organization_id", orgId);
+    if (error) return { error: error.message };
+  } else {
+    const { error } = await supabase.from("content_pillars").insert({
+      organization_id: orgId,
+      name: data.name,
+      color: data.color,
+      target_pct: data.target_pct,
+      sort_order: data.sort_order ?? 0,
+    });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath(`/org/${orgId}/estadisticas`);
+  revalidatePath(`/org/${orgId}/marca`);
+  revalidatePath(`/org/${orgId}/grilla`);
+  revalidatePath("/home");
+  return { success: true };
+}
+
+export async function deleteContentPillar(orgId: string, pillarId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("organization_id", orgId)
+    .single();
+
+  if (!membership || !["admin", "creator"].includes(membership.role)) {
+    return { error: "Sin permiso para editar pilares" };
+  }
+
+  const { error } = await supabase
+    .from("content_pillars")
+    .delete()
+    .eq("id", pillarId)
+    .eq("organization_id", orgId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/org/${orgId}/estadisticas`);
+  revalidatePath(`/org/${orgId}/marca`);
+  revalidatePath(`/org/${orgId}/grilla`);
+  revalidatePath("/home");
+  return { success: true };
+}
+
+export async function updateBrandStrategy(
+  orgId: string,
+  data: { tone_of_voice?: string; objective?: string }
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("organization_id", orgId)
+    .single();
+
+  if (!membership || !["admin", "creator"].includes(membership.role)) {
+    return { error: "Sin permiso para editar la marca" };
+  }
+
+  const { error } = await supabase
+    .from("brand_kits")
+    .update({
+      tone_of_voice: data.tone_of_voice?.trim() || null,
+      objective: data.objective?.trim() || null,
+    })
+    .eq("organization_id", orgId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/org/${orgId}/marca`);
+  revalidatePath(`/org/${orgId}/brand-kit`);
+  return { success: true };
+}
+
+export async function saveHashtagGroup(
+  orgId: string,
+  data: { id?: string; category: string; tags: string[] }
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  if (data.id) {
+    const { error } = await supabase
+      .from("org_hashtag_groups")
+      .update({ category: data.category, tags: data.tags })
+      .eq("id", data.id)
+      .eq("organization_id", orgId);
+    if (error) return { error: error.message };
+  } else {
+    const { data: maxRow } = await supabase
+      .from("org_hashtag_groups")
+      .select("sort_order")
+      .eq("organization_id", orgId)
+      .order("sort_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { error } = await supabase.from("org_hashtag_groups").insert({
+      organization_id: orgId,
+      category: data.category,
+      tags: data.tags,
+      sort_order: (maxRow?.sort_order ?? -1) + 1,
+    });
+    if (error) return { error: error.message };
+  }
+
   revalidatePath(`/org/${orgId}/grilla`);
   return { success: true };
 }
 
 export async function registerPostAsset(
   postId: string,
-  _orgId: string,
+  orgId: string,
   data: {
     file_url: string;
     file_name: string;
@@ -620,17 +949,22 @@ export async function registerPostAsset(
 
   if (error) return { error: error.message };
 
-  const newStatus = await autoUpdatePostStatusFromAssets(supabase, postId);
+  const newStatus = await autoUpdatePostStatusFromAssets(supabase, postId, orgId);
 
   return { success: true, asset, newStatus };
 }
 
 async function autoUpdatePostStatusFromAssets(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  postId: string
+  postId: string,
+  orgId?: string
 ): Promise<string | null> {
   const [{ data: post }, { count }] = await Promise.all([
-    supabase.from("posts").select("status").eq("id", postId).single(),
+    supabase
+      .from("posts")
+      .select("status, title, organization_id")
+      .eq("id", postId)
+      .single(),
     supabase
       .from("post_assets")
       .select("*", { count: "exact", head: true })
@@ -662,13 +996,24 @@ async function autoUpdatePostStatusFromAssets(
   const { syncTasksForPost } = await import("@/lib/task-sync");
   await syncTasksForPost(supabase, postId);
 
+  if (newStatus === "review") {
+    const resolvedOrgId = orgId ?? post.organization_id;
+    const { notifyPostStatusChange } = await import("@/lib/notifications");
+    await notifyPostStatusChange(
+      postId,
+      resolvedOrgId,
+      newStatus,
+      post.title
+    );
+  }
+
   return newStatus;
 }
 
 export async function deletePostAsset(
   assetId: string,
   postId: string,
-  _orgId: string
+  orgId: string
 ) {
   const supabase = await createClient();
   const {
@@ -696,7 +1041,7 @@ export async function deletePostAsset(
 
   if (error) return { error: error.message };
 
-  const newStatus = await autoUpdatePostStatusFromAssets(supabase, postId);
+  const newStatus = await autoUpdatePostStatusFromAssets(supabase, postId, orgId);
 
   return { success: true, newStatus };
 }
@@ -776,4 +1121,80 @@ export async function deleteOrgAssetLink(orgId: string, linkId: string) {
   if (error) return { error: error.message };
 
   return { success: true };
+}
+
+export async function updateOrgCalendarSubscriptions(
+  orgId: string,
+  catalogIds: string[]
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "No autenticado" };
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("organization_id", orgId)
+    .single();
+
+  if (!membership || membership.role === "client") {
+    return { error: "No autorizado" };
+  }
+
+  const { data: existing } = await supabase
+    .from("organization_calendar_subscriptions")
+    .select("catalog_id")
+    .eq("organization_id", orgId);
+
+  const existingIds = (existing ?? []).map((r) => r.catalog_id);
+  const toAdd = catalogIds.filter((id) => !existingIds.includes(id));
+  const toRemove = existingIds.filter((id) => !catalogIds.includes(id));
+
+  if (toRemove.length > 0) {
+    const { error } = await supabase
+      .from("organization_calendar_subscriptions")
+      .delete()
+      .eq("organization_id", orgId)
+      .in("catalog_id", toRemove);
+
+    if (error) return { error: error.message };
+  }
+
+  if (toAdd.length > 0) {
+    const { error } = await supabase
+      .from("organization_calendar_subscriptions")
+      .insert(
+        toAdd.map((catalog_id) => ({
+          organization_id: orgId,
+          catalog_id,
+        }))
+      );
+
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath(`/org/${orgId}/calendario`);
+  revalidatePath(`/org/${orgId}/home`);
+  revalidatePath("/home/calendario");
+
+  return { success: true };
+}
+
+export async function getFertileRecommendations(
+  eventId: string,
+  options?: { orgId?: string }
+) {
+  try {
+    const { getFertileRecommendationsForEvent } = await import(
+      "@/lib/calendar-data"
+    );
+    return getFertileRecommendationsForEvent(eventId, options);
+  } catch (error) {
+    console.error("getFertileRecommendations:", error);
+    return [];
+  }
 }

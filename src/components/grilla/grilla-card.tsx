@@ -19,15 +19,22 @@ import {
   captionExcerpt,
   sortPostAssets,
 } from "@/lib/utils";
-import { type PostWithAssets } from "@/lib/types";
+import { type PostWithAssets, type OrgHashtagGroup } from "@/lib/types";
 import { formatPostLabel } from "@/lib/post-display";
 
 interface GrillaCardProps {
   post: PostWithAssets;
   orgId: string;
+  pillarOptions?: string[];
+  hashtagGroups?: OrgHashtagGroup[];
 }
 
-export function GrillaCard({ post: initialPost, orgId }: GrillaCardProps) {
+export function GrillaCard({
+  post: initialPost,
+  orgId,
+  pillarOptions,
+  hashtagGroups,
+}: GrillaCardProps) {
   const [post, setPost] = useState(initialPost);
 
   useEffect(() => {
@@ -48,6 +55,8 @@ export function GrillaCard({ post: initialPost, orgId }: GrillaCardProps) {
           <EditPostDialog
             post={post}
             orgId={orgId}
+            pillarOptions={pillarOptions}
+            hashtagGroups={hashtagGroups}
             onSaved={(updates) => setPost((p) => ({ ...p, ...updates }))}
           />
           <Link

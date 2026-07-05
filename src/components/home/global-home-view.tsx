@@ -7,31 +7,50 @@ import {
   EmptyState,
 } from "./home-ui";
 import { HomeQuickNav } from "./home-quick-nav";
-import { ReviewGallery } from "./review-gallery";
+import { BrandPillarsChart } from "./brand-pillars-chart";
+import { HomeAlertBanner } from "./home-alert-banner";
+import { TeamAvatarRow } from "./team-avatar-row";
+import { FeaturedTaskCards } from "./featured-task-cards";
 import { formatTaskLabel, taskActionLabel } from "@/lib/post-display";
 import { formatTaskDue, type TaskWithPost } from "@/lib/task-due";
-import type { ReviewPostItem } from "@/lib/home-data";
+import type { BrandPillarProgress } from "@/lib/pillars-data";
+import type { TeamMemberPreview } from "@/lib/home-data";
 
 interface GlobalHomeViewProps {
   profileName: string;
   tasks: TaskWithPost[];
   urgentTasks: TaskWithPost[];
-  reviewPosts: ReviewPostItem[];
+  brandPillars: BrandPillarProgress[];
   myDay: { urgentes: number; pendientes: number; brands: number };
+  collaborators?: TeamMemberPreview[];
 }
 
 export function GlobalHomeView({
   profileName,
   tasks = [],
   urgentTasks = [],
-  reviewPosts = [],
+  brandPillars = [],
   myDay,
+  collaborators = [],
 }: GlobalHomeViewProps) {
-  const greeting = profileName ? `Hola, ${profileName}` : "Hola";
+  const featuredTasks = urgentTasks.length > 0 ? urgentTasks : tasks;
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <GlobalHomeHeader greeting={greeting} />
+      <GlobalHomeHeader
+        profileName={profileName || undefined}
+        teamRow={
+          collaborators.length > 0 ? (
+            <TeamAvatarRow members={collaborators} label="Colaboradores" />
+          ) : undefined
+        }
+      />
+
+      <HomeAlertBanner
+        urgentCount={myDay.urgentes}
+        pendingCount={myDay.pendientes}
+      />
+
       <HomeQuickNav />
 
       <SectionCard title="Tu día">
@@ -73,8 +92,14 @@ export function GlobalHomeView({
         </div>
       </SectionCard>
 
-      <SectionCard title="En revisión">
-        <ReviewGallery posts={reviewPosts} />
+      {featuredTasks.length > 0 && (
+        <SectionCard title="Destacadas">
+          <FeaturedTaskCards tasks={featuredTasks} />
+        </SectionCard>
+      )}
+
+      <SectionCard title="Pilares del mes">
+        <BrandPillarsChart brands={brandPillars} />
       </SectionCard>
 
       <SectionCard title="Pendientes">

@@ -65,6 +65,70 @@ function ColorRichText({ text }: { text: string }) {
   );
 }
 
+type TextInstructionBlock = {
+  label: string;
+  content: string;
+  details?: string;
+};
+
+function parseTextInstructions(text: string): TextInstructionBlock[] | null {
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const blocks: TextInstructionBlock[] = [];
+
+  for (const line of lines) {
+    if (/^sin brand kit configurado\.?$/i.test(line)) {
+      blocks.push({ label: "Aviso", content: "Sin Brand Kit configurado" });
+      continue;
+    }
+
+    const withDetails = line.match(/^([^:]+):\s*(.+?)\s*(?:\.?\s*)\(([^)]+)\)\.?\s*$/);
+    if (withDetails) {
+      blocks.push({
+        label: withDetails[1].trim(),
+        content: withDetails[2].replace(/\.\s*$/, "").trim(),
+        details: withDetails[3].trim(),
+      });
+      continue;
+    }
+
+    const simple = line.match(/^([^:]+):\s*(.+)$/);
+    if (simple) {
+      blocks.push({
+        label: simple[1].trim(),
+        content: simple[2].trim(),
+      });
+    }
+  }
+
+  return blocks.length > 0 ? blocks : null;
+}
+
+function TextInstructionsDisplay({ text }: { text: string }) {
+  const blocks = parseTextInstructions(text);
+
+  if (!blocks) {
+    return <ColorRichText text={text} />;
+  }
+
+  return (
+    <div className="space-y-3">
+      {blocks.map((block, i) => (
+        <div key={`${block.label}-${i}`} className="space-y-0.5">
+          <p className="text-sm leading-snug">
+            <span className="font-semibold text-foreground">{block.label}:</span>{" "}
+            <span className="text-foreground/90">{block.content}</span>
+          </p>
+          {block.details && (
+            <p className="text-xs leading-relaxed text-muted pl-0">
+              <ColorRichText text={block.details} />
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function BriefSection({
   label,
   children,
@@ -149,7 +213,7 @@ function StructuredSlide({
       )}
       {slide.text_instructions && (
         <BriefSection label="Instrucciones de Texto:">
-          <ColorRichText text={slide.text_instructions} />
+          <TextInstructionsDisplay text={slide.text_instructions} />
         </BriefSection>
       )}
       {slide.image_treatment && (
@@ -188,6 +252,21 @@ function LegacySlide({ slide }: { slide: DesignBriefSlide }) {
 }
 
 function BrandKitBar({ brief }: { brief: DesignBrief }) {
+  if (brief.brand_kit_configured === false) {
+    return (
+      <div className="rounded-lg border border-amber-200/80 bg-amber-50/50 px-4 py-3 space-y-1">
+        <p className="text-xs font-semibold text-amber-900">
+          Sin Brand Kit configurado
+        </p>
+        <p className="text-xs leading-relaxed text-amber-800/90">
+          Esta marca aún no tiene colores ni tipografías definidos. El brief no
+          incluye identidad visual de marca — configúrala en Brand Kit para
+          futuros briefs.
+        </p>
+      </div>
+    );
+  }
+
   const palette = brief.brand_palette;
   if (!palette) return null;
 
