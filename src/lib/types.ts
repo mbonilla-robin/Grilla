@@ -1,0 +1,214 @@
+export type MemberRole =
+  | "admin"
+  | "creator"
+  | "community_manager"
+  | "designer"
+  | "client";
+export type PostFormat = "feed" | "carousel" | "reel" | "story" | "image" | "video_carousel";
+export type PostStatus =
+  | "draft"
+  | "brief_ready"
+  | "in_design"
+  | "review"
+  | "approved"
+  | "scheduled"
+  | "published";
+export type InvitationStatus = "pending" | "accepted" | "expired";
+export type TaskStatus = "contenido" | "en_revision" | "aprobado";
+export type NotificationType = "mention" | "assignment" | "status_change" | "comment";
+
+export interface Profile {
+  id: string;
+  full_name: string;
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  job_title: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  created_by: string;
+  invite_token: string;
+  default_invite_role: MemberRole;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrganizationMember {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  role: MemberRole;
+  extra_roles?: MemberRole[];
+  joined_at: string;
+  profile?: Profile;
+}
+
+export interface Invitation {
+  id: string;
+  organization_id: string;
+  email: string;
+  role: MemberRole;
+  invited_by: string;
+  token: string;
+  status: InvitationStatus;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface BrandKit {
+  id: string;
+  organization_id: string;
+  name: string;
+  logo_url: string | null;
+  colors: string[];
+  fonts: { heading: string; body: string };
+  tone_of_voice: string | null;
+  guidelines: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrgAssetLink {
+  id: string;
+  organization_id: string;
+  category: string;
+  label: string;
+  url: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DesignBriefSlide {
+  slide: number;
+  title?: string;
+  subtitle?: string;
+  body?: string;
+  image_prompt?: string;
+  colors?: string[];
+  typography?: { heading: string; body: string };
+}
+
+export interface DesignBrief {
+  format: PostFormat;
+  slides: DesignBriefSlide[];
+  notes?: string;
+  generated_at: string;
+}
+
+export interface Post {
+  id: string;
+  organization_id: string;
+  title: string;
+  scheduled_at: string | null;
+  format: PostFormat;
+  pillar: string | null;
+  copy: string | null;
+  caption: string | null;
+  plate: string | null;
+  in_drive: boolean;
+  published: boolean;
+  references_text: string | null;
+  status: PostStatus;
+  brief: DesignBrief | null;
+  created_by: string;
+  assigned_to: string | null;
+  community_manager_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PostAsset {
+  id: string;
+  post_id: string;
+  file_url: string;
+  file_name: string;
+  file_type: string;
+  sort_order: number;
+  uploaded_by: string;
+  created_at: string;
+}
+
+export type PostWithAssets = Post & {
+  assets: PostAsset[];
+  creator_name?: string | null;
+  designer_name?: string | null;
+  community_name?: string | null;
+};
+
+export interface Task {
+  id: string;
+  organization_id: string;
+  title: string;
+  description: string | null;
+  assigned_to: string | null;
+  created_by: string;
+  status: TaskStatus;
+  due_at: string | null;
+  post_id: string | null;
+  created_at: string;
+  updated_at: string;
+  organization?: Organization;
+  post?: Post;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  organization_id: string | null;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read: boolean;
+  related_post_id: string | null;
+  created_at: string;
+  organization?: Organization;
+}
+
+export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
+  contenido: "Contenido",
+  en_revision: "En revisión",
+  aprobado: "Aprobado",
+};
+
+export const ROLE_LABELS: Record<MemberRole, string> = {
+  admin: "Admin",
+  creator: "Creadora",
+  community_manager: "Community Manager",
+  designer: "Diseñador",
+  client: "Cliente",
+};
+
+export const STATUS_LABELS: Record<PostStatus, string> = {
+  draft: "Borrador",
+  brief_ready: "Brief listo",
+  in_design: "En diseño",
+  review: "Revisión",
+  approved: "Aprobado",
+  scheduled: "Programado",
+  published: "Publicado",
+};
+
+export const FORMAT_LABELS: Record<PostFormat, string> = {
+  feed: "Feed",
+  image: "Imagen",
+  carousel: "Carrusel",
+  video_carousel: "Video carrusel",
+  reel: "Reel",
+  story: "Story",
+};
+
+export const PILLAR_OPTIONS = [
+  "Valor",
+  "Ventas",
+  "Información",
+  "Informativo",
+] as const;

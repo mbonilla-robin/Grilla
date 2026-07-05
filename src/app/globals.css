@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-background: #fafafa;
+  --color-foreground: #171717;
+  --color-muted: #737373;
+  --color-border: #e5e5e5;
+  --color-surface: #ffffff;
+  --color-accent: #171717;
+  --color-accent-foreground: #fafafa;
+  --color-destructive: #dc2626;
+  --color-success: #16a34a;
+  --color-warning: #ca8a04;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .home-card {
+    @apply rounded-lg bg-surface border border-border;
+  }
+}
