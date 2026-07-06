@@ -4,8 +4,8 @@ import {
   Calendar,
   LayoutGrid,
   Palette,
-  Sparkles,
   Smartphone,
+  Sparkles,
   Users,
 } from "lucide-react";
 import { LandingHero } from "@/components/landing/landing-hero";
@@ -83,6 +83,8 @@ const ROLES: { roleKey: MemberRole; access: string }[] = [
   { roleKey: "designer", access: "Grilla, briefs, brand kit y assets" },
   { roleKey: "client", access: "Feed preview y posts aprobados" },
 ];
+
+const CTA_ICONS = [LayoutGrid, Sparkles, Palette, Smartphone] as const;
 
 export function LandingPage() {
   return (
@@ -180,6 +182,19 @@ export function LandingPage() {
         <section className="landing-section landing-section-cta">
           <div className="landing-container">
             <div className={cn("brand-hero landing-cta-panel")}>
+              <div className="landing-cta-icons" aria-hidden>
+                {CTA_ICONS.map((Icon, index) => (
+                  <span
+                    key={index}
+                    className="landing-cta-icon"
+                    style={{
+                      animationDelay: `${index * 0.2}s, ${0.7 + index * 0.2}s`,
+                    }}
+                  >
+                    <Icon strokeWidth={1.75} />
+                  </span>
+                ))}
+              </div>
               <div className="landing-cta-content">
                 <h2 className="landing-cta-title">
                   Empieza a organizar tu contenido hoy
@@ -189,7 +204,7 @@ export function LandingPage() {
                   siguiente nivel con Grilla.
                 </p>
               </div>
-              <div className="landing-hero-actions landing-hero-actions-center">
+              <div className="landing-cta-actions">
                 <Link href="/register" className="auth-pill-btn landing-cta-primary">
                   Crear cuenta gratis
                   <ArrowRight className="h-4 w-4" strokeWidth={2} />

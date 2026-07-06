@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { AuthBackground } from "@/components/auth/auth-background";
-import { AuthHero } from "@/components/auth/auth-hero";
+import { LandingHeroVisual } from "@/components/landing/landing-hero-visual";
 
 export function LandingHero() {
   return (
@@ -35,7 +35,7 @@ export function LandingHero() {
         </div>
 
         <div className="landing-hero-visual">
-          <AuthHero />
+          <LandingHeroVisual />
         </div>
       </div>
     </section>
