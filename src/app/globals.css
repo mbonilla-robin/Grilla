@@ -771,9 +771,6 @@
       flex: 0 0 42%;
       min-height: 28rem;
       padding: 3rem 2.5rem;
-      border-radius: 2rem;
-      background: rgba(255, 255, 255, 0.14);
-      border: 1px solid rgba(255, 255, 255, 0.24);
     }
   }
 
