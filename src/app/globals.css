@@ -768,17 +768,37 @@
 
   @media (min-width: 1024px) {
     .landing-hero-visual {
-      flex: 0 0 42%;
-      min-height: 28rem;
-      padding: 3rem 2.5rem;
+      flex: 0 0 56%;
+      min-height: 30rem;
+      padding: 3rem 2rem;
+    }
+
+    .landing-hero-visual .auth-hero {
+      min-height: 10rem;
+    }
+
+    .landing-hero-visual .auth-logo {
+      width: 13rem;
+    }
+
+    .landing-hero-visual .auth-tagline {
+      font-size: 2.5rem;
     }
   }
 
   @media (min-width: 1280px) {
     .landing-hero-visual {
-      flex-basis: 44%;
-      min-height: 32rem;
-      padding: 3.5rem 3rem;
+      flex-basis: 58%;
+      min-height: 34rem;
+      padding: 3.5rem 2.5rem;
+    }
+
+    .landing-hero-visual .auth-logo {
+      width: 14.5rem;
+    }
+
+    .landing-hero-visual .auth-tagline {
+      font-size: 2.875rem;
     }
   }
 
@@ -799,7 +819,8 @@
 
   @media (min-width: 1024px) {
     .landing-hero-copy {
-      flex: 1;
+      flex: 0 1 40%;
+      max-width: 26rem;
       border-radius: 0;
       background: transparent;
       padding: 0;
@@ -820,18 +841,18 @@
 
   @media (min-width: 1024px) {
     .landing-hero-title {
-      margin-top: 1rem;
-      font-size: clamp(2.75rem, 3.8vw, 3.75rem);
-      max-width: 11ch;
-      line-height: 1.06;
+      margin-top: 0.875rem;
+      font-size: clamp(2rem, 2.4vw, 2.625rem);
+      max-width: 14ch;
+      line-height: 1.1;
       color: var(--color-brand-foreground);
     }
   }
 
   @media (min-width: 1280px) {
     .landing-hero-title {
-      font-size: 3.75rem;
-      max-width: 12ch;
+      font-size: 2.75rem;
+      max-width: 15ch;
     }
   }
 
@@ -851,16 +872,17 @@
 
   @media (min-width: 1024px) {
     .landing-hero-subtitle {
-      margin: 1.5rem 0 0;
-      max-width: 32rem;
-      font-size: 1.125rem;
-      line-height: 1.7;
+      margin: 1.25rem 0 0;
+      max-width: 24rem;
+      font-size: 1rem;
+      line-height: 1.65;
       color: rgba(23, 23, 23, 0.72);
     }
   }
 
   @media (min-width: 1024px) {
     .landing-hero-copy .landing-kicker {
+      font-size: 0.6875rem;
       color: rgba(23, 23, 23, 0.55);
     }
   }
@@ -939,15 +961,15 @@
   @media (min-width: 1024px) {
     .landing-hero-actions {
       justify-content: flex-start;
-      gap: 1rem;
-      margin-top: 2.5rem;
+      gap: 0.875rem;
+      margin-top: 2rem;
     }
 
     .landing-hero-actions .auth-pill-btn,
     .landing-hero-actions .auth-pill-btn-outline {
-      height: 3.25rem !important;
-      padding: 0 1.75rem !important;
-      font-size: 0.9375rem !important;
+      height: 3rem !important;
+      padding: 0 1.5rem !important;
+      font-size: 0.875rem !important;
     }
   }
 
@@ -1283,9 +1305,6 @@
     flex-shrink: 0;
     border-radius: 9999px;
     background: var(--color-brand);
-    font-family: var(--font-display);
-    font-size: 0.75rem;
-    font-weight: 700;
     color: var(--color-brand-foreground);
   }
 

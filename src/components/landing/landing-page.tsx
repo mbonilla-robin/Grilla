@@ -11,6 +11,8 @@ import {
 import { LandingHero } from "@/components/landing/landing-hero";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { Logo } from "@/components/layout/logo";
+import { RoleIcon } from "@/components/team/role-badge";
+import { ROLE_LABELS, type MemberRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const FEATURES = [
@@ -75,12 +77,12 @@ const STEPS = [
   },
 ] as const;
 
-const ROLES = [
-  { role: "Admin", access: "Control total, invitaciones y configuración" },
-  { role: "Creadora", access: "Grilla editorial y briefs de diseño" },
-  { role: "Diseñador", access: "Grilla, briefs, brand kit y assets" },
-  { role: "Cliente", access: "Feed preview y posts aprobados" },
-] as const;
+const ROLES: { roleKey: MemberRole; access: string }[] = [
+  { roleKey: "admin", access: "Control total, invitaciones y configuración" },
+  { roleKey: "creator", access: "Grilla editorial y briefs de diseño" },
+  { roleKey: "designer", access: "Grilla, briefs, brand kit y assets" },
+  { roleKey: "client", access: "Feed preview y posts aprobados" },
+];
 
 export function LandingPage() {
   return (
@@ -160,11 +162,13 @@ export function LandingPage() {
             </div>
 
             <div className="landing-roles-grid">
-              {ROLES.map(({ role, access }) => (
-                <div key={role} className="landing-role-card">
-                  <div className="landing-role-avatar">{role.charAt(0)}</div>
+              {ROLES.map(({ roleKey, access }) => (
+                <div key={roleKey} className="landing-role-card">
+                  <div className="landing-role-avatar">
+                    <RoleIcon role={roleKey} size={18} />
+                  </div>
                   <div>
-                    <h3 className="text-title-section">{role}</h3>
+                    <h3 className="text-title-section">{ROLE_LABELS[roleKey]}</h3>
                     <p className="text-body-muted mt-1">{access}</p>
                   </div>
                 </div>
