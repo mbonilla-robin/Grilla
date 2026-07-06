@@ -18,14 +18,15 @@ export function OrgQuickNav({ orgId }: { orgId: string }) {
         <Link
           key={href}
           href={href}
+          aria-label={label}
           className={cn(
-            "flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface",
-            "px-2 py-2 text-xs sm:text-sm font-medium",
+            "flex flex-1 min-w-0 items-center justify-center rounded-lg border border-border bg-surface",
+            "px-2 py-2.5 sm:gap-1.5 sm:px-2 sm:py-2 text-xs sm:text-sm font-medium",
             "hover:bg-neutral-50 hover:border-foreground/15 transition-colors"
           )}
         >
-          <Icon size={16} strokeWidth={1.5} className="text-muted shrink-0" />
-          <span className="truncate">{label}</span>
+          <Icon size={18} strokeWidth={1.5} className="text-muted shrink-0 sm:size-4" />
+          <span className="hidden sm:inline truncate">{label}</span>
         </Link>
       ))}
     </nav>

@@ -21,12 +21,11 @@ export function ReelPreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center overflow-x-hidden bg-black/80 p-3 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="relative rounded-xl overflow-hidden bg-black shadow-2xl"
-        style={{ width: "min(320px, 90vw)", height: "min(568px, 80vh)" }}
+        className="relative mx-auto w-full max-w-[320px] aspect-[9/16] max-h-[85vh] rounded-xl overflow-hidden bg-black shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {cover ? (
@@ -68,15 +67,15 @@ export function ReelPreviewModal({
           <Bookmark size={24} />
         </div>
 
-        <div className="absolute bottom-0 left-0 right-12 p-4 bg-gradient-to-t from-black/80 to-transparent z-10">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[2px]">
+        <div className="absolute bottom-0 left-0 right-12 p-4 bg-gradient-to-t from-black/80 to-transparent z-10 min-w-0">
+          <div className="flex items-center gap-2 mb-2 min-w-0">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[2px] shrink-0">
               <div className="h-full w-full rounded-full bg-white" />
             </div>
-            <span className="text-sm font-semibold text-white">{accountName}</span>
+            <span className="text-sm font-semibold text-white truncate min-w-0">{accountName}</span>
           </div>
           {captionText && (
-            <p className="text-[13px] text-white/90 line-clamp-3 leading-snug">
+            <p className="text-[13px] text-white/90 line-clamp-3 leading-snug break-words">
               {captionText}
             </p>
           )}

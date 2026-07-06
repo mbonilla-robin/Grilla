@@ -20,6 +20,75 @@ interface FeedPreviewProps {
 const REEL_FORMATS: PostFormat[] = ["reel", "video_carousel"];
 const STORY_FORMATS: PostFormat[] = ["story"];
 
+function isReelFormat(format: PostFormat) {
+  return REEL_FORMATS.includes(format);
+}
+
+function FeedGridItem({
+  post,
+  variant = "post",
+  onSelect,
+}: {
+  post: PostWithAssets;
+  variant?: "post" | "reel";
+  onSelect: (post: PostWithAssets) => void;
+}) {
+  const assets = sortPostAssets(post.assets || []);
+  const cover = assets[0];
+  const isReel = variant === "reel" || isReelFormat(post.format);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(post)}
+      className={`relative overflow-hidden bg-neutral-100 group ${
+        variant === "reel" ? "aspect-[9/16] bg-neutral-900" : "aspect-[4/5]"
+      }`}
+    >
+      {cover ? (
+        cover.file_type === "video" ? (
+          <video
+            src={cover.file_url}
+            className="h-full w-full object-cover"
+            muted
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={cover.file_url}
+            alt={post.title}
+            className="h-full w-full object-cover"
+          />
+        )
+      ) : (
+        <div
+          className={`flex h-full flex-col items-center justify-center px-2 ${
+            variant === "reel" ? "text-white/40" : "text-muted/40"
+          }`}
+        >
+          {isReel ? <Play size={18} /> : <ImageIcon size={18} />}
+          <span className="mt-1 line-clamp-2 text-center text-[9px]">
+            {post.title}
+          </span>
+        </div>
+      )}
+      {isReel && (
+        <Play
+          size={14}
+          className="absolute top-1.5 right-1.5 text-white drop-shadow"
+        />
+      )}
+      {!isReel && assets.length > 1 && (
+        <Grid3X3
+          size={14}
+          className="absolute top-1.5 right-1.5 text-white drop-shadow"
+        />
+      )}
+      <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/30" />
+    </button>
+  );
+}
+
 export function FeedPreview({
   posts,
   accountName,
@@ -29,11 +98,10 @@ export function FeedPreview({
   const [selectedPost, setSelectedPost] = useState<PostWithAssets | null>(null);
   const [activeTab, setActiveTab] = useState<FeedTab>("posts");
 
-  const feedPosts = posts.filter(
-    (p) => !REEL_FORMATS.includes(p.format) && !STORY_FORMATS.includes(p.format)
-  );
   const reelPosts = posts.filter((p) => REEL_FORMATS.includes(p.format));
   const storyPosts = posts.filter((p) => STORY_FORMATS.includes(p.format));
+  const publicationPosts = posts.filter((p) => !STORY_FORMATS.includes(p.format));
+  const publicationCount = publicationPosts.length;
 
   useEffect(() => {
     if (initialPostId) {
@@ -63,28 +131,34 @@ export function FeedPreview({
 
   return (
     <>
-      <div className="w-full max-w-[375px] mx-auto">
+      <div className="w-full max-w-[430px] mx-auto">
         <div className="border border-border rounded-xl overflow-hidden bg-surface">
           {/* Profile header */}
           <div className="px-4 pt-5 pb-4">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="h-20 w-20 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[3px] shrink-0">
-                <div className="h-full w-full rounded-full bg-white flex items-center justify-center text-2xl font-bold text-neutral-700">
+            <div className="flex items-center gap-3 sm:gap-4 mb-4">
+              <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[3px] shrink-0">
+                <div className="h-full w-full rounded-full bg-white flex items-center justify-center text-xl sm:text-2xl font-bold text-neutral-700">
                   {accountName.slice(0, 1).toUpperCase()}
                 </div>
               </div>
-              <div className="flex-1 flex justify-around text-center">
-                <div>
-                  <p className="text-base font-semibold tabular-nums">{posts.length}</p>
-                  <p className="text-[11px] text-muted">publicaciones</p>
+              <div className="flex-1 min-w-0 grid grid-cols-3 gap-1 text-center">
+                <div className="min-w-0">
+                  <p className="text-base font-semibold tabular-nums">{publicationCount}</p>
+                  <p className="text-[10px] leading-tight text-muted truncate">
+                    publicaciones
+                  </p>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-base font-semibold tabular-nums">—</p>
-                  <p className="text-[11px] text-muted">seguidores</p>
+                  <p className="text-[10px] leading-tight text-muted truncate">
+                    seguidores
+                  </p>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-base font-semibold tabular-nums">—</p>
-                  <p className="text-[11px] text-muted">siguiendo</p>
+                  <p className="text-[10px] leading-tight text-muted truncate">
+                    siguiendo
+                  </p>
                 </div>
               </div>
             </div>
@@ -165,81 +239,44 @@ export function FeedPreview({
           )}
 
           {/* Tabs */}
-          <div className="flex border-t border-b border-border text-center text-xs">
+          <div className="flex border-t border-b border-border text-center text-[10px] sm:text-xs">
             <button
               type="button"
               onClick={() => setActiveTab("posts")}
-              className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
+              className={`flex-1 py-2.5 flex items-center justify-center gap-1 sm:gap-1.5 border-b-2 transition-colors ${
                 activeTab === "posts"
                   ? "border-foreground font-semibold"
                   : "border-transparent text-muted"
               }`}
             >
-              <Grid3X3 size={14} />
-              PUBLICACIONES
+              <Grid3X3 size={14} className="shrink-0" />
+              <span className="truncate">PUBLICACIONES</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab("reels")}
-              className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
+              className={`flex-1 py-2.5 flex items-center justify-center gap-1 sm:gap-1.5 border-b-2 transition-colors ${
                 activeTab === "reels"
                   ? "border-foreground font-semibold"
                   : "border-transparent text-muted"
               }`}
             >
-              <Play size={14} />
-              REELS
+              <Play size={14} className="shrink-0" />
+              <span className="truncate">REELS</span>
             </button>
           </div>
 
           {/* Grid content */}
           {activeTab === "posts" && (
             <div className="grid grid-cols-3 gap-0.5">
-              {feedPosts.map((post) => {
-                const assets = sortPostAssets(post.assets || []);
-                const cover = assets[0];
-
-                return (
-                  <button
-                    key={post.id}
-                    type="button"
-                    onClick={() => setSelectedPost(post)}
-                    className="aspect-[4/5] bg-neutral-100 relative group overflow-hidden"
-                  >
-                    {cover ? (
-                      cover.file_type === "video" ? (
-                        <video
-                          src={cover.file_url}
-                          className="w-full h-full object-cover"
-                          muted
-                        />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={cover.file_url}
-                          alt={post.title}
-                          className="w-full h-full object-cover"
-                        />
-                      )
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-muted/40 px-2">
-                        <ImageIcon size={18} />
-                        <span className="text-[9px] mt-1 text-center line-clamp-2">
-                          {post.title}
-                        </span>
-                      </div>
-                    )}
-                    {assets.length > 1 && (
-                      <Grid3X3
-                        size={14}
-                        className="absolute top-1.5 right-1.5 text-white drop-shadow"
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
-                  </button>
-                );
-              })}
-              {feedPosts.length === 0 && (
+              {publicationPosts.map((post) => (
+                <FeedGridItem
+                  key={post.id}
+                  post={post}
+                  onSelect={setSelectedPost}
+                />
+              ))}
+              {publicationPosts.length === 0 && (
                 <div className="col-span-3 py-12 text-center text-xs text-muted">
                   Sin publicaciones de feed
                 </div>
@@ -249,48 +286,14 @@ export function FeedPreview({
 
           {activeTab === "reels" && (
             <div className="grid grid-cols-3 gap-0.5">
-              {reelPosts.map((post) => {
-                const assets = sortPostAssets(post.assets || []);
-                const cover = assets[0];
-
-                return (
-                  <button
-                    key={post.id}
-                    type="button"
-                    onClick={() => setSelectedPost(post)}
-                    className="aspect-[9/16] bg-neutral-900 relative group overflow-hidden"
-                  >
-                    {cover ? (
-                      cover.file_type === "video" ? (
-                        <video
-                          src={cover.file_url}
-                          className="w-full h-full object-cover"
-                          muted
-                        />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={cover.file_url}
-                          alt={post.title}
-                          className="w-full h-full object-cover"
-                        />
-                      )
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-white/40 px-2">
-                        <Play size={18} />
-                        <span className="text-[9px] mt-1 text-center line-clamp-2">
-                          {post.title}
-                        </span>
-                      </div>
-                    )}
-                    <Play
-                      size={14}
-                      className="absolute top-1.5 right-1.5 text-white drop-shadow"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
-                  </button>
-                );
-              })}
+              {reelPosts.map((post) => (
+                <FeedGridItem
+                  key={post.id}
+                  post={post}
+                  variant="reel"
+                  onSelect={setSelectedPost}
+                />
+              ))}
               {reelPosts.length === 0 && (
                 <div className="col-span-3 py-12 text-center text-xs text-muted">
                   Sin reels

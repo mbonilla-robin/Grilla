@@ -663,9 +663,11 @@ export async function updatePostStatus(postId: string, status: string, orgId: st
 
   const { data: post } = await supabase
     .from("posts")
-    .select("title")
+    .select("title, status")
     .eq("id", postId)
     .single();
+
+  const previousPostStatus = post?.status;
 
   const { error } = await supabase
     .from("posts")
@@ -675,7 +677,7 @@ export async function updatePostStatus(postId: string, status: string, orgId: st
   if (error) return { error: error.message };
 
   const { syncTasksForPost } = await import("@/lib/task-sync");
-  await syncTasksForPost(supabase, postId);
+  await syncTasksForPost(supabase, postId, previousPostStatus);
 
   if (post?.title) {
     const { notifyPostStatusChange } = await import("@/lib/notifications");
@@ -1129,7 +1131,7 @@ export async function reviewPost(
   if (error) return { error: error.message };
 
   const { syncTasksForPost } = await import("@/lib/task-sync");
-  await syncTasksForPost(supabase, postId);
+  await syncTasksForPost(supabase, postId, post.status);
 
   if (feedback?.trim()) {
     const { createPostComment } = await import("@/lib/notifications");
@@ -1281,7 +1283,7 @@ async function autoUpdatePostStatusFromAssets(
   }
 
   const { syncTasksForPost } = await import("@/lib/task-sync");
-  await syncTasksForPost(supabase, postId);
+  await syncTasksForPost(supabase, postId, post.status);
 
   if (newStatus === "review") {
     const resolvedOrgId = orgId ?? post.organization_id;

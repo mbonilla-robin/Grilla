@@ -53,8 +53,7 @@ function LoadingContent() {
 
       <div className="absolute inset-x-0 bottom-0 flex justify-center px-6 pb-10">
         <img
-          src="/grilla-logo.png"
-          srcSet="/grilla-logo.png 1x, /grilla-logo@2x.png 2x"
+          src="/grilla-logo.svg"
           alt="Grilla"
           width={188}
           height={100}
@@ -92,7 +91,7 @@ function buildPersistHtml() {
       </p>
     </div>
     <div class="absolute inset-x-0 bottom-0 flex justify-center px-6 pb-10">
-      <img src="/grilla-logo.png" srcSet="/grilla-logo.png 1x, /grilla-logo@2x.png 2x" alt="Grilla" width="188" height="100" class="h-9 w-auto" />
+      <img src="/grilla-logo.svg" alt="Grilla" width="188" height="100" class="h-9 w-auto" />
     </div>
   `;
 }

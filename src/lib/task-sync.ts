@@ -5,11 +5,6 @@ import type { TaskWithPost } from "@/lib/task-due";
 export const OPEN_TASK_STATUSES: TaskStatus[] = ["contenido", "brief_listo"];
 
 const LEGACY_OPEN = new Set(["pending", "in_progress"]);
-const CLOSED_STATUSES = new Set([
-  "done",
-  "aprobado",
-  "en_revision",
-]);
 
 const POST_CLOSED_STATUSES = new Set([
   "review",
@@ -32,18 +27,25 @@ export function normalizeTaskStatus(status: string): TaskStatus {
   return "contenido";
 }
 
-export function isOpenTask(task: TaskWithPost): boolean {
-  const status = task.status as string;
-  if (CLOSED_STATUSES.has(status)) return false;
+/** Estado visible: deriva brief_listo del post cuando la tarea sigue en contenido */
+export function effectiveTaskStatus(
+  task: Pick<TaskWithPost, "status"> & { post?: { status?: string } | null }
+): TaskStatus {
+  const base = normalizeTaskStatus(task.status);
+  if (base === "contenido" && task.post?.status === "brief_ready") {
+    return "brief_listo";
+  }
+  return base;
+}
 
-  const postStatus = (task.post as { status?: string } | null)?.status;
+export function isOpenTask(task: TaskWithPost): boolean {
+  const status = effectiveTaskStatus(task);
+  if (status === "aprobado" || status === "en_revision") return false;
+
+  const postStatus = task.post?.status;
   if (postStatus && POST_CLOSED_STATUSES.has(postStatus)) return false;
 
-  return (
-    status === "contenido" ||
-    status === "brief_listo" ||
-    LEGACY_OPEN.has(status)
-  );
+  return status === "contenido" || status === "brief_listo";
 }
 
 export function taskStatusFromPost(
@@ -62,11 +64,11 @@ export function taskStatusFromPost(
   return "contenido";
 }
 
-/** DB value — works before and after enum migration */
+/** Valor en DB — brief_listo se guarda como contenido (sin migración de enum) */
 export function dbTaskStatus(status: TaskStatus): string {
   const map: Record<TaskStatus, string> = {
     contenido: "contenido",
-    brief_listo: "brief_listo",
+    brief_listo: "contenido",
     en_revision: "en_revision",
     aprobado: "aprobado",
   };
@@ -74,7 +76,7 @@ export function dbTaskStatus(status: TaskStatus): string {
 }
 
 export function legacyTaskStatus(status: TaskStatus): string {
-  if (status === "contenido") return "pending";
+  if (status === "contenido" || status === "brief_listo") return "pending";
   if (status === "aprobado") return "done";
   return "in_progress";
 }
@@ -101,7 +103,8 @@ export async function setTasksStatusForPost(
 
 export async function syncTasksForPost(
   supabase: SupabaseClient,
-  postId: string
+  postId: string,
+  previousPostStatus?: string
 ) {
   const [{ data: post }, { count }, { data: task }] = await Promise.all([
     supabase
@@ -122,23 +125,24 @@ export async function syncTasksForPost(
 
   if (!post) return;
 
-  const status = taskStatusFromPost(post.status, (count ?? 0) > 0);
-  const previousStatus = task?.status ?? "contenido";
+  const newStatus = taskStatusFromPost(post.status, (count ?? 0) > 0);
+  const previousRaw = task?.status ?? "contenido";
+  const prevEffective = effectiveTaskStatus({
+    status: previousRaw,
+    post: previousPostStatus ? { status: previousPostStatus } : null,
+  });
 
-  await setTasksStatusForPost(supabase, postId, status);
+  await setTasksStatusForPost(supabase, postId, newStatus);
 
-  if (
-    task?.assigned_to &&
-    normalizeTaskStatus(previousStatus) !== status
-  ) {
+  if (task?.assigned_to && prevEffective !== newStatus) {
     const { notifyTaskStatusChange } = await import("@/lib/notifications");
     await notifyTaskStatusChange(
       post.organization_id,
       postId,
       post.title,
       task.assigned_to,
-      previousStatus,
-      status
+      prevEffective,
+      newStatus
     );
   }
 }

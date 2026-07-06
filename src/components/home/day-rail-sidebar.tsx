@@ -2,10 +2,9 @@ import Link from "next/link";
 import { formatTaskLabel } from "@/lib/post-display";
 import {
   formatTaskShortDate,
-  taskPriorityLabel,
   type TaskWithPost,
 } from "@/lib/task-due";
-import { normalizeTaskStatus } from "@/lib/task-sync";
+import { effectiveTaskStatus } from "@/lib/task-sync";
 import { taskStatusCardStyles } from "@/lib/status-colors";
 import { TASK_STATUS_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -27,29 +26,6 @@ function DayRailSectionHeader({
   );
 }
 
-function DayRailPill({
-  children,
-  tone = "neutral",
-}: {
-  children: React.ReactNode;
-  tone?: "neutral" | "org" | "status" | "priority" | "warning";
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium leading-none",
-        tone === "org" && "bg-white text-foreground border border-border",
-        tone === "status" && "bg-neutral-100 text-neutral-700",
-        tone === "priority" && "bg-foreground text-background",
-        tone === "warning" && "bg-brand text-brand-foreground",
-        tone === "neutral" && "bg-neutral-100 text-neutral-600"
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
 function DayRailTaskCard({
   task,
   href,
@@ -59,10 +35,9 @@ function DayRailTaskCard({
   href?: string;
   isLast?: boolean;
 }) {
-  const taskStatus = normalizeTaskStatus(task.status);
+  const taskStatus = effectiveTaskStatus(task);
   const status = TASK_STATUS_LABELS[taskStatus];
   const statusStyle = taskStatusCardStyles[taskStatus];
-  const priority = taskPriorityLabel(task);
   const dueDate = formatTaskShortDate(task.due_at || task.post?.scheduled_at);
 
   const card = (
@@ -84,24 +59,27 @@ function DayRailTaskCard({
 
       <div
         className={cn(
-          "min-w-0 flex-1 rounded-xl border p-2.5 shadow-sm",
+          "min-w-0 flex-1 rounded-xl border p-2.5 shadow-sm space-y-2",
           statusStyle.card
         )}
       >
+        {task.organization?.name && (
+          <p className="text-[10px] text-muted truncate">{task.organization.name}</p>
+        )}
+
         <p className="text-body text-xs line-clamp-2">{formatTaskLabel(task)}</p>
 
-        <div className="mt-2 flex flex-wrap gap-1">
-          {task.organization?.name && (
-            <DayRailPill tone="org">{task.organization.name}</DayRailPill>
+        <span
+          className={cn(
+            "inline-flex text-micro rounded-full border px-2 py-0.5",
+            statusStyle.pill
           )}
-          <DayRailPill tone="status">
-            {status}
-          </DayRailPill>
-          {priority && <DayRailPill tone="priority">{priority}</DayRailPill>}
-        </div>
+        >
+          {status}
+        </span>
 
         {dueDate && (
-          <p className="mt-2.5 text-caption">Entrega {dueDate}</p>
+          <p className="text-caption">Entrega {dueDate}</p>
         )}
       </div>
     </div>

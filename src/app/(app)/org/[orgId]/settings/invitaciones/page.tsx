@@ -32,8 +32,8 @@ export default async function InvitationsSettingsPage({
 
   if (!organization?.invite_token) {
     return (
-      <div className="p-6 max-w-lg">
-        <h1 className="text-title-sub mb-2">Invitaciones</h1>
+      <div className="w-full px-4 py-4 md:p-6 md:max-w-lg">
+        <h1 className="hidden md:block text-title-sub mb-2">Invitaciones</h1>
         <p className="text-sm text-muted">
           No hay enlace de invitación disponible para esta organización.
         </p>
@@ -42,9 +42,9 @@ export default async function InvitationsSettingsPage({
   }
 
   return (
-    <div className="p-6 max-w-lg">
-      <h1 className="text-title-sub mb-2">Invitaciones</h1>
-      <p className="text-sm text-muted mb-6">
+    <div className="w-full px-4 py-4 md:p-6 md:max-w-lg">
+      <h1 className="hidden md:block text-title-sub mb-2">Invitaciones</h1>
+      <p className="text-sm text-muted mb-4 md:mb-6">
         Comparte un enlace para que nuevos miembros se unan a {organization.name}.
       </p>
 

@@ -16,18 +16,19 @@ export function HomeQuickNav() {
         <Link
           key={href}
           href={href}
+          aria-label={label}
           className={cn(
-            "flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface",
-            "px-2 py-2 text-xs sm:text-sm font-medium",
+            "flex flex-1 min-w-0 items-center justify-center rounded-xl border border-border bg-surface",
+            "px-2 py-2.5 sm:gap-1.5 sm:px-2 sm:py-2 text-xs sm:text-sm font-medium",
             "hover:bg-neutral-50 hover:border-foreground/15 transition-colors group"
           )}
         >
           <Icon
-            size={16}
+            size={18}
             strokeWidth={1.5}
-            className="text-muted shrink-0 group-hover:text-foreground transition-colors"
+            className="text-muted shrink-0 group-hover:text-foreground transition-colors sm:size-4"
           />
-          <span className="truncate">{label}</span>
+          <span className="hidden sm:inline truncate">{label}</span>
         </Link>
       ))}
     </nav>

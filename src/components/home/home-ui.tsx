@@ -14,9 +14,8 @@ export function HomeDayRailLayout({
     <>
       <DayRailPortal>{dayPanel}</DayRailPortal>
 
-      <div className="h-full w-full overflow-auto">
-        <div className="md:hidden border-b border-border">{dayPanel}</div>
-        <div className="px-5 py-5 sm:px-6 lg:px-8 xl:px-10 space-y-4 lg:space-y-5">
+      <div className="h-full w-full min-w-0 overflow-auto">
+        <div className="px-4 py-4 sm:px-6 sm:py-5 lg:px-8 xl:px-10 space-y-4 lg:space-y-5">
           {children}
         </div>
       </div>

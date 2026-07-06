@@ -11,12 +11,12 @@ export function SettingsActions() {
 
   return (
     <>
-      <div className="flex gap-2">
-        <Button size="sm" variant="secondary" onClick={() => setShowCreateOrg(true)}>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button size="sm" variant="secondary" onClick={() => setShowCreateOrg(true)} className="w-full sm:w-auto">
           <Plus size={14} /> Nueva organización
         </Button>
-        <Link href="/join">
-          <Button size="sm" variant="ghost">
+        <Link href="/join" className="w-full sm:w-auto">
+          <Button size="sm" variant="ghost" className="w-full sm:w-auto">
             <Link2 size={14} /> Unirme a otra
           </Button>
         </Link>

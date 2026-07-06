@@ -1,8 +1,10 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ProductionBrandBar } from "@/components/layout/production-brand-bar";
 import { FeedPreview } from "@/components/feed/feed-preview";
 import { sortPostAssets } from "@/lib/utils";
-import type { PostAsset, PostWithAssets } from "@/lib/types";
+import type { Organization, PostAsset, PostWithAssets } from "@/lib/types";
 
 function FeedContent({
   posts,
@@ -35,8 +37,13 @@ export default async function FeedPage({
   const { orgId } = await params;
   const { post: initialPostId } = await searchParams;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  const [{ data: posts }, { data: org }, { data: brandKit }] = await Promise.all([
+  const [{ data: posts }, { data: org }, { data: brandKit }, { data: memberships }] =
+    await Promise.all([
     supabase
       .from("posts")
       .select("*, post_assets(*)")
@@ -44,7 +51,15 @@ export default async function FeedPage({
       .order("scheduled_at", { ascending: false, nullsFirst: false }),
     supabase.from("organizations").select("name").eq("id", orgId).single(),
     supabase.from("brand_kits").select("objective, tone_of_voice").eq("organization_id", orgId).single(),
+    supabase
+      .from("organization_members")
+      .select("organizations(*)")
+      .eq("user_id", user.id),
   ]);
+
+  const organizations = (memberships || []).map(
+    (m) => m.organizations as unknown as Organization
+  );
 
   const postsWithAssets: PostWithAssets[] = (posts || []).map((p) => ({
     ...p,
@@ -52,9 +67,14 @@ export default async function FeedPage({
   }));
 
   return (
-    <div className="p-6 flex flex-col items-center">
-      <div className="mb-6">
-        <h1 className="text-title-sub">Feed</h1>
+    <div className="w-full px-4 py-4 sm:px-6 sm:py-6 flex flex-col items-center">
+      <div className="w-full max-w-lg mb-6 space-y-4">
+        <ProductionBrandBar
+          organizations={organizations}
+          currentOrgId={orgId}
+          page="feed"
+        />
+        <h1 className="text-title-sub text-center">Feed</h1>
       </div>
       <Suspense fallback={null}>
         <FeedContent

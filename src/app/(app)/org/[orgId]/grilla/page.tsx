@@ -108,16 +108,17 @@ export default async function GrillaPage({
     : (["image", "carousel", "reel", "story"] as PostFormat[]);
 
   return (
-    <>
-      <ProductionBrandBar
-        organizations={organizations}
-        currentOrgId={orgId}
-        page="grilla"
-      />
-      <div className="p-6 max-w-7xl">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <div>
+    <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
+      <div className="mb-6 space-y-4">
+        <ProductionBrandBar
+          organizations={organizations}
+          currentOrgId={orgId}
+          page="grilla"
+        />
+
+        <div className="flex flex-col items-center gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="flex w-full flex-col items-center gap-3 md:w-auto md:flex-row md:items-center md:gap-4">
+            <div className="min-w-0 text-center md:text-left">
               <h1 className="text-title-sub">Grilla</h1>
               <p className="text-xs text-muted mt-0.5">
                 Tarjetas editoriales · conectadas al Feed
@@ -129,22 +130,25 @@ export default async function GrillaPage({
               </Suspense>
             )}
           </div>
-          <NewPostDialog
-            orgId={orgId}
-            assignmentOptions={assignmentOptions}
-            currentUserId={user.id}
-            pillarOptions={pillarNames}
-            hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
-            allowedFormats={allowedFormats}
-          />
+          <div className="w-full md:w-auto">
+            <NewPostDialog
+              orgId={orgId}
+              assignmentOptions={assignmentOptions}
+              currentUserId={user.id}
+              pillarOptions={pillarNames}
+              hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
+              allowedFormats={allowedFormats}
+              triggerClassName="w-full md:w-auto"
+            />
+          </div>
         </div>
-        <GrillaCards
-          posts={enrichedPosts}
-          orgId={orgId}
-          pillarOptions={pillarNames}
-          hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
-        />
       </div>
-    </>
+      <GrillaCards
+        posts={enrichedPosts}
+        orgId={orgId}
+        pillarOptions={pillarNames}
+        hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
+      />
+    </div>
   );
 }

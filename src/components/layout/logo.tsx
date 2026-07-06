@@ -23,8 +23,7 @@ export function Logo({ size = "md", showText = false }: LogoProps) {
   return (
     <div className="flex items-center gap-2.5">
       <img
-        src="/grilla-logo.png"
-        srcSet="/grilla-logo.png 1x, /grilla-logo@2x.png 2x"
+        src="/grilla-logo.svg"
         alt="Grilla"
         width={188}
         height={100}

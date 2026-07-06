@@ -13,6 +13,7 @@ import {
   Settings,
 } from "lucide-react";
 import { Logo } from "./logo";
+import { MobileTabBar } from "./mobile-tab-bar";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { CreateOrgDialog } from "@/components/org/create-org-dialog";
@@ -51,7 +52,7 @@ export function AppShell({
 
   async function handleSignOut() {
     await supabase.auth.signOut();
-    router.push("/login");
+    router.push("/");
     router.refresh();
   }
 
@@ -62,8 +63,8 @@ export function AppShell({
     pathname === "/home" || /^\/org\/[^/]+\/home$/.test(pathname);
 
   return (
-    <div className="flex h-screen">
-      <aside className="flex h-screen w-52 flex-col border-r border-border bg-surface shrink-0">
+    <div className="flex h-[100dvh] md:h-screen">
+      <aside className="hidden md:flex h-screen w-52 flex-col border-r border-border bg-surface shrink-0">
         <div className="flex h-14 items-center px-4 border-b border-border">
           <Link href="/home">
             <Logo size="md" showText={false} />
@@ -162,19 +163,26 @@ export function AppShell({
       </aside>
 
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-background">
-        <header className="flex h-14 items-center justify-between px-4 border-b border-border bg-surface shrink-0">
-          <span className="text-sm font-medium">Inicio</span>
+        <header className="flex h-14 items-center justify-between gap-3 px-4 border-b border-border bg-surface shrink-0">
+          <Link href="/home" className="md:hidden shrink-0">
+            <Logo size="sm" showText={false} />
+          </Link>
+          <span className="hidden md:block text-sm font-medium">Inicio</span>
+          <div className="md:hidden flex-1" />
           <NotificationBell userId={userId} initialCount={unreadNotifications} />
         </header>
         <div
           className={cn(
-            "flex flex-1 min-h-0 min-w-0",
-            isHomeWithDayRail ? "overflow-hidden" : "overflow-auto"
+            "flex flex-col flex-1 w-full min-h-0 min-w-0",
+            isHomeWithDayRail ? "overflow-hidden" : "overflow-auto",
+            "pb-[calc(4.75rem+env(safe-area-inset-bottom,0px))] md:pb-0"
           )}
         >
           {children}
         </div>
       </main>
+
+      <MobileTabBar currentOrgId={currentOrgId} isClient={isClient} />
 
       {isHomeWithDayRail && (
         <aside

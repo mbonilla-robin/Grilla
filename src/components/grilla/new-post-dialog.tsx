@@ -17,6 +17,7 @@ interface NewPostDialogProps {
   pillarOptions?: string[];
   hashtagGroups?: OrgHashtagGroup[];
   allowedFormats?: PostFormat[];
+  triggerClassName?: string;
 }
 
 const ALL_FORMATS: PostFormat[] = [
@@ -46,6 +47,7 @@ export function NewPostDialog({
   pillarOptions = [...PILLAR_OPTIONS],
   hashtagGroups = [],
   allowedFormats,
+  triggerClassName,
 }: NewPostDialogProps) {
   const formats = (allowedFormats ?? ALL_FORMATS).map((value) => ({
     value,
@@ -136,7 +138,7 @@ export function NewPostDialog({
 
   if (!open) {
     return (
-      <Button size="sm" onClick={() => setOpen(true)}>
+      <Button size="sm" onClick={() => setOpen(true)} className={triggerClassName}>
         <Plus size={14} />
         Nuevo post
       </Button>

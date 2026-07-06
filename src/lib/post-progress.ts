@@ -1,4 +1,18 @@
-import type { PostStatus } from "@/lib/types";
+import type { PostStatus, TaskStatus } from "@/lib/types";
+
+const TASK_STATUS_ORDER: TaskStatus[] = [
+  "contenido",
+  "brief_listo",
+  "en_revision",
+  "aprobado",
+];
+
+/** Progreso según los 4 estados del flujo: 25 → 50 → 75 → 100 */
+export function taskStatusProgress(status: TaskStatus): number {
+  const idx = TASK_STATUS_ORDER.indexOf(status);
+  if (idx === -1) return 0;
+  return Math.round(((idx + 1) / TASK_STATUS_ORDER.length) * 100);
+}
 
 const STATUS_ORDER: PostStatus[] = [
   "draft",

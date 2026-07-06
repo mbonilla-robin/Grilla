@@ -8,7 +8,6 @@ import {
 import { mergeMentionIds, parseMentionsFromBody } from "@/lib/mentions";
 import type { TaskStatus } from "@/lib/types";
 import { TASK_STATUS_LABELS } from "@/lib/types";
-import { normalizeTaskStatus } from "@/lib/task-sync";
 
 function postLink(orgId: string, postId: string) {
   return `/org/${orgId}/grilla/${postId}`;
@@ -165,11 +164,10 @@ export async function notifyTaskStatusChange(
   postId: string,
   postTitle: string,
   assigneeId: string,
-  previousStatus: string,
+  previousStatus: TaskStatus,
   newStatus: TaskStatus
 ) {
-  const prev = normalizeTaskStatus(previousStatus);
-  if (prev === newStatus) return;
+  if (previousStatus === newStatus) return;
 
   const labels: Record<TaskStatus, string> = {
     contenido: TASK_STATUS_LABELS.contenido,
@@ -183,7 +181,7 @@ export async function notifyTaskStatusChange(
     orgId,
     type: "status_change",
     title: "Tarea actualizada",
-    body: `"${postTitle}": ${labels[prev]} → ${labels[newStatus]}`,
+    body: `"${postTitle}": ${labels[previousStatus]} → ${labels[newStatus]}`,
     link: postLink(orgId, postId),
     relatedPostId: postId,
   });

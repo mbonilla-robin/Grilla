@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { SettingsNav } from "@/components/settings/settings-nav";
+import {
+  SettingsNav,
+  SettingsHub,
+  SettingsMobileHeader,
+  SettingsDesktopRedirect,
+} from "@/components/settings/settings-nav";
 
 export default async function SettingsLayout({
   children,
@@ -29,9 +34,13 @@ export default async function SettingsLayout({
   const isAdmin = membership.role === "admin";
 
   return (
-    <div className="flex min-h-full">
+    <div className="flex flex-1 w-full min-w-0 min-h-full flex-col md:flex-row">
+      <SettingsDesktopRedirect orgId={orgId} />
       <SettingsNav orgId={orgId} isAdmin={isAdmin} />
-      <div className="flex-1 min-w-0">{children}</div>
+      <div className="flex-1 min-w-0 flex flex-col">
+        <SettingsMobileHeader orgId={orgId} />
+        {children}
+      </div>
     </div>
   );
 }

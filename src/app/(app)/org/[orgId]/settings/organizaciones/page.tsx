@@ -25,9 +25,9 @@ export default async function OrganizationsSettingsPage({
   }));
 
   return (
-    <div className="p-6 max-w-lg">
-      <h1 className="text-title-sub mb-2">Organizaciones</h1>
-      <p className="text-sm text-muted mb-6">
+    <div className="w-full px-4 py-4 md:p-6 md:max-w-lg">
+      <h1 className="hidden md:block text-title-sub mb-2">Organizaciones</h1>
+      <p className="text-sm text-muted mb-4 md:mb-6">
         Administra las marcas a las que perteneces.
       </p>
 
