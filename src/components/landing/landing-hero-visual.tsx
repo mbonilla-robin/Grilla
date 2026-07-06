@@ -42,8 +42,12 @@ export function LandingHeroVisual() {
           />
         ) : tagline ? (
           <div key={step} className="landing-showcase-tagline" aria-live="polite">
-            <span className="landing-showcase-line">{tagline.line1}</span>
-            <span className="landing-showcase-line">{tagline.line2}</span>
+            <span className="landing-showcase-line landing-showcase-line-1">
+              {tagline.line1}
+            </span>
+            <span className="landing-showcase-line landing-showcase-line-2">
+              {tagline.line2}
+            </span>
           </div>
         ) : null}
       </div>
