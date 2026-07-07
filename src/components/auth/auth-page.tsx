@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthLayout } from "@/components/auth/auth-layout";
@@ -10,10 +11,10 @@ import { createClient } from "@/lib/supabase/client";
 type AuthStep = "login" | "register";
 
 interface AuthPageProps {
-  initialStep?: AuthStep;
+  initialStep: AuthStep;
 }
 
-export function AuthPage({ initialStep = "register" }: AuthPageProps) {
+export function AuthPage({ initialStep }: AuthPageProps) {
   return (
     <Suspense>
       <AuthPageContent initialStep={initialStep} />
@@ -21,26 +22,24 @@ export function AuthPage({ initialStep = "register" }: AuthPageProps) {
   );
 }
 
-function AuthPageContent({ initialStep = "register" }: AuthPageProps) {
+function AuthPageContent({ initialStep }: AuthPageProps) {
   const searchParams = useSearchParams();
   const modeParam = searchParams.get("mode");
-  const resolvedInitialStep: AuthStep =
-    modeParam === "login" ? "login" : initialStep;
+  const resolvedStep: AuthStep =
+    modeParam === "login"
+      ? "login"
+      : modeParam === "register"
+        ? "register"
+        : initialStep;
 
-  const [step, setStep] = useState<AuthStep>(resolvedInitialStep);
-
-  if (step === "login") {
-    return <LoginStep onSwitch={() => setStep("register")} />;
+  if (resolvedStep === "login") {
+    return <LoginStep />;
   }
 
-  return <RegisterStep onSwitch={() => setStep("login")} />;
+  return <RegisterStep />;
 }
 
-interface StepProps {
-  onSwitch: () => void;
-}
-
-function LoginStep({ onSwitch }: StepProps) {
+function LoginStep() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -78,17 +77,18 @@ function LoginStep({ onSwitch }: StepProps) {
 
   return (
     <AuthLayout
+      variant="login"
       title="Inicia sesión"
+      subtitle="Bienvenido de vuelta. Ingresa a tu cuenta."
       footer={
         <p className="text-center text-sm text-muted">
           ¿No tienes una cuenta?{" "}
-          <button
-            type="button"
-            onClick={onSwitch}
+          <Link
+            href="/register"
             className="font-medium text-foreground underline underline-offset-2"
           >
             Regístrate aquí
-          </button>
+          </Link>
         </p>
       }
     >
@@ -99,6 +99,7 @@ function LoginStep({ onSwitch }: StepProps) {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Correo"
           className="auth-pill-input"
+          autoComplete="email"
           required
         />
         <Input
@@ -107,6 +108,7 @@ function LoginStep({ onSwitch }: StepProps) {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Contraseña"
           className="auth-pill-input"
+          autoComplete="current-password"
           required
         />
 
@@ -129,7 +131,7 @@ function LoginStep({ onSwitch }: StepProps) {
   );
 }
 
-function RegisterStep({ onSwitch }: StepProps) {
+function RegisterStep() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -188,17 +190,18 @@ function RegisterStep({ onSwitch }: StepProps) {
 
   return (
     <AuthLayout
+      variant="register"
       title="Crea tu cuenta"
+      subtitle="Empieza gratis y configura tu espacio en minutos."
       footer={
         <p className="text-center text-sm text-muted">
           ¿Ya tienes una cuenta?{" "}
-          <button
-            type="button"
-            onClick={onSwitch}
+          <Link
+            href="/login"
             className="font-medium text-foreground underline underline-offset-2"
           >
-            Ingresa aquí
-          </button>
+            Inicia sesión
+          </Link>
         </p>
       }
     >
@@ -210,6 +213,7 @@ function RegisterStep({ onSwitch }: StepProps) {
             onChange={(e) => setFirstName(e.target.value)}
             placeholder="Nombre"
             className="auth-pill-input"
+            autoComplete="given-name"
             required
           />
           <Input
@@ -218,6 +222,7 @@ function RegisterStep({ onSwitch }: StepProps) {
             onChange={(e) => setLastName(e.target.value)}
             placeholder="Apellido"
             className="auth-pill-input"
+            autoComplete="family-name"
             required
           />
         </div>
@@ -227,6 +232,7 @@ function RegisterStep({ onSwitch }: StepProps) {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Correo"
           className="auth-pill-input"
+          autoComplete="email"
           required
         />
         <Input
@@ -236,6 +242,7 @@ function RegisterStep({ onSwitch }: StepProps) {
           placeholder="Contraseña"
           minLength={6}
           className="auth-pill-input"
+          autoComplete="new-password"
           required
         />
 
