@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { ResolvedPostIdentifier } from "@/lib/resolve-post-identifier";
 
 interface IdentifierReferencePanelProps {
   label: string;
@@ -71,5 +72,35 @@ export function IdentifierReferencePanel({
         </p>
       )}
     </section>
+  );
+}
+
+interface IdentifierReferencesListProps {
+  label: string;
+  references: ResolvedPostIdentifier[];
+}
+
+export function IdentifierReferencesList({
+  label,
+  references,
+}: IdentifierReferencesListProps) {
+  const withPhotos = references.filter(
+    (ref): ref is ResolvedPostIdentifier & { photoUrl: string; value: string } =>
+      !!ref.photoUrl && !!ref.value
+  );
+
+  if (withPhotos.length === 0) return null;
+
+  return (
+    <div className="space-y-4">
+      {withPhotos.map((ref) => (
+        <IdentifierReferencePanel
+          key={`${ref.catalogId ?? ref.value}`}
+          label={label}
+          value={ref.value}
+          photoUrl={ref.photoUrl}
+        />
+      ))}
+    </div>
   );
 }

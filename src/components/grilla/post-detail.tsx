@@ -38,9 +38,12 @@ import {
   type PostComment,
   type BriefHistoryEntry,
 } from "@/lib/types";
-import { IdentifierReferencePanel } from "@/components/grilla/identifier-reference-panel";
+import { IdentifierReferencesList } from "@/components/grilla/identifier-reference-panel";
 import type { OrgIdentifierConfig } from "@/lib/org-identifier";
-import type { ResolvedPostIdentifier } from "@/lib/resolve-post-identifier";
+import {
+  type ResolvedPostIdentifier,
+  parseIdentifierValues,
+} from "@/lib/resolve-post-identifier";
 import {
   formatDate,
   parseDesignerCopy,
@@ -97,7 +100,7 @@ interface PostDetailProps {
   isAdmin?: boolean;
   briefHistory?: BriefHistoryEntry[];
   identifierConfig?: OrgIdentifierConfig;
-  identifierReference?: ResolvedPostIdentifier;
+  identifierReferences?: ResolvedPostIdentifier[];
 }
 
 export function PostDetail({
@@ -112,7 +115,7 @@ export function PostDetail({
   isAdmin = false,
   briefHistory = [],
   identifierConfig = { label: null, allowPhoto: false, placeholder: null },
-  identifierReference = { value: null, photoUrl: null, catalogId: null },
+  identifierReferences = [],
 }: PostDetailProps) {
   const router = useRouter();
   const [status, setStatus] = useState(post.status);
@@ -131,8 +134,12 @@ export function PostDetail({
     designer.subtitle ||
     designer.body;
 
-  const displayPlate = identifierReference.value || post.plate;
-  const referencePhotoUrl = identifierReference.photoUrl;
+  const displayPlates =
+    identifierReferences.length > 0
+      ? identifierReferences
+          .map((ref) => ref.value)
+          .filter((value): value is string => !!value)
+      : parseIdentifierValues(post.plate || "");
 
   async function handleStatusChange(newStatus: PostStatus) {
     setStatus(newStatus);
@@ -243,11 +250,11 @@ export function PostDetail({
         </button>
       </PropertyRow>
 
-      {identifierConfig.label && displayPlate && (
+      {identifierConfig.label && displayPlates.length > 0 && (
         <PropertyRow label={identifierConfig.label}>
           <span className="inline-flex items-center gap-1.5 text-sm">
-            <Hash size={13} className="text-muted opacity-60" />
-            {displayPlate}
+            <Hash size={13} className="text-muted opacity-60 shrink-0" />
+            <span>{displayPlates.join(" · ")}</span>
           </span>
         </PropertyRow>
       )}
@@ -454,11 +461,10 @@ export function PostDetail({
           Para diseño
         </h2>
 
-        {referencePhotoUrl && identifierConfig.label && displayPlate && (
-          <IdentifierReferencePanel
+        {identifierConfig.label && identifierReferences.length > 0 && (
+          <IdentifierReferencesList
             label={identifierConfig.label}
-            value={displayPlate}
-            photoUrl={referencePhotoUrl}
+            references={identifierReferences}
           />
         )}
 

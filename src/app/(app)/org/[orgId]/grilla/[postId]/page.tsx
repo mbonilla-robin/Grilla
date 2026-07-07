@@ -6,7 +6,7 @@ import { getOrgTeamMembers } from "@/lib/team-data";
 import { sortPostAssets } from "@/lib/utils";
 import { getOrgIdentifiers } from "@/lib/org-identifiers-data";
 import { getOrgIdentifierConfig } from "@/lib/org-identifier";
-import { resolvePostIdentifierReference } from "@/lib/resolve-post-identifier";
+import { resolvePostIdentifierReferences } from "@/lib/resolve-post-identifier";
 import type { Post, PostAsset, PostMetrics, PostComment } from "@/lib/types";
 
 export default async function PostPage({
@@ -57,7 +57,7 @@ export default async function PostPage({
   const identifierConfig = org
     ? getOrgIdentifierConfig(org)
     : { label: null, allowPhoto: false, placeholder: null };
-  const identifierReference = resolvePostIdentifierReference(
+  const identifierReferences = resolvePostIdentifierReferences(
     postData as Post,
     identifiers
   );
@@ -79,7 +79,7 @@ export default async function PostPage({
       isAdmin={membership?.role === "admin"}
       briefHistory={(post.brief_history as Post["brief_history"]) || []}
       identifierConfig={identifierConfig}
-      identifierReference={identifierReference}
+      identifierReferences={identifierReferences}
     />
   );
 }

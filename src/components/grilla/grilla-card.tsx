@@ -19,6 +19,7 @@ import {
 } from "@/lib/types";
 import type { OrgIdentifierConfig } from "@/lib/org-identifier";
 import { formatPostLabel } from "@/lib/post-display";
+import { parseIdentifierValues } from "@/lib/resolve-post-identifier";
 
 interface GrillaCardProps {
   post: PostWithAssets;
@@ -49,11 +50,17 @@ export function GrillaCard({
   const { subtitle } = parseCopyFields(post.copy);
   const excerpt = captionExcerpt(post.caption);
 
+  const plateLabel = post.plate
+    ? parseIdentifierValues(post.plate)
+        .map((plate) => `# ${plate}`)
+        .join(" · ")
+    : null;
+
   const metaParts = [
     formatDate(post.scheduled_at),
     post.pillar || null,
     post.in_drive ? "Drive" : null,
-    post.plate ? `# ${post.plate}` : null,
+    plateLabel,
   ].filter(Boolean);
 
   return (

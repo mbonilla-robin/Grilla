@@ -5,7 +5,7 @@ import type { DesignBrief, DesignBriefSlide, PostFormat } from "@/lib/types";
 import { brandKitToPalette, isBrandKitConfigured } from "@/lib/brief-colors";
 import { formatSlideCopyAsTextInstructions } from "@/lib/brief-text";
 import { parseDesignerCopy } from "@/lib/utils";
-import { resolvePostIdentifierReference } from "@/lib/resolve-post-identifier";
+import { resolvePostIdentifierReferences } from "@/lib/resolve-post-identifier";
 import type { OrgIdentifier } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     .select("*")
     .eq("organization_id", orgId);
 
-  const identifierRef = resolvePostIdentifierReference(
+  const identifierRefs = resolvePostIdentifierReferences(
     post,
     (catalog as OrgIdentifier[]) || []
   );
@@ -56,8 +56,15 @@ export async function POST(request: Request) {
     instructions,
     {
       label: org?.identifier_label || null,
-      value: identifierRef.value || post.plate || null,
-      photoUrl: identifierRef.photoUrl || null,
+      values: identifierRefs
+        .map((ref) => ref.value)
+        .filter((value): value is string => !!value),
+      items: identifierRefs
+        .filter((ref) => ref.value)
+        .map((ref) => ({
+          value: ref.value as string,
+          photoUrl: ref.photoUrl,
+        })),
     }
   );
 
@@ -152,7 +159,7 @@ ESTRUCTURA DEL COPY (crítico — no forzar siempre Título/Subtítulo):
   - Deja colors_used como array vacío en cada slide.
   - En strategic_note, indica que la marca no tiene Brand Kit y debe configurarse o coordinarse con el equipo.
 - El tono es "Industrial-Premium": minimalista pero contundente, documental, operacional.
-- Si el input incluye "identifier" con label, value y/o photoUrl: úsalo como referencia del sujeto principal del post (ej. placa de carro con foto). Menciona el identificador en visual_concept cuando sea relevante para el diseño.
+- Si el input incluye "identifier" con label, values y/o items (cada uno con value y photoUrl): úsalos como referencia de los sujetos del post (ej. placas de carros con foto). Si hay varios identificadores, menciónalos por separado en visual_concept cuando sea relevante.
 - Para carousels: un slide por tarjeta, cada uno con su propio focus y variación visual coherente.
 - Para reels/stories: adapta format_label y layout al formato vertical.
 
@@ -198,8 +205,8 @@ async function generateBrief(
   instructions?: string,
   identifier?: {
     label: string | null;
-    value: string | null;
-    photoUrl: string | null;
+    values: string[];
+    items: Array<{ value: string; photoUrl: string | null }>;
   }
 ): Promise<DesignBrief> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
@@ -253,8 +260,8 @@ async function callGemini(
     instructions?: string;
     identifier?: {
       label: string | null;
-      value: string | null;
-      photoUrl: string | null;
+      values: string[];
+      items: Array<{ value: string; photoUrl: string | null }>;
     };
   }
 ): Promise<DesignBrief | null> {
