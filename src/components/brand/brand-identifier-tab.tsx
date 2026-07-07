@@ -2,10 +2,14 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Camera, Loader2, X } from "lucide-react";
+import { Plus, Trash2, Camera, Loader2, X, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { deleteOrgIdentifier, saveOrgIdentifier, updateOrgIdentifierPhoto } from "@/lib/actions";
+import {
+  deleteOrgIdentifier,
+  saveOrgIdentifier,
+  updateOrgIdentifier,
+} from "@/lib/actions";
 import { uploadCatalogIdentifierPhoto } from "@/lib/identifier-photo";
 import type { OrgIdentifier } from "@/lib/types";
 import type { OrgIdentifierConfig } from "@/lib/org-identifier";
@@ -17,6 +21,59 @@ interface BrandIdentifierTabProps {
   canEdit: boolean;
 }
 
+function IdentifierPhotoField({
+  photoPreview,
+  saving,
+  inputRef,
+  onPhotoChange,
+  onClearPhoto,
+}: {
+  photoPreview: string | null;
+  saving: boolean;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onPhotoChange: (files: FileList | null) => void;
+  onClearPhoto: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-sm text-muted">Foto de referencia</label>
+      {photoPreview ? (
+        <div className="relative inline-block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photoPreview}
+            alt="Vista previa"
+            className="h-32 w-auto max-w-full rounded-lg border border-border object-cover"
+          />
+          <button
+            type="button"
+            onClick={onClearPhoto}
+            className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface text-muted shadow-sm"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      ) : (
+        <label className="flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-surface/50 text-muted hover:border-foreground/20 hover:text-foreground">
+          {saving ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <Camera size={18} />
+          )}
+          <span className="text-xs">Subir foto</span>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="sr-only"
+            onChange={(e) => onPhotoChange(e.target.files)}
+          />
+        </label>
+      )}
+    </div>
+  );
+}
+
 export function BrandIdentifierTab({
   orgId,
   config: initialConfig,
@@ -26,36 +83,59 @@ export function BrandIdentifierTab({
   const router = useRouter();
   const [identifiers, setIdentifiers] = useState(initialIdentifiers);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [label, setLabel] = useState(initialConfig.label || "");
   const [value, setValue] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fieldLabel = initialConfig.label || label;
+  const editingItem = identifiers.find((item) => item.id === editingId) ?? null;
 
-  function resetForm() {
-    setValue("");
+  function clearPhotoState() {
     setPhotoFile(null);
     if (photoPreview?.startsWith("blob:")) URL.revokeObjectURL(photoPreview);
     setPhotoPreview(null);
-    setError("");
+    setRemovePhoto(false);
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  function closeForm() {
+  function resetForm() {
+    setValue("");
+    clearPhotoState();
+    setError("");
+  }
+
+  function closeAddForm() {
     resetForm();
     setShowForm(false);
+  }
+
+  function closeEditForm() {
+    resetForm();
+    setEditingId(null);
   }
 
   function handlePhoto(files: FileList | null) {
     const file = files?.[0];
     if (!file) return;
     setPhotoFile(file);
+    setRemovePhoto(false);
     if (photoPreview?.startsWith("blob:")) URL.revokeObjectURL(photoPreview);
     setPhotoPreview(URL.createObjectURL(file));
+  }
+
+  function openEdit(item: OrgIdentifier) {
+    setShowForm(false);
+    setEditingId(item.id);
+    setValue(item.value);
+    clearPhotoState();
+    setPhotoPreview(item.photo_url);
+    setError("");
   }
 
   async function handleAdd(e: React.FormEvent) {
@@ -96,7 +176,7 @@ export function BrandIdentifierTab({
       }
       photoUrl = uploaded.url || null;
       if (photoUrl) {
-        await updateOrgIdentifierPhoto(orgId, result.data.id, photoUrl);
+        await updateOrgIdentifier(orgId, result.data.id, { photo_url: photoUrl });
       }
     }
 
@@ -105,7 +185,56 @@ export function BrandIdentifierTab({
       photo_url: photoUrl,
     };
     setIdentifiers((prev) => [...prev, newItem]);
-    closeForm();
+    closeAddForm();
+    setSaving(false);
+    router.refresh();
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingItem) return;
+
+    setError("");
+    setSaving(true);
+
+    let photoUrl: string | null | undefined;
+    if (removePhoto) {
+      photoUrl = null;
+    } else if (photoFile) {
+      const uploaded = await uploadCatalogIdentifierPhoto(
+        orgId,
+        editingItem.id,
+        photoFile
+      );
+      if (uploaded.error) {
+        setError(uploaded.error);
+        setSaving(false);
+        return;
+      }
+      photoUrl = uploaded.url || null;
+    }
+
+    const result = await updateOrgIdentifier(orgId, editingItem.id, {
+      value,
+      ...(photoUrl !== undefined ? { photo_url: photoUrl } : {}),
+    });
+
+    if (result.error) {
+      setError(result.error);
+      setSaving(false);
+      return;
+    }
+
+    const updated = {
+      ...(result.data as OrgIdentifier),
+      photo_url:
+        photoUrl !== undefined ? photoUrl : editingItem.photo_url,
+    };
+
+    setIdentifiers((prev) =>
+      prev.map((item) => (item.id === editingItem.id ? updated : item))
+    );
+    closeEditForm();
     setSaving(false);
     router.refresh();
   }
@@ -117,6 +246,7 @@ export function BrandIdentifierTab({
       setError(result.error);
       return;
     }
+    if (editingId === id) closeEditForm();
     setIdentifiers((prev) => prev.filter((item) => item.id !== id));
     router.refresh();
   }
@@ -137,6 +267,10 @@ export function BrandIdentifierTab({
           Campo en la grilla:{" "}
           <span className="font-medium">{fieldLabel}</span>
         </p>
+      )}
+
+      {error && !showForm && !editingId && (
+        <p className="text-sm text-destructive">{error}</p>
       )}
 
       {identifiers.length > 0 ? (
@@ -168,14 +302,24 @@ export function BrandIdentifierTab({
                   <p className="text-sm font-semibold truncate">{item.value}</p>
                 </div>
                 {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(item.id)}
-                    className="shrink-0 p-1.5 rounded text-muted hover:text-destructive hover:bg-neutral-50"
-                    aria-label="Eliminar"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(item)}
+                      className="p-1.5 rounded text-muted hover:text-foreground hover:bg-neutral-50"
+                      aria-label="Editar"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(item.id)}
+                      className="p-1.5 rounded text-muted hover:text-destructive hover:bg-neutral-50"
+                      aria-label="Eliminar"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -187,7 +331,7 @@ export function BrandIdentifierTab({
         </p>
       )}
 
-      {canEdit && !showForm && (
+      {canEdit && !showForm && !editingId && (
         <Button size="sm" onClick={() => setShowForm(true)}>
           <Plus size={14} />
           Agregar identificador
@@ -203,7 +347,7 @@ export function BrandIdentifierTab({
             <h4 className="text-sm font-medium">Nuevo identificador</h4>
             <button
               type="button"
-              onClick={closeForm}
+              onClick={closeAddForm}
               className="text-muted hover:text-foreground"
             >
               <X size={16} />
@@ -228,58 +372,70 @@ export function BrandIdentifierTab({
             required
           />
 
-          <div className="space-y-2">
-            <label className="text-sm text-muted">Foto de referencia</label>
-            {photoPreview ? (
-              <div className="relative inline-block">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photoPreview}
-                  alt="Vista previa"
-                  className="h-32 w-auto max-w-full rounded-lg border border-border object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPhotoFile(null);
-                    if (photoPreview?.startsWith("blob:")) {
-                      URL.revokeObjectURL(photoPreview);
-                    }
-                    setPhotoPreview(null);
-                    if (inputRef.current) inputRef.current.value = "";
-                  }}
-                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface text-muted shadow-sm"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ) : (
-              <label className="flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-surface/50 text-muted hover:border-foreground/20 hover:text-foreground">
-                {saving ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <Camera size={18} />
-                )}
-                <span className="text-xs">Subir foto</span>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="sr-only"
-                  onChange={(e) => handlePhoto(e.target.files)}
-                />
-              </label>
-            )}
-          </div>
+          <IdentifierPhotoField
+            photoPreview={photoPreview}
+            saving={saving}
+            inputRef={inputRef}
+            onPhotoChange={handlePhoto}
+            onClearPhoto={clearPhotoState}
+          />
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <div className="flex gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={closeForm}>
+            <Button type="button" variant="secondary" size="sm" onClick={closeAddForm}>
               Cancelar
             </Button>
             <Button type="submit" size="sm" loading={saving}>
               Guardar
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {editingItem && (
+        <form
+          onSubmit={handleEdit}
+          className="max-w-md space-y-4 rounded-lg border border-border p-4"
+        >
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium">Editar identificador</h4>
+            <button
+              type="button"
+              onClick={closeEditForm}
+              className="text-muted hover:text-foreground"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <Input
+            label={fieldLabel || "Valor"}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={initialConfig.placeholder || "Ej: 73UCAA"}
+            required
+          />
+
+          <IdentifierPhotoField
+            photoPreview={photoPreview}
+            saving={saving}
+            inputRef={inputRef}
+            onPhotoChange={handlePhoto}
+            onClearPhoto={() => {
+              clearPhotoState();
+              setRemovePhoto(true);
+            }}
+          />
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+
+          <div className="flex gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={closeEditForm}>
+              Cancelar
+            </Button>
+            <Button type="submit" size="sm" loading={saving}>
+              Guardar cambios
             </Button>
           </div>
         </form>

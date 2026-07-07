@@ -1226,6 +1226,67 @@ export async function updateOrgIdentifierPhoto(
   return { success: true };
 }
 
+export async function updateOrgIdentifier(
+  orgId: string,
+  identifierId: string,
+  data: {
+    value?: string;
+    photo_url?: string | null;
+  }
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("organization_id", orgId)
+    .single();
+
+  if (!membership || !["admin", "creator", "designer"].includes(membership.role)) {
+    return { error: "Sin permiso para editar identificadores" };
+  }
+
+  const updates: { value?: string; photo_url?: string | null } = {};
+
+  if (data.value !== undefined) {
+    const value = data.value.trim();
+    if (!value) return { error: "El valor es obligatorio" };
+    updates.value = value;
+  }
+
+  if (data.photo_url !== undefined) {
+    updates.photo_url = data.photo_url;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return { error: "Nada que actualizar" };
+  }
+
+  const { data: row, error } = await supabase
+    .from("org_identifiers")
+    .update(updates)
+    .eq("id", identifierId)
+    .eq("organization_id", orgId)
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Ya existe un identificador con ese valor" };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath(`/org/${orgId}/marca`);
+  revalidatePath(`/org/${orgId}/grilla`);
+  return { data: row };
+}
+
 export async function deleteOrgIdentifier(orgId: string, identifierId: string) {
   const supabase = await createClient();
   const {
