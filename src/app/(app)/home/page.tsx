@@ -20,10 +20,14 @@ export default async function GlobalHomePage() {
   return (
     <GlobalHomeView
       profileName={data.profileName}
+      editorialRoles={data.editorialRoles}
+      quincenaBoards={data.quincenaBoards}
+      currentUserId={data.currentUserId}
       tasks={data.tasks}
       urgentTasks={data.urgentTasks}
       brandPillars={brandPillars}
       myDay={data.myDay}
+      orgSnapshots={data.orgSnapshots}
       collaborators={data.collaborators}
     />
   );

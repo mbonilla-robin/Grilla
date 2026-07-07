@@ -3,6 +3,7 @@ import { getOrgTeamMembers } from "@/lib/team-data";
 import { memberHasRole } from "@/lib/team-assignments";
 import {
   dbTaskStatus,
+  ensureTaskForPost,
   legacyTaskStatus,
   primaryTaskAssignee,
   syncTasksForPost,
@@ -128,7 +129,11 @@ export async function ensureSoleRolePostAssignments(orgId: string) {
     const existingTasks = tasksByPost.get(post.id) || [];
 
     if (existingTasks.length > 1) {
-      const [keep, ...dupes] = existingTasks;
+      const sorted = [...existingTasks].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      const [keep, ...dupes] = sorted;
       await admin
         .from("tasks")
         .delete()
@@ -160,16 +165,7 @@ export async function ensureSoleRolePostAssignments(orgId: string) {
         post_id: post.id,
         due_at: dueAt,
       };
-      const { error } = await admin.from("tasks").insert({
-        ...row,
-        status: dbTaskStatus(taskStatus),
-      });
-      if (error) {
-        await admin.from("tasks").insert({
-          ...row,
-          status: legacyTaskStatus(taskStatus),
-        });
-      }
+      await ensureTaskForPost(admin, row, taskStatus);
     } else {
       await syncTasksForPost(admin, post.id);
     }

@@ -184,13 +184,6 @@ export function AppShell({
 
       <MobileTabBar currentOrgId={currentOrgId} isClient={isClient} />
 
-      {isHomeWithDayRail && (
-        <aside
-          id="home-day-rail"
-          className="hidden md:flex w-64 shrink-0 h-screen flex-col border-l border-border overflow-hidden"
-        />
-      )}
-
       <CreateOrgDialog open={showCreateOrg} onClose={() => setShowCreateOrg(false)} />
     </div>
   );

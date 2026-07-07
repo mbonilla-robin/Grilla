@@ -79,7 +79,6 @@ function LoginStep() {
     <AuthLayout
       variant="login"
       title="Inicia sesión"
-      subtitle="Bienvenido de vuelta. Ingresa a tu cuenta."
       footer={
         <p className="text-center text-sm text-muted">
           ¿No tienes una cuenta?{" "}

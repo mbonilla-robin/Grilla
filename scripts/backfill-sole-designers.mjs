@@ -114,8 +114,7 @@ for (const org of targets) {
   const { data: existingTasks } = await admin
     .from("tasks")
     .select("post_id")
-    .in("post_id", postIds)
-    .ilike("title", "Diseñar:%");
+    .in("post_id", postIds);
 
   const withTask = new Set((existingTasks || []).map((t) => t.post_id));
   const adminMember = (members || []).find((m) => m.role === "admin") || members?.[0];
@@ -129,7 +128,7 @@ for (const org of targets) {
       assigned_to: designer.user_id,
       created_by: adminMember?.user_id || designer.user_id,
       post_id: p.id,
-      status: "pending",
+      status: "contenido",
     }));
 
   if (newTasks.length) {

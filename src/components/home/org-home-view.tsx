@@ -1,21 +1,27 @@
 import { PendientesList } from "./pendientes-list";
 import {
   OrgHomeHeader,
-  HomeDayRailLayout,
+  HomeMainLayout,
   SectionCard,
 } from "./home-ui";
-import { DayRailSidebar } from "./day-rail-sidebar";
 import { OrgQuickNav } from "./org-quick-nav";
 import { ReviewGallery } from "./review-gallery";
-import { HomeAlertBanner } from "./home-alert-banner";
+import { EditorialCadenceAlerts } from "./editorial-cadence-alerts";
 import { TeamAvatarRow } from "./team-avatar-row";
-import { FeaturedTaskCards } from "./featured-task-cards";
-import { filterUpcomingTasks, filterUrgentTasks, type TaskWithPost } from "@/lib/task-due";
+import { QuincenaProgressCards } from "./quincena-progress-cards";
+import { buildQuincenaProgressCards } from "@/lib/quincena-progress";
 import type { HomeStats, ReviewPostItem, TeamMemberPreview } from "@/lib/home-data";
+import type { QuincenaBoardSnapshot } from "@/lib/editorial-quincena";
+import type { MemberRole } from "@/lib/types";
+import type { TaskWithPost } from "@/lib/task-due";
 
 interface OrgHomeViewProps {
   orgId: string;
   orgName: string;
+  profileName: string;
+  editorialRoles: MemberRole[];
+  quincenaBoards: QuincenaBoardSnapshot[];
+  currentUserId: string;
   stats: HomeStats;
   tasks: TaskWithPost[];
   urgentTasks: TaskWithPost[];
@@ -26,28 +32,23 @@ interface OrgHomeViewProps {
 export function OrgHomeView({
   orgId,
   orgName,
+  profileName,
+  editorialRoles,
+  quincenaBoards,
+  currentUserId,
   stats,
   tasks = [],
   urgentTasks = [],
   reviewPosts = [],
   teamMembers = [],
 }: OrgHomeViewProps) {
-  const featuredTasks = urgentTasks.length > 0 ? urgentTasks : tasks;
-  const tuDiaTasks = filterUrgentTasks(tasks);
-  const upcomingTasks = filterUpcomingTasks(tasks);
+  const quincenaCards = buildQuincenaProgressCards({
+    boards: quincenaBoards,
+    roles: editorialRoles,
+  });
 
   return (
-    <HomeDayRailLayout
-      dayPanel={
-        <DayRailSidebar
-          tuDiaTasks={tuDiaTasks}
-          upcomingTasks={upcomingTasks}
-          getTaskHref={(task) =>
-            task.post_id ? `/org/${orgId}/grilla/${task.post_id}` : undefined
-          }
-        />
-      }
-    >
+    <HomeMainLayout>
       <OrgHomeHeader
         orgName={orgName}
         teamRow={
@@ -61,17 +62,22 @@ export function OrgHomeView({
         }
       />
 
-      <HomeAlertBanner
-        urgentCount={urgentTasks.length}
-        pendingCount={stats.tasksOpen}
-        storageKey={`org-home-alert-${orgId}`}
+      <EditorialCadenceAlerts
+        firstName={profileName}
+        roles={editorialRoles}
+        quincenaBoards={quincenaBoards}
+        orgId={orgId}
+        currentUserId={currentUserId}
+        urgentTaskCount={urgentTasks.length}
+        pendingTaskCount={stats.tasksOpen}
+        storageKey={`org-editorial-alert-${orgId}`}
       />
 
       <OrgQuickNav orgId={orgId} />
 
-      {featuredTasks.length > 0 && (
-        <SectionCard title="Destacadas">
-          <FeaturedTaskCards tasks={featuredTasks} />
+      {quincenaCards.length > 0 && (
+        <SectionCard title="Quincena en curso">
+          <QuincenaProgressCards cards={quincenaCards} />
         </SectionCard>
       )}
 
@@ -82,6 +88,6 @@ export function OrgHomeView({
       <SectionCard title="Pendientes">
         <PendientesList tasks={tasks} />
       </SectionCard>
-    </HomeDayRailLayout>
+    </HomeMainLayout>
   );
 }

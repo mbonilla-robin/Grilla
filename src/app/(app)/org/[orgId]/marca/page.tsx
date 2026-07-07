@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { SubPageHeader } from "@/components/home/home-ui";
 import { BrandUnifiedEditor } from "@/components/brand/brand-unified-editor";
 import { getOrgPillars, getOrgHashtagGroups } from "@/lib/pillars-data";
+import { getOrgIdentifierConfig } from "@/lib/org-identifier";
+import { getOrgIdentifiers } from "@/lib/org-identifiers-data";
 import type { BrandKit } from "@/lib/types";
 
 export default async function MarcaConfigPage({
@@ -20,7 +22,7 @@ export default async function MarcaConfigPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: membership }, { data: org }, { data: brandKit }, pillars, hashtagGroups] =
+  const [{ data: membership }, { data: org }, { data: brandKit }, pillars, hashtagGroups, identifiers] =
     await Promise.all([
       supabase
         .from("organization_members")
@@ -28,10 +30,11 @@ export default async function MarcaConfigPage({
         .eq("user_id", user!.id)
         .eq("organization_id", orgId)
         .single(),
-      supabase.from("organizations").select("name").eq("id", orgId).single(),
+      supabase.from("organizations").select("name, identifier_label, identifier_allow_photo, identifier_placeholder").eq("id", orgId).single(),
       supabase.from("brand_kits").select("*").eq("organization_id", orgId).single(),
       getOrgPillars(orgId),
       getOrgHashtagGroups(orgId),
+      getOrgIdentifiers(orgId),
     ]);
 
   if (!membership || !org) notFound();
@@ -63,6 +66,8 @@ export default async function MarcaConfigPage({
           brandKit={brandKit as BrandKit}
           pillars={pillars}
           hashtagGroups={hashtagGroups}
+          identifierConfig={getOrgIdentifierConfig(org)}
+          identifiers={identifiers}
           canEdit={canEdit}
           initialTab={tab}
         />

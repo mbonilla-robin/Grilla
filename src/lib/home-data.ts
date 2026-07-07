@@ -1,10 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import {
+  collectEditorialRoles,
+} from "@/lib/editorial-cadence";
+import { fetchQuincenaBoardSnapshots } from "@/lib/editorial-cadence-data";
+import type { QuincenaBoardSnapshot } from "@/lib/editorial-quincena";
+import {
   filterUrgentTasks,
   sortByDueAt,
   type TaskWithPost,
 } from "@/lib/task-due";
-import { filterOpenTasks } from "@/lib/task-sync";
+import { filterOpenTasks, pruneDuplicateTasks } from "@/lib/task-sync";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   DEFAULT_GLOBAL_SLOTS,
   MAX_SLOT_WIDGETS,
@@ -147,6 +153,25 @@ function mapTaskRows(
   });
 }
 
+async function loadAssignedOpenTasks(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<TaskWithPost[]> {
+  const admin = createAdminClient();
+  if (admin) {
+    await pruneDuplicateTasks(admin);
+  }
+
+  const { data: taskData } = await supabase
+    .from("tasks")
+    .select("*, organizations(name, id), posts(format, title, scheduled_at, status)")
+    .eq("assigned_to", userId)
+    .order("due_at", { ascending: true, nullsFirst: false })
+    .limit(50);
+
+  return filterOpenTasks(mapTaskRows(taskData));
+}
+
 export async function getGlobalHomeData(userId: string) {
   const supabase = await createClient();
 
@@ -175,14 +200,7 @@ export async function getGlobalHomeData(userId: string) {
   let orgSnapshots: OrgSnapshot[] = [];
 
   if (orgIds.length > 0) {
-    const { data: taskData } = await supabase
-      .from("tasks")
-      .select("*, organizations(name, id), posts(format, title, scheduled_at, status)")
-      .eq("assigned_to", userId)
-      .order("due_at", { ascending: true, nullsFirst: false })
-      .limit(50);
-
-    tasks = filterOpenTasks(mapTaskRows(taskData));
+    tasks = await loadAssignedOpenTasks(supabase, userId);
 
     orgSnapshots = await Promise.all(
       organizations.map(async (org) => {
@@ -235,7 +253,13 @@ export async function getGlobalHomeData(userId: string) {
   };
 
   let collaborators: TeamMemberPreview[] = [];
+  let quincenaBoards: QuincenaBoardSnapshot[] = [];
+
   if (orgIds.length > 0) {
+    quincenaBoards = await fetchQuincenaBoardSnapshots(
+      organizations.map((o) => ({ id: o.id, name: o.name }))
+    );
+
     const { data: memberRows } = await supabase
       .from("organization_members")
       .select(
@@ -274,8 +298,22 @@ export async function getGlobalHomeData(userId: string) {
       .slice(0, 12);
   }
 
+  const editorialRoles = [
+    ...new Set(
+      (memberships || []).flatMap((m) =>
+        collectEditorialRoles(
+          m.role as MemberRole,
+          (m.extra_roles as MemberRole[] | null) ?? []
+        )
+      )
+    ),
+  ];
+
   return {
     profileName,
+    editorialRoles,
+    quincenaBoards,
+    currentUserId: userId,
     organizations,
     orgSnapshots,
     tasks: pendingTasks,
@@ -396,6 +434,10 @@ function mapReviewPosts(
 
 export async function getOrgHomeData(userId: string, orgId: string) {
   const supabase = await createClient();
+  const admin = createAdminClient();
+  if (admin) {
+    await pruneDuplicateTasks(admin);
+  }
 
   const [
     { data: profile },
@@ -530,6 +572,10 @@ export async function getOrgHomeData(userId: string, orgId: string) {
 
   const openTasks = filterOpenTasks(mapTaskRows(taskData));
 
+  const quincenaBoards = await fetchQuincenaBoardSnapshots([
+    { id: orgId, name: orgName },
+  ]);
+
   const stats: HomeStats = {
     pending: pendingCount ?? 0,
     inReview: reviewCount ?? 0,
@@ -543,13 +589,17 @@ export async function getOrgHomeData(userId: string, orgId: string) {
     (profile as { first_name?: string } | null)?.first_name ||
     "";
 
+  const editorialRoles = collectEditorialRoles(role, extraRoles);
+
   return {
     profileName,
+    editorialRoles,
+    quincenaBoards,
+    currentUserId: userId,
     orgName,
     orgId,
     role,
     extraRoles,
-    currentUserId: userId,
     stats,
     upcomingPosts: (monthPosts || []) as HomePostPreview[],
     reviewPosts: mapReviewPosts(reviewData, orgName),

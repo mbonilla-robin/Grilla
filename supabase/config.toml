@@ -1,6 +1,3 @@
-[project]
-id = "grilla"
-
 [api]
 enabled = true
 port = 54321

@@ -29,6 +29,10 @@ export default async function OrgHomePage({
     <OrgHomeView
       orgId={orgId}
       orgName={data.orgName}
+      profileName={data.profileName}
+      editorialRoles={data.editorialRoles}
+      quincenaBoards={data.quincenaBoards}
+      currentUserId={data.currentUserId}
       stats={data.stats}
       tasks={data.tasks}
       urgentTasks={data.urgentTasks}

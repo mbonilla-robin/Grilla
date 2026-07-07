@@ -8,6 +8,6 @@ returns boolean as $$
     select 1 from public.organization_members
     where organization_id = org_id
       and user_id = auth.uid()
-      and role in ('admin', 'creator', 'designer', 'community_manager')
+      and role::text in ('admin', 'creator', 'designer', 'community_manager')
   );
 $$ language sql security definer stable set search_path = '';

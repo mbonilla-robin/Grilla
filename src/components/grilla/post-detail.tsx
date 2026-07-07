@@ -16,12 +16,11 @@ import {
   Circle,
   Check,
   ExternalLink,
-  Copy,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { updatePost, updatePostStatus, duplicatePost, deletePost } from "@/lib/actions";
+import { updatePost, updatePostStatus, deletePost } from "@/lib/actions";
 import { PostAssetUploader } from "@/components/grilla/post-asset-uploader";
 import { BriefPanel } from "@/components/grilla/brief-panel";
 import { CreativeBriefForm } from "@/components/grilla/creative-brief-form";
@@ -39,6 +38,9 @@ import {
   type PostComment,
   type BriefHistoryEntry,
 } from "@/lib/types";
+import { IdentifierReferencePanel } from "@/components/grilla/identifier-reference-panel";
+import type { OrgIdentifierConfig } from "@/lib/org-identifier";
+import type { ResolvedPostIdentifier } from "@/lib/resolve-post-identifier";
 import {
   formatDate,
   parseDesignerCopy,
@@ -94,6 +96,8 @@ interface PostDetailProps {
   currentUserId?: string;
   isAdmin?: boolean;
   briefHistory?: BriefHistoryEntry[];
+  identifierConfig?: OrgIdentifierConfig;
+  identifierReference?: ResolvedPostIdentifier;
 }
 
 export function PostDetail({
@@ -107,6 +111,8 @@ export function PostDetail({
   currentUserId = "",
   isAdmin = false,
   briefHistory = [],
+  identifierConfig = { label: null, allowPhoto: false, placeholder: null },
+  identifierReference = { value: null, photoUrl: null, catalogId: null },
 }: PostDetailProps) {
   const router = useRouter();
   const [status, setStatus] = useState(post.status);
@@ -116,7 +122,6 @@ export function PostDetail({
   const [caption, setCaption] = useState(post.caption || "");
   const [captionSaving, setCaptionSaving] = useState(false);
   const [captionSaved, setCaptionSaved] = useState(false);
-  const [duplicating, setDuplicating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const FormatIcon = formatIcons[post.format] || ImageIcon;
   const designer = parseDesignerCopy(post.copy);
@@ -126,18 +131,12 @@ export function PostDetail({
     designer.subtitle ||
     designer.body;
 
+  const displayPlate = identifierReference.value || post.plate;
+  const referencePhotoUrl = identifierReference.photoUrl;
+
   async function handleStatusChange(newStatus: PostStatus) {
     setStatus(newStatus);
     await updatePostStatus(post.id, newStatus, orgId);
-  }
-
-  async function handleDuplicate() {
-    setDuplicating(true);
-    const result = await duplicatePost(orgId, post.id);
-    setDuplicating(false);
-    if (result.data?.id) {
-      router.push(`/org/${orgId}/grilla/${result.data.id}`);
-    }
   }
 
   async function handleDelete() {
@@ -244,11 +243,11 @@ export function PostDetail({
         </button>
       </PropertyRow>
 
-      {post.plate && (
-        <PropertyRow label="Placa">
+      {identifierConfig.label && displayPlate && (
+        <PropertyRow label={identifierConfig.label}>
           <span className="inline-flex items-center gap-1.5 text-sm">
             <Hash size={13} className="text-muted opacity-60" />
-            {post.plate}
+            {displayPlate}
           </span>
         </PropertyRow>
       )}
@@ -418,15 +417,6 @@ export function PostDetail({
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleDuplicate}
-              loading={duplicating}
-              title="Duplicar post"
-            >
-              <Copy size={13} />
-            </Button>
             {isAdmin && (
               <Button
                 size="sm"
@@ -463,6 +453,14 @@ export function PostDetail({
         <h2 className="text-label">
           Para diseño
         </h2>
+
+        {referencePhotoUrl && identifierConfig.label && displayPlate && (
+          <IdentifierReferencePanel
+            label={identifierConfig.label}
+            value={displayPlate}
+            photoUrl={referencePhotoUrl}
+          />
+        )}
 
         {designerContentSection}
         {briefSection}

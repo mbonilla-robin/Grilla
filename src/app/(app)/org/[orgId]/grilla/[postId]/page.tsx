@@ -4,6 +4,9 @@ import { PostDetail } from "@/components/grilla/post-detail";
 import { getPostComments } from "@/lib/notifications-data";
 import { getOrgTeamMembers } from "@/lib/team-data";
 import { sortPostAssets } from "@/lib/utils";
+import { getOrgIdentifiers } from "@/lib/org-identifiers-data";
+import { getOrgIdentifierConfig } from "@/lib/org-identifier";
+import { resolvePostIdentifierReference } from "@/lib/resolve-post-identifier";
 import type { Post, PostAsset, PostMetrics, PostComment } from "@/lib/types";
 
 export default async function PostPage({
@@ -32,7 +35,7 @@ export default async function PostPage({
       .select("*")
       .eq("post_id", postId)
       .maybeSingle(),
-    supabase.from("organizations").select("name").eq("id", orgId).single(),
+    supabase.from("organizations").select("name, identifier_label, identifier_allow_photo, identifier_placeholder").eq("id", orgId).single(),
     supabase
       .from("organization_members")
       .select("role")
@@ -43,13 +46,21 @@ export default async function PostPage({
 
   if (!post) notFound();
 
-  const [comments, members] = await Promise.all([
+  const [comments, members, identifiers] = await Promise.all([
     getPostComments(postId),
     getOrgTeamMembers(supabase, orgId),
+    getOrgIdentifiers(orgId),
   ]);
 
   const assets = sortPostAssets((post.post_assets as PostAsset[]) || []);
   const { post_assets: _, ...postData } = post;
+  const identifierConfig = org
+    ? getOrgIdentifierConfig(org)
+    : { label: null, allowPhoto: false, placeholder: null };
+  const identifierReference = resolvePostIdentifierReference(
+    postData as Post,
+    identifiers
+  );
 
   return (
     <PostDetail
@@ -67,6 +78,8 @@ export default async function PostPage({
       currentUserId={user.id}
       isAdmin={membership?.role === "admin"}
       briefHistory={(post.brief_history as Post["brief_history"]) || []}
+      identifierConfig={identifierConfig}
+      identifierReference={identifierReference}
     />
   );
 }

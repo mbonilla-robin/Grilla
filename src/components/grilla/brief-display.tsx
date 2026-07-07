@@ -1,5 +1,6 @@
 import type { DesignBrief, DesignBriefSlide, BriefColorRef } from "@/lib/types";
 import { extractHexColors, mergeColorRefs } from "@/lib/brief-colors";
+import { parseTextInstructionBlocks } from "@/lib/brief-text";
 
 function ColorSwatch({
   hex,
@@ -65,46 +66,8 @@ function ColorRichText({ text }: { text: string }) {
   );
 }
 
-type TextInstructionBlock = {
-  label: string;
-  content: string;
-  details?: string;
-};
-
-function parseTextInstructions(text: string): TextInstructionBlock[] | null {
-  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
-  const blocks: TextInstructionBlock[] = [];
-
-  for (const line of lines) {
-    if (/^sin brand kit configurado\.?$/i.test(line)) {
-      blocks.push({ label: "Aviso", content: "Sin Brand Kit configurado" });
-      continue;
-    }
-
-    const withDetails = line.match(/^([^:]+):\s*(.+?)\s*(?:\.?\s*)\(([^)]+)\)\.?\s*$/);
-    if (withDetails) {
-      blocks.push({
-        label: withDetails[1].trim(),
-        content: withDetails[2].replace(/\.\s*$/, "").trim(),
-        details: withDetails[3].trim(),
-      });
-      continue;
-    }
-
-    const simple = line.match(/^([^:]+):\s*(.+)$/);
-    if (simple) {
-      blocks.push({
-        label: simple[1].trim(),
-        content: simple[2].trim(),
-      });
-    }
-  }
-
-  return blocks.length > 0 ? blocks : null;
-}
-
 function TextInstructionsDisplay({ text }: { text: string }) {
-  const blocks = parseTextInstructions(text);
+  const blocks = parseTextInstructionBlocks(text);
 
   if (!blocks) {
     return <ColorRichText text={text} />;
@@ -112,19 +75,56 @@ function TextInstructionsDisplay({ text }: { text: string }) {
 
   return (
     <div className="space-y-3">
-      {blocks.map((block, i) => (
-        <div key={`${block.label}-${i}`} className="space-y-0.5">
-          <p className="text-sm leading-snug">
-            <span className="font-semibold text-foreground">{block.label}:</span>{" "}
-            <span className="text-foreground/90">{block.content}</span>
-          </p>
-          {block.details && (
-            <p className="text-xs leading-relaxed text-muted pl-0">
-              <ColorRichText text={block.details} />
-            </p>
-          )}
-        </div>
-      ))}
+      {blocks.map((block, i) => {
+        switch (block.kind) {
+          case "notice":
+            return (
+              <p key={i} className="text-xs text-amber-800/90 italic">
+                {block.content}
+              </p>
+            );
+          case "labeled":
+            return (
+              <div key={i} className="space-y-0.5">
+                <p className="text-sm leading-snug">
+                  <span className="font-semibold text-foreground">{block.label}:</span>{" "}
+                  <span className="text-foreground/90">{block.content}</span>
+                </p>
+                {block.details && (
+                  <p className="text-xs leading-relaxed text-muted pl-0">
+                    <ColorRichText text={block.details} />
+                  </p>
+                )}
+              </div>
+            );
+          case "bullets":
+            return (
+              <ul key={i} className="list-disc pl-5 space-y-1.5 text-sm leading-snug text-foreground/90">
+                {block.items.map((item, j) => (
+                  <li key={j}>
+                    <span>{item.text}</span>
+                    {item.details && (
+                      <span className="block text-xs text-muted mt-0.5">
+                        <ColorRichText text={item.details} />
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            );
+          case "paragraph":
+            return (
+              <div key={i} className="space-y-0.5">
+                <p className="text-sm leading-relaxed text-foreground/90">{block.content}</p>
+                {block.details && (
+                  <p className="text-xs leading-relaxed text-muted">
+                    <ColorRichText text={block.details} />
+                  </p>
+                )}
+              </div>
+            );
+        }
+      })}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sparkles, Download, History, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BriefDisplay } from "@/components/grilla/brief-display";
+import { textInstructionsToHtml } from "@/lib/brief-text";
 import type { DesignBrief, BriefHistoryEntry, PostStatus } from "@/lib/types";
 
 interface BriefPanelProps {
@@ -21,7 +22,7 @@ function exportBriefPdf(brief: DesignBrief, postTitle: string) {
       <div style="margin-bottom:24px;padding:16px;border:1px solid #e5e5e5;border-radius:8px;">
         <h3 style="margin:0 0 8px;font-size:14px;">Slide ${s.slide}${s.focus ? ` — ${s.focus}` : ""}</h3>
         ${s.visual_concept ? `<p><strong>Concepto Visual:</strong> ${s.visual_concept}</p>` : ""}
-        ${s.text_instructions ? `<p><strong>Instrucciones de Texto:</strong><br/>${s.text_instructions.replace(/\n/g, "<br/>")}</p>` : ""}
+        ${s.text_instructions ? `<p><strong>Instrucciones de Texto:</strong></p>${textInstructionsToHtml(s.text_instructions)}` : ""}
         ${s.image_treatment ? `<p><strong>Tratamiento:</strong> ${s.image_treatment}</p>` : ""}
         ${s.layout ? `<p><strong>Layout:</strong> ${s.layout}</p>` : ""}
       </div>`

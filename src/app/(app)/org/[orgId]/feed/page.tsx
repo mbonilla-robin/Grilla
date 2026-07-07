@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ProductionBrandBar } from "@/components/layout/production-brand-bar";
+import { ProductionOrgContext } from "@/components/layout/production-org-context";
 import { FeedPreview } from "@/components/feed/feed-preview";
 import { sortPostAssets } from "@/lib/utils";
 import type { Organization, PostAsset, PostWithAssets } from "@/lib/types";
@@ -67,14 +67,17 @@ export default async function FeedPage({
   }));
 
   return (
-    <div className="w-full px-4 py-4 sm:px-6 sm:py-6 flex flex-col items-center">
-      <div className="w-full max-w-lg mb-6 space-y-4">
-        <ProductionBrandBar
-          organizations={organizations}
-          currentOrgId={orgId}
-          page="feed"
-        />
-        <h1 className="text-title-sub text-center">Feed</h1>
+    <div className="w-full px-4 pt-2 pb-4 sm:px-6 sm:pt-3 sm:pb-6 flex flex-col items-center">
+      <div className="w-full max-w-lg mb-6">
+        <div className="text-center">
+          <ProductionOrgContext
+            organizations={organizations}
+            currentOrgId={orgId}
+            page="feed"
+            className="mb-1 justify-center"
+          />
+          <h1 className="text-title-sub">Feed</h1>
+        </div>
       </div>
       <Suspense fallback={null}>
         <FeedContent

@@ -1,14 +1,19 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ProductionBrandBar } from "@/components/layout/production-brand-bar";
-import { NewPostDialog } from "@/components/grilla/new-post-dialog";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { pruneDuplicatePosts } from "@/lib/post-dedupe";
+import { ProductionOrgContext } from "@/components/layout/production-org-context";
+import { AddToGrillaButton } from "@/components/grilla/add-to-grilla-button";
 import { GrillaCards } from "@/components/grilla/grilla-cards";
 import { GrillaMonthFilter } from "@/components/grilla/grilla-month-filter";
 import { getAvailableMonths, sortPostAssets } from "@/lib/utils";
 import { getPostAssignmentOptions } from "@/lib/team-assignments";
 import { enrichPostsWithTeam } from "@/lib/post-team";
 import { getOrgPillars, getOrgHashtagGroups } from "@/lib/pillars-data";
+import { getOrgIdentifierConfig } from "@/lib/org-identifier";
+import { getOrgIdentifiers } from "@/lib/org-identifiers-data";
+import { getOrgCatalogEvents } from "@/lib/calendar-data";
 import {
   PILLAR_OPTIONS,
   type Organization,
@@ -40,6 +45,11 @@ export default async function GrillaPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const admin = createAdminClient();
+  if (admin) {
+    await pruneDuplicatePosts(admin, orgId);
+  }
+
   async function fetchPosts() {
     let postsQuery = supabase
       .from("posts")
@@ -63,6 +73,8 @@ export default async function GrillaPage({
     pillars,
     hashtagGroups,
     { data: memberships },
+    identifiers,
+    catalogEvents,
   ] = await Promise.all([
     fetchPosts(),
     supabase
@@ -70,7 +82,7 @@ export default async function GrillaPage({
       .select("scheduled_at")
       .eq("organization_id", orgId)
       .not("scheduled_at", "is", null),
-    supabase.from("organizations").select("post_formats").eq("id", orgId).single(),
+    supabase.from("organizations").select("post_formats, identifier_label, identifier_allow_photo, identifier_placeholder").eq("id", orgId).single(),
     getPostAssignmentOptions(orgId),
     getOrgPillars(orgId),
     getOrgHashtagGroups(orgId),
@@ -78,6 +90,8 @@ export default async function GrillaPage({
       .from("organization_members")
       .select("organizations(*)")
       .eq("user_id", user.id),
+    getOrgIdentifiers(orgId),
+    getOrgCatalogEvents(orgId),
   ]);
 
   const organizations = (memberships || []).map(
@@ -106,19 +120,20 @@ export default async function GrillaPage({
   const allowedFormats = (org?.post_formats as PostFormat[] | null)?.length
     ? (org!.post_formats as PostFormat[])
     : (["image", "carousel", "reel", "story"] as PostFormat[]);
+  const identifierConfig = org ? getOrgIdentifierConfig(org) : { label: null, allowPhoto: false, placeholder: null };
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
-      <div className="mb-6 space-y-4">
-        <ProductionBrandBar
-          organizations={organizations}
-          currentOrgId={orgId}
-          page="grilla"
-        />
-
+    <div className="mx-auto w-full max-w-7xl px-4 pt-2 pb-4 sm:px-6 sm:pt-3 sm:pb-6">
+      <div className="mb-6">
         <div className="flex flex-col items-center gap-4 md:flex-row md:items-start md:justify-between">
           <div className="flex w-full flex-col items-center gap-3 md:w-auto md:flex-row md:items-center md:gap-4">
             <div className="min-w-0 text-center md:text-left">
+              <ProductionOrgContext
+                organizations={organizations}
+                currentOrgId={orgId}
+                page="grilla"
+                className="mb-1 md:mb-0.5"
+              />
               <h1 className="text-title-sub">Grilla</h1>
               <p className="text-xs text-muted mt-0.5">
                 Tarjetas editoriales · conectadas al Feed
@@ -131,13 +146,17 @@ export default async function GrillaPage({
             )}
           </div>
           <div className="w-full md:w-auto">
-            <NewPostDialog
+            <AddToGrillaButton
               orgId={orgId}
               assignmentOptions={assignmentOptions}
               currentUserId={user.id}
               pillarOptions={pillarNames}
+              pillars={pillars}
               hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
+              identifierConfig={identifierConfig}
+              identifiers={identifiers}
               allowedFormats={allowedFormats}
+              catalogEvents={catalogEvents}
               triggerClassName="w-full md:w-auto"
             />
           </div>
@@ -148,6 +167,8 @@ export default async function GrillaPage({
         orgId={orgId}
         pillarOptions={pillarNames}
         hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
+        identifierConfig={identifierConfig}
+        identifiers={identifiers}
       />
     </div>
   );

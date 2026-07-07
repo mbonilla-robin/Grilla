@@ -1,4 +1,3 @@
-import { PendientesList } from "./pendientes-list";
 import {
   GlobalHomeHeader,
   HomeDayRailLayout,
@@ -7,19 +6,27 @@ import {
 import { DayRailSidebar } from "./day-rail-sidebar";
 import { HomeQuickNav } from "./home-quick-nav";
 import { BrandPillarsChart } from "./brand-pillars-chart";
-import { HomeAlertBanner } from "./home-alert-banner";
+import { BrandsProductionOverview } from "./brands-production-overview";
+import { EditorialCadenceAlerts } from "./editorial-cadence-alerts";
 import { TeamAvatarRow } from "./team-avatar-row";
-import { FeaturedTaskCards } from "./featured-task-cards";
+import { QuincenaProgressCards } from "./quincena-progress-cards";
+import { buildQuincenaProgressCards } from "@/lib/quincena-progress";
 import { filterUpcomingTasks, filterUrgentTasks, type TaskWithPost } from "@/lib/task-due";
 import type { BrandPillarProgress } from "@/lib/pillars-data";
-import type { TeamMemberPreview } from "@/lib/home-data";
+import type { OrgSnapshot, TeamMemberPreview } from "@/lib/home-data";
+import type { QuincenaBoardSnapshot } from "@/lib/editorial-quincena";
+import type { MemberRole } from "@/lib/types";
 
 interface GlobalHomeViewProps {
   profileName: string;
+  editorialRoles: MemberRole[];
+  quincenaBoards: QuincenaBoardSnapshot[];
+  currentUserId: string;
   tasks: TaskWithPost[];
   urgentTasks: TaskWithPost[];
   brandPillars: BrandPillarProgress[];
   myDay: { urgentes: number; pendientes: number; brands: number };
+  orgSnapshots: OrgSnapshot[];
   collaborators?: TeamMemberPreview[];
 }
 
@@ -32,13 +39,21 @@ function taskHref(task: TaskWithPost) {
 
 export function GlobalHomeView({
   profileName,
+  editorialRoles,
+  quincenaBoards,
+  currentUserId,
   tasks = [],
   urgentTasks = [],
   brandPillars = [],
   myDay,
+  orgSnapshots = [],
   collaborators = [],
 }: GlobalHomeViewProps) {
-  const featuredTasks = urgentTasks.length > 0 ? urgentTasks : tasks;
+  const quincenaCards = buildQuincenaProgressCards({
+    boards: quincenaBoards,
+    roles: editorialRoles,
+    maxPerOrg: 2,
+  });
   const tuDiaTasks = filterUrgentTasks(tasks);
   const upcomingTasks = filterUpcomingTasks(tasks);
 
@@ -61,16 +76,32 @@ export function GlobalHomeView({
         }
       />
 
-      <HomeAlertBanner
-        urgentCount={myDay.urgentes}
-        pendingCount={myDay.pendientes}
+      <EditorialCadenceAlerts
+        firstName={profileName}
+        roles={editorialRoles}
+        quincenaBoards={quincenaBoards}
+        currentUserId={currentUserId}
+        brandCount={myDay.brands}
+        urgentTaskCount={myDay.urgentes}
+        pendingTaskCount={myDay.pendientes}
       />
 
       <HomeQuickNav />
 
-      {featuredTasks.length > 0 && (
-        <SectionCard title="Destacadas">
-          <FeaturedTaskCards tasks={featuredTasks} />
+      <div className="md:hidden">
+        <SectionCard title="Tu día">
+          <DayRailSidebar
+            tuDiaTasks={tuDiaTasks}
+            upcomingTasks={upcomingTasks}
+            getTaskHref={taskHref}
+            compact
+          />
+        </SectionCard>
+      </div>
+
+      {quincenaCards.length > 0 && (
+        <SectionCard title="Quincena en curso">
+          <QuincenaProgressCards cards={quincenaCards} />
         </SectionCard>
       )}
 
@@ -78,8 +109,11 @@ export function GlobalHomeView({
         <BrandPillarsChart brands={brandPillars} />
       </SectionCard>
 
-      <SectionCard title="Pendientes">
-        <PendientesList tasks={tasks} />
+      <SectionCard
+        title="Tus marcas"
+        action={{ label: "Ver todas", href: "/home/marcas" }}
+      >
+        <BrandsProductionOverview snapshots={orgSnapshots} />
       </SectionCard>
     </HomeDayRailLayout>
   );

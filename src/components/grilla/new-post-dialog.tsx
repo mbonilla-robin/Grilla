@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createPost } from "@/lib/actions";
 import { CaptionEditor } from "@/components/grilla/caption-editor";
-import { PILLAR_OPTIONS, FORMAT_LABELS, type PostFormat, type OrgHashtagGroup } from "@/lib/types";
+import { PostAssignmentFields } from "@/components/grilla/post-assignment-fields";
+import { GrillaModal } from "@/components/grilla/grilla-modal";
+import { PostIdentifierField } from "@/components/grilla/post-identifier-field";
+import { PILLAR_OPTIONS, FORMAT_LABELS, type PostFormat, type OrgHashtagGroup, type OrgIdentifier } from "@/lib/types";
+import type { OrgIdentifierConfig } from "@/lib/org-identifier";
 import type { PostAssignmentOptions } from "@/lib/team-assignments";
 
 interface NewPostDialogProps {
@@ -16,8 +20,13 @@ interface NewPostDialogProps {
   currentUserId: string;
   pillarOptions?: string[];
   hashtagGroups?: OrgHashtagGroup[];
+  identifierConfig?: OrgIdentifierConfig;
+  identifiers?: OrgIdentifier[];
   allowedFormats?: PostFormat[];
   triggerClassName?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
 const ALL_FORMATS: PostFormat[] = [
@@ -36,24 +45,27 @@ function titleFromCopy(copy: string): string {
   return first ? first.slice(0, 80) : "";
 }
 
-function memberName(options: PostAssignmentOptions, userId: string, role: "creators" | "designers" | "communityManagers") {
-  return options[role].find((m) => m.user_id === userId)?.name || "Sin nombre";
-}
-
 export function NewPostDialog({
   orgId,
   assignmentOptions,
   currentUserId,
   pillarOptions = [...PILLAR_OPTIONS],
   hashtagGroups = [],
+  identifierConfig = { label: null, allowPhoto: false, placeholder: null },
+  identifiers = [],
   allowedFormats,
   triggerClassName,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
 }: NewPostDialogProps) {
   const formats = (allowedFormats ?? ALL_FORMATS).map((value) => ({
     value,
     label: FORMAT_LABELS[value],
   }));
   const [open, setOpen] = useState(false);
+  const isOpen = controlledOpen ?? open;
+  const setIsOpen = onOpenChange ?? setOpen;
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [autoTitle, setAutoTitle] = useState(true);
@@ -63,7 +75,8 @@ export function NewPostDialog({
   const [copy, setCopy] = useState("");
   const [caption, setCaption] = useState("");
   const [plate, setPlate] = useState("");
-  const [inDrive, setInDrive] = useState(false);
+  const [orgIdentifierId, setOrgIdentifierId] = useState<string | null>(null);
+  const [identifierPhotoUrl, setIdentifierPhotoUrl] = useState<string | null>(null);
   const [references, setReferences] = useState("");
   const [creatorId, setCreatorId] = useState("");
   const [designerId, setDesignerId] = useState("");
@@ -80,8 +93,8 @@ export function NewPostDialog({
   }
 
   useEffect(() => {
-    if (open) resetAssignments();
-  }, [open, assignmentOptions, currentUserId]);
+    if (isOpen) resetAssignments();
+  }, [isOpen, assignmentOptions, currentUserId]);
 
   function handleCopyChange(value: string) {
     setCopy(value);
@@ -100,7 +113,8 @@ export function NewPostDialog({
     setCopy("");
     setCaption("");
     setPlate("");
-    setInDrive(false);
+    setOrgIdentifierId(null);
+    setIdentifierPhotoUrl(null);
     setReferences("");
     resetAssignments();
   }
@@ -120,7 +134,8 @@ export function NewPostDialog({
       copy: copy || undefined,
       caption: caption || undefined,
       plate: plate || undefined,
-      in_drive: inDrive,
+      org_identifier_id: orgIdentifierId || undefined,
+      identifier_photo_url: identifierPhotoUrl || undefined,
       references_text: references || undefined,
       content_creator_id: creatorId || currentUserId,
       assigned_to: designerId || undefined,
@@ -128,7 +143,7 @@ export function NewPostDialog({
     });
 
     if (!result.error) {
-      setOpen(false);
+      setIsOpen(false);
       resetForm();
       router.refresh();
     }
@@ -136,9 +151,10 @@ export function NewPostDialog({
     setLoading(false);
   }
 
-  if (!open) {
+  if (!isOpen) {
+    if (hideTrigger) return null;
     return (
-      <Button size="sm" onClick={() => setOpen(true)} className={triggerClassName}>
+      <Button size="sm" onClick={() => setIsOpen(true)} className={triggerClassName}>
         <Plus size={14} />
         Nuevo post
       </Button>
@@ -151,12 +167,12 @@ export function NewPostDialog({
     assignmentOptions.communityManagers.length > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4">
+    <GrillaModal open={isOpen}>
       <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg border border-border bg-surface p-6 shadow-lg">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold">Nuevo post</h2>
           <button
-            onClick={() => setOpen(false)}
+            onClick={() => setIsOpen(false)}
             className="text-muted hover:text-foreground"
           >
             <X size={16} />
@@ -252,25 +268,17 @@ export function NewPostDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Placa / Publicado"
-              value={plate}
-              onChange={(e) => setPlate(e.target.value)}
-              placeholder="Ej: 73UCAA"
-            />
-            <div className="space-y-1.5 flex flex-col justify-end">
-              <label className="flex items-center gap-2 text-sm cursor-pointer h-9">
-                <input
-                  type="checkbox"
-                  checked={inDrive}
-                  onChange={(e) => setInDrive(e.target.checked)}
-                  className="rounded border-border"
-                />
-                <span>En Drive</span>
-              </label>
-            </div>
-          </div>
+          <PostIdentifierField
+            orgId={orgId}
+            config={identifierConfig}
+            identifiers={identifiers}
+            selectedId={orgIdentifierId}
+            onChange={({ id, value, photoUrl }) => {
+              setOrgIdentifierId(id);
+              setPlate(value);
+              setIdentifierPhotoUrl(photoUrl);
+            }}
+          />
 
           <div className="space-y-1.5">
             <label className="text-sm text-muted">Referencias</label>
@@ -284,70 +292,15 @@ export function NewPostDialog({
           </div>
 
           {hasTeamSection && (
-            <div className="space-y-3 rounded-md border border-border bg-background/50 p-3">
-              <p className="text-xs font-medium">Equipo en este post</p>
-
-              {assignmentOptions.creators.length > 0 && (
-                <RoleAssignmentField
-                  label="Creadora de contenido"
-                  pick={assignmentOptions.pickCreator}
-                  value={creatorId}
-                  onChange={setCreatorId}
-                  options={assignmentOptions.creators}
-                  autoName={
-                    assignmentOptions.defaultCreatorId
-                      ? memberName(
-                          assignmentOptions,
-                          assignmentOptions.defaultCreatorId,
-                          "creators"
-                        )
-                      : undefined
-                  }
-                />
-              )}
-
-              {assignmentOptions.designers.length > 0 && (
-                <RoleAssignmentField
-                  label="Diseñador"
-                  pick={assignmentOptions.pickDesigner}
-                  value={designerId}
-                  onChange={setDesignerId}
-                  options={assignmentOptions.designers}
-                  autoName={
-                    assignmentOptions.defaultDesignerId
-                      ? memberName(
-                          assignmentOptions,
-                          assignmentOptions.defaultDesignerId,
-                          "designers"
-                        )
-                      : undefined
-                  }
-                />
-              )}
-
-              {assignmentOptions.communityManagers.length > 0 && (
-                <RoleAssignmentField
-                  label="Community Manager"
-                  pick={assignmentOptions.pickCommunityManager}
-                  value={communityManagerId}
-                  onChange={setCommunityManagerId}
-                  options={assignmentOptions.communityManagers}
-                  autoName={
-                    assignmentOptions.defaultCommunityManagerId
-                      ? memberName(
-                          assignmentOptions,
-                          assignmentOptions.defaultCommunityManagerId,
-                          "communityManagers"
-                        )
-                      : undefined
-                  }
-                />
-              )}
-
-              <p className="text-[11px] text-muted">
-                Si hay una sola persona en el rol, se asigna sola. Si hay varias, tú eliges. A cada una le llega su tarea en Inicio.
-              </p>
-            </div>
+            <PostAssignmentFields
+              assignmentOptions={assignmentOptions}
+              creatorId={creatorId}
+              designerId={designerId}
+              communityManagerId={communityManagerId}
+              onCreatorChange={setCreatorId}
+              onDesignerChange={setDesignerId}
+              onCommunityManagerChange={setCommunityManagerId}
+            />
           )}
 
           <div className="flex justify-end gap-2 pt-2">
@@ -355,7 +308,7 @@ export function NewPostDialog({
               type="button"
               variant="secondary"
               size="sm"
-              onClick={() => setOpen(false)}
+              onClick={() => setIsOpen(false)}
             >
               Cancelar
             </Button>
@@ -365,54 +318,6 @@ export function NewPostDialog({
           </div>
         </form>
       </div>
-    </div>
+    </GrillaModal>
   );
-}
-
-function RoleAssignmentField({
-  label,
-  pick,
-  value,
-  onChange,
-  options,
-  autoName,
-}: {
-  label: string;
-  pick: boolean;
-  value: string;
-  onChange: (value: string) => void;
-  options: { user_id: string; name: string }[];
-  autoName?: string;
-}) {
-  if (!pick && autoName) {
-    return (
-      <p className="text-xs text-muted">
-        <span className="text-foreground font-medium">{label}:</span> {autoName}{" "}
-        <span className="text-muted">(automático)</span>
-      </p>
-    );
-  }
-
-  if (pick) {
-    return (
-      <div className="space-y-1.5">
-        <label className="text-sm text-muted">{label}</label>
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          required
-          className="flex h-9 w-full rounded-md border border-border bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-        >
-          <option value="">Elegir {label.toLowerCase()}</option>
-          {options.map((m) => (
-            <option key={m.user_id} value={m.user_id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  }
-
-  return null;
 }

@@ -2,15 +2,20 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { BrandPillarProgress } from "@/lib/pillars-data";
 import { resolvePillarDisplayColor } from "@/lib/pillar-colors";
+import { homeStaggerDelay } from "@/lib/home-motion";
+import { PillarDistributionBar } from "./pillar-distribution-bar";
 import { EmptyState } from "./home-ui";
 
-function BrandRow({ brand }: { brand: BrandPillarProgress }) {
+function BrandRow({ brand, index = 0 }: { brand: BrandPillarProgress; index?: number }) {
   const pillars = brand.distribution.filter((d) => d.name !== "Sin pilar");
   const hasPillars = pillars.length > 0;
   const active = brand.distribution.filter((d) => d.count > 0);
 
   return (
-    <div className="space-y-2.5">
+    <div
+      className="space-y-2.5 home-animate-in overflow-visible"
+      style={{ animationDelay: homeStaggerDelay(index, 0.12, 0.1) }}
+    >
       <div className="flex items-center justify-between gap-2">
         <Link
           href={`/org/${brand.orgId}/home`}
@@ -25,30 +30,26 @@ function BrandRow({ brand }: { brand: BrandPillarProgress }) {
 
       {hasPillars ? (
         <>
-          <div className="h-4 rounded-full overflow-hidden flex bg-neutral-100">
-            {brand.totalPosts === 0
-              ? null
-              : active.map((d) => {
-                  const pillarIndex = pillars.findIndex((p) => p.name === d.name);
-                  const color = resolvePillarDisplayColor(
+          {brand.totalPosts === 0 ? (
+            <div className="h-4 rounded-full bg-neutral-100" />
+          ) : (
+            <PillarDistributionBar
+              barIndex={index}
+              segments={active.map((d) => {
+                const pillarIndex = pillars.findIndex((p) => p.name === d.name);
+                return {
+                  name: d.name,
+                  actualPct: d.actualPct,
+                  color: resolvePillarDisplayColor(
                     pillarIndex >= 0 ? pillarIndex : 0
-                  );
-                  return (
-                    <div
-                      key={d.name}
-                      className="h-full"
-                      style={{
-                        width: `${d.actualPct}%`,
-                        backgroundColor: color,
-                      }}
-                      title={`${d.name}: ${d.actualPct}%`}
-                    />
-                  );
-                })}
-          </div>
+                  ),
+                };
+              })}
+            />
+          )}
 
           <div
-            className="grid w-full"
+            className="hidden sm:grid w-full"
             style={{ gridTemplateColumns: `repeat(${pillars.length}, minmax(0, 1fr))` }}
           >
             {pillars.map((d, i) => {
@@ -88,7 +89,7 @@ export function BrandPillarsChart({ brands }: { brands: BrandPillarProgress[] })
           key={brand.orgId}
           className={i > 0 ? "pt-5 border-t border-border" : undefined}
         >
-          <BrandRow brand={brand} />
+          <BrandRow brand={brand} index={i} />
         </div>
       ))}
       <Link

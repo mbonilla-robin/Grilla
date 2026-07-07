@@ -34,16 +34,18 @@ export function AuthLayout({
       <header className="auth-header">
         <div className="auth-hero-panel">
           <AuthHero />
-          <p className="auth-hero-lead">
-            {variant === "login"
-              ? "Tu espacio creativo para equipos de social media."
-              : "Organiza, crea y publica con tu equipo en un solo lugar."}
-          </p>
+          {variant === "register" ? (
+            <p className="auth-hero-lead">
+              Organiza, crea y publica con tu equipo en un solo lugar.
+            </p>
+          ) : null}
         </div>
       </header>
 
       <main className="auth-sheet">
-        <div className="auth-form-wrap">
+        <div
+          className={`auth-form-wrap${variant === "login" ? " auth-form-card" : ""}`}
+        >
           <h1 className="auth-form-title">{title}</h1>
           {subtitle ? <p className="auth-form-subtitle">{subtitle}</p> : null}
 

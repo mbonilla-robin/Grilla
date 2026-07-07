@@ -6,13 +6,16 @@ import { BrandStrategyTab } from "./brand-strategy-tab";
 import { BrandVisualTab } from "./brand-visual-tab";
 import { BrandPillarsTab } from "./brand-pillars-tab";
 import { BrandHashtagsTab } from "./brand-hashtags-tab";
-import type { BrandKit, ContentPillar, OrgHashtagGroup } from "@/lib/types";
+import { BrandIdentifierTab } from "./brand-identifier-tab";
+import type { BrandKit, ContentPillar, OrgHashtagGroup, OrgIdentifier } from "@/lib/types";
+import type { OrgIdentifierConfig } from "@/lib/org-identifier";
 
 const TABS = [
   { id: "estrategia", label: "Estrategia" },
   { id: "visual", label: "Visual" },
   { id: "pilares", label: "Pilares" },
   { id: "hashtags", label: "Hashtags" },
+  { id: "identificador", label: "Identificador" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -23,6 +26,8 @@ interface BrandUnifiedEditorProps {
   brandKit: BrandKit;
   pillars: ContentPillar[];
   hashtagGroups: OrgHashtagGroup[];
+  identifierConfig: OrgIdentifierConfig;
+  identifiers: OrgIdentifier[];
   canEdit: boolean;
   initialTab?: string;
 }
@@ -33,6 +38,8 @@ export function BrandUnifiedEditor({
   brandKit,
   pillars,
   hashtagGroups,
+  identifierConfig,
+  identifiers,
   canEdit,
   initialTab,
 }: BrandUnifiedEditorProps) {
@@ -90,6 +97,14 @@ export function BrandUnifiedEditor({
         <BrandHashtagsTab
           orgId={orgId}
           groups={hashtagGroups}
+          canEdit={canEdit}
+        />
+      )}
+      {activeTab === "identificador" && (
+        <BrandIdentifierTab
+          orgId={orgId}
+          config={identifierConfig}
+          identifiers={identifiers}
           canEdit={canEdit}
         />
       )}

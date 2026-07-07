@@ -72,6 +72,139 @@
     @apply rounded-2xl bg-surface border border-border shadow-sm;
   }
 
+  @keyframes home-enter {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes home-enter-right {
+    from {
+      opacity: 0;
+      transform: translateX(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes home-bar-grow {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  @keyframes home-badge-pop {
+    0% {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    70% {
+      transform: scale(1.08);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes home-alert-dismiss {
+    to {
+      opacity: 0;
+      transform: translateX(10px);
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      margin-top: 0;
+      margin-bottom: 0;
+      overflow: hidden;
+    }
+  }
+
+  .home-animate-in {
+    animation: home-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .home-animate-in-right {
+    animation: home-enter-right 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .home-animate-bar {
+    transform-origin: left center;
+    animation: home-bar-grow 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .home-animate-badge {
+    animation: home-badge-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .home-alert-exit {
+    animation: home-alert-dismiss 0.28s ease-in forwards;
+    overflow: hidden;
+  }
+
+  .home-enter-stagger > * {
+    animation: home-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .home-enter-stagger > *:nth-child(1) {
+    animation-delay: 0.04s;
+  }
+  .home-enter-stagger > *:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+  .home-enter-stagger > *:nth-child(3) {
+    animation-delay: 0.16s;
+  }
+  .home-enter-stagger > *:nth-child(4) {
+    animation-delay: 0.22s;
+  }
+  .home-enter-stagger > *:nth-child(5) {
+    animation-delay: 0.28s;
+  }
+  .home-enter-stagger > *:nth-child(6) {
+    animation-delay: 0.34s;
+  }
+  .home-enter-stagger > *:nth-child(7) {
+    animation-delay: 0.4s;
+  }
+  .home-enter-stagger > *:nth-child(8) {
+    animation-delay: 0.46s;
+  }
+
+  .home-card-hover {
+    transition:
+      transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 0.15s ease,
+      background-color 0.15s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .home-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+  }
+
+  .quincena-card {
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .quincena-card:hover {
+    border-color: color-mix(in srgb, var(--color-foreground) 14%, var(--color-border));
+    background-color: #fafafa;
+  }
+
   .brand-hero,
   .brand-screen {
     @apply relative overflow-hidden;
@@ -403,10 +536,24 @@
 
     .auth-screen--login .auth-sheet {
       border-left: 1px solid rgba(229, 229, 229, 0.8);
+      justify-content: center;
+      align-items: flex-start;
+      background: var(--color-background);
     }
 
     .auth-screen--register .auth-sheet {
       border-right: 1px solid rgba(229, 229, 229, 0.8);
+    }
+
+    .auth-screen--login .auth-form-card {
+      flex: none;
+      width: 100%;
+      max-width: 24rem;
+      border-radius: 1.5rem;
+      background: #ffffff;
+      padding: 2.5rem 2.25rem;
+      border: 1px solid rgba(229, 229, 229, 0.85);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.07);
     }
 
     .auth-form-wrap {
@@ -427,7 +574,7 @@
       text-align: left;
     }
 
-    .auth-form-body {
+    .auth-screen--register .auth-form-body {
       margin-top: 2rem;
     }
 
@@ -459,8 +606,9 @@
       padding: 4rem 4.5rem;
     }
 
-    .auth-form-wrap {
-      max-width: 24rem;
+    .auth-screen--login .auth-form-card {
+      max-width: 26rem;
+      padding: 2.75rem 2.5rem;
     }
 
     .auth-screen--register .auth-form-wrap {
@@ -707,10 +855,20 @@
     .auth-tagline-text,
     .landing-showcase-logo,
     .landing-showcase-line,
-    .landing-cta-icon {
+    .landing-cta-icon,
+    .home-animate-in,
+    .home-animate-in-right,
+    .home-animate-bar,
+    .home-animate-badge,
+    .home-enter-stagger > * {
       animation: none;
       opacity: 1;
       transform: none;
+    }
+
+    .home-card-hover:hover {
+      transform: none;
+      box-shadow: none;
     }
   }
 

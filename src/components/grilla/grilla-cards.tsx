@@ -1,11 +1,14 @@
 import { GrillaCard } from "@/components/grilla/grilla-card";
-import type { OrgHashtagGroup, PostWithAssets } from "@/lib/types";
+import type { OrgHashtagGroup, OrgIdentifier, PostWithAssets } from "@/lib/types";
+import type { OrgIdentifierConfig } from "@/lib/org-identifier";
 
 interface GrillaCardsProps {
   posts: PostWithAssets[];
   orgId: string;
   pillarOptions?: string[];
   hashtagGroups?: OrgHashtagGroup[];
+  identifierConfig?: OrgIdentifierConfig;
+  identifiers?: OrgIdentifier[];
 }
 
 export function GrillaCards({
@@ -13,6 +16,8 @@ export function GrillaCards({
   orgId,
   pillarOptions,
   hashtagGroups,
+  identifierConfig,
+  identifiers,
 }: GrillaCardsProps) {
   if (posts.length === 0) {
     return (
@@ -26,7 +31,7 @@ export function GrillaCards({
   }
 
   return (
-    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid items-stretch gap-2 md:grid-cols-2 xl:grid-cols-3">
       {posts.map((post) => (
         <GrillaCard
           key={post.id}
@@ -34,6 +39,8 @@ export function GrillaCards({
           orgId={orgId}
           pillarOptions={pillarOptions}
           hashtagGroups={hashtagGroups}
+          identifierConfig={identifierConfig}
+          identifiers={identifiers}
         />
       ))}
     </div>

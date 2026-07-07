@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Calendar, Building2, Lightbulb, FolderOpen } from "lucide-react";
+import { homeStaggerDelay } from "@/lib/home-motion";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -12,23 +13,23 @@ const links = [
 export function HomeQuickNav() {
   return (
     <nav className="flex w-full gap-2">
-      {links.map(({ href, label, icon: Icon }) => (
+      {links.map(({ href, label, icon: Icon }, index) => (
         <Link
           key={href}
           href={href}
           aria-label={label}
+          title={label}
           className={cn(
-            "flex flex-1 min-w-0 items-center justify-center rounded-xl border border-border bg-surface",
-            "px-2 py-2.5 sm:gap-1.5 sm:px-2 sm:py-2 text-xs sm:text-sm font-medium",
-            "hover:bg-neutral-50 hover:border-foreground/15 transition-colors group"
+            "flex flex-1 min-w-0 items-center justify-center rounded-xl border border-border bg-surface home-animate-in home-card-hover",
+            "h-10 hover:bg-neutral-50 hover:border-foreground/15 group"
           )}
+          style={{ animationDelay: homeStaggerDelay(index, 0.14, 0.05) }}
         >
           <Icon
             size={18}
             strokeWidth={1.5}
-            className="text-muted shrink-0 group-hover:text-foreground transition-colors sm:size-4"
+            className="text-muted shrink-0 group-hover:text-foreground transition-colors"
           />
-          <span className="hidden sm:inline truncate">{label}</span>
         </Link>
       ))}
     </nav>

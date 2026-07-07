@@ -54,6 +54,14 @@ export const WORKFLOW_PHASES = [
   },
 ] as const;
 
+export type WorkflowPhaseKey = (typeof WORKFLOW_PHASES)[number]["key"];
+
+export function workflowPhaseProgress(phase: WorkflowPhaseKey): number {
+  const idx = WORKFLOW_PHASES.findIndex((item) => item.key === phase);
+  if (idx === -1) return 0;
+  return Math.round(((idx + 1) / WORKFLOW_PHASES.length) * 100);
+}
+
 export function currentPhaseIndex(status: PostStatus): number {
   const idx = WORKFLOW_PHASES.findIndex((p) => p.statuses.includes(status));
   return idx === -1 ? 0 : idx;

@@ -39,6 +39,9 @@ export interface Organization {
   post_formats?: PostFormat[];
   client_name?: string | null;
   client_email?: string | null;
+  identifier_label?: string | null;
+  identifier_allow_photo?: boolean;
+  identifier_placeholder?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -108,6 +111,16 @@ export interface BrandKit {
   guidelines: string | null;
   objective: string | null;
   kit_file_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrgIdentifier {
+  id: string;
+  organization_id: string;
+  value: string;
+  photo_url: string | null;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -207,6 +220,8 @@ export interface Post {
   copy: string | null;
   caption: string | null;
   plate: string | null;
+  org_identifier_id: string | null;
+  identifier_photo_url: string | null;
   in_drive: boolean;
   published: boolean;
   references_text: string | null;
@@ -322,3 +337,17 @@ export const PILLAR_OPTIONS = [
   "Información",
   "Informativo",
 ] as const;
+
+export interface BulkPostInput {
+  title: string;
+  scheduled_at: string;
+  format: string;
+  pillar?: string;
+  copy?: string;
+  caption?: string;
+  plate?: string;
+  org_identifier_id?: string;
+  identifier_photo_url?: string;
+  in_drive?: boolean;
+  references_text?: string;
+}

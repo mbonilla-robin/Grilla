@@ -5,7 +5,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/utils";
 import { MAX_SLOT_WIDGETS } from "@/lib/widget-config";
 import { PILLAR_DEFAULTS } from "@/lib/pillar-colors";
-import type { CreateOrganizationInput, MemberRole, PostFormat } from "@/lib/types";
+import type { CreateOrganizationInput, MemberRole, PostFormat, BulkPostInput } from "@/lib/types";
+import type { GrillaDraftPayload } from "@/lib/grilla-draft";
+import type { GrillaPeriod } from "@/lib/grilla-slot-utils";
 import { revalidatePath } from "next/cache";
 
 export async function updateProfile(data: {
@@ -529,6 +531,8 @@ export async function createPost(
     copy?: string;
     caption?: string;
     plate?: string;
+    org_identifier_id?: string;
+    identifier_photo_url?: string;
     in_drive?: boolean;
     references_text?: string;
     content_creator_id?: string;
@@ -545,6 +549,18 @@ export async function createPost(
 
   const contentCreatorId = data.content_creator_id || user.id;
 
+  const { findExistingPost } = await import("@/lib/post-dedupe");
+  const existing = await findExistingPost(
+    supabase,
+    orgId,
+    data.title,
+    data.scheduled_at || null
+  );
+  if (existing) {
+    revalidatePath(`/org/${orgId}/grilla`);
+    return { data: existing };
+  }
+
   const { data: post, error } = await supabase
     .from("posts")
     .insert({
@@ -556,6 +572,8 @@ export async function createPost(
       copy: data.copy || null,
       caption: data.caption || null,
       plate: data.plate || null,
+      org_identifier_id: data.org_identifier_id || null,
+      identifier_photo_url: data.identifier_photo_url || null,
       in_drive: data.in_drive ?? false,
       references_text: data.references_text || null,
       assigned_to: data.assigned_to || null,
@@ -581,17 +599,8 @@ export async function createPost(
       due_at: taskDueAt,
     };
 
-    const { error: taskError } = await supabase.from("tasks").insert({
-      ...row,
-      status: "contenido",
-    });
-
-    if (taskError) {
-      await supabase.from("tasks").insert({
-        ...row,
-        status: "pending",
-      });
-    }
+    const { ensureTaskForPost } = await import("@/lib/task-sync");
+    await ensureTaskForPost(supabase, row, "contenido");
 
     if (data.assigned_to) {
       const { notifyPostAssignment } = await import("@/lib/notifications");
@@ -609,6 +618,202 @@ export async function createPost(
   return { data: post };
 }
 
+export async function bulkCreatePosts(
+  orgId: string,
+  posts: BulkPostInput[],
+  team: {
+    content_creator_id?: string;
+    assigned_to?: string;
+    community_manager_id?: string;
+  }
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "No autenticado" };
+  if (posts.length === 0) return { error: "No hay posts para crear" };
+
+  const contentCreatorId = team.content_creator_id || user.id;
+  const assignee = team.assigned_to || contentCreatorId;
+
+  const { findExistingPost } = await import("@/lib/post-dedupe");
+  const rowsToInsert: typeof posts = [];
+  const skipped: { id: string }[] = [];
+
+  for (const post of posts) {
+    const existing = await findExistingPost(
+      supabase,
+      orgId,
+      post.title,
+      post.scheduled_at ?? null
+    );
+    if (existing) {
+      skipped.push(existing);
+      continue;
+    }
+    rowsToInsert.push(post);
+  }
+
+  if (rowsToInsert.length === 0) {
+    revalidatePath(`/org/${orgId}/grilla`);
+    revalidatePath(`/org/${orgId}/calendario`);
+    return { data: skipped, count: 0, skipped: skipped.length };
+  }
+
+  const rows = rowsToInsert.map((post) => ({
+    organization_id: orgId,
+    title: post.title,
+    scheduled_at: post.scheduled_at,
+    format: post.format,
+    pillar: post.pillar || null,
+    copy: post.copy || null,
+    caption: post.caption || null,
+    plate: post.plate || null,
+    org_identifier_id: post.org_identifier_id || null,
+    identifier_photo_url: post.identifier_photo_url || null,
+    in_drive: post.in_drive ?? false,
+    references_text: post.references_text || null,
+    assigned_to: team.assigned_to || null,
+    community_manager_id: team.community_manager_id || null,
+    created_by: contentCreatorId,
+  }));
+
+  const { data: inserted, error } = await supabase
+    .from("posts")
+    .insert(rows)
+    .select();
+
+  if (error) return { error: error.message };
+
+  const taskRows = (inserted || []).map((post) => ({
+    organization_id: orgId,
+    title: post.title,
+    description: "Post creado en la grilla",
+    assigned_to: assignee,
+    created_by: user.id,
+    post_id: post.id,
+    due_at: post.scheduled_at,
+    status: "contenido" as const,
+  }));
+
+  if (taskRows.length > 0) {
+    const { ensureTaskForPost } = await import("@/lib/task-sync");
+    await Promise.all(
+      taskRows.map((row) => ensureTaskForPost(supabase, row, "contenido"))
+    );
+  }
+
+  revalidatePath(`/org/${orgId}/grilla`);
+  revalidatePath(`/org/${orgId}/calendario`);
+  return {
+    data: [...(inserted || []), ...skipped],
+    count: inserted?.length ?? 0,
+    skipped: skipped.length,
+  };
+}
+
+export async function getGrillaDraft(
+  orgId: string,
+  period: GrillaPeriod,
+  periodKey: string
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "No autenticado" };
+
+  const { data, error } = await supabase
+    .from("grilla_drafts")
+    .select("id, organization_id, period, period_key, payload, updated_by, updated_at")
+    .eq("organization_id", orgId)
+    .eq("period", period)
+    .eq("period_key", periodKey)
+    .maybeSingle();
+
+  if (error) return { error: error.message };
+  if (!data) return { data: null };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", data.updated_by)
+    .maybeSingle();
+
+  return {
+    data: {
+      ...data,
+      payload: data.payload as GrillaDraftPayload,
+      updated_by_name: profile?.full_name ?? null,
+    },
+  };
+}
+
+export async function saveGrillaDraft(
+  orgId: string,
+  period: GrillaPeriod,
+  periodKey: string,
+  payload: GrillaDraftPayload
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "No autenticado" };
+
+  const { data, error } = await supabase
+    .from("grilla_drafts")
+    .upsert(
+      {
+        organization_id: orgId,
+        period,
+        period_key: periodKey,
+        payload,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "organization_id,period,period_key" }
+    )
+    .select("updated_at")
+    .single();
+
+  if (error) return { error: error.message };
+
+  return {
+    data: {
+      updated_at: data.updated_at,
+      updated_by_name: null as string | null,
+    },
+  };
+}
+
+export async function deleteGrillaDraft(
+  orgId: string,
+  period: GrillaPeriod,
+  periodKey: string
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "No autenticado" };
+
+  const { error } = await supabase
+    .from("grilla_drafts")
+    .delete()
+    .eq("organization_id", orgId)
+    .eq("period", period)
+    .eq("period_key", periodKey);
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 export async function updatePost(
   orgId: string,
   postId: string,
@@ -620,6 +825,8 @@ export async function updatePost(
     copy?: string | null;
     caption?: string | null;
     plate?: string | null;
+    org_identifier_id?: string | null;
+    identifier_photo_url?: string | null;
     in_drive?: boolean;
     references_text?: string | null;
     objective?: string | null;
@@ -641,6 +848,10 @@ export async function updatePost(
   if (data.copy !== undefined) updates.copy = data.copy;
   if (data.caption !== undefined) updates.caption = data.caption;
   if (data.plate !== undefined) updates.plate = data.plate;
+  if (data.org_identifier_id !== undefined)
+    updates.org_identifier_id = data.org_identifier_id;
+  if (data.identifier_photo_url !== undefined)
+    updates.identifier_photo_url = data.identifier_photo_url;
   if (data.in_drive !== undefined) updates.in_drive = data.in_drive;
   if (data.references_text !== undefined)
     updates.references_text = data.references_text;
@@ -686,6 +897,10 @@ export async function updatePostStatus(postId: string, status: string, orgId: st
 
   revalidatePath(`/org/${orgId}/marca`);
   revalidatePath(`/org/${orgId}/revision`);
+  revalidatePath(`/org/${orgId}/grilla`);
+  revalidatePath(`/org/${orgId}/home`);
+  revalidatePath("/home");
+  revalidatePath("/home/calendario");
   return { success: true };
 }
 
@@ -876,6 +1091,172 @@ export async function updateBrandStrategy(
   return { success: true };
 }
 
+export async function saveOrgIdentifierConfig(
+  orgId: string,
+  data: {
+    label: string | null;
+    allow_photo: boolean;
+    placeholder?: string | null;
+  }
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("organization_id", orgId)
+    .single();
+
+  if (!membership || !["admin", "creator"].includes(membership.role)) {
+    return { error: "Sin permiso para editar la marca" };
+  }
+
+  const label = data.label?.trim() || null;
+
+  const { error } = await supabase
+    .from("organizations")
+    .update({
+      identifier_label: label,
+      identifier_allow_photo: label ? data.allow_photo : false,
+      identifier_placeholder: label
+        ? data.placeholder?.trim() || null
+        : null,
+    })
+    .eq("id", orgId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/org/${orgId}/marca`);
+  revalidatePath(`/org/${orgId}/grilla`);
+  return { success: true };
+}
+
+export async function saveOrgIdentifier(
+  orgId: string,
+  data: {
+    value: string;
+    photo_url?: string | null;
+    label?: string | null;
+    allow_photo?: boolean;
+  }
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("organization_id", orgId)
+    .single();
+
+  if (!membership || !["admin", "creator", "designer"].includes(membership.role)) {
+    return { error: "Sin permiso para editar identificadores" };
+  }
+
+  const value = data.value.trim();
+  if (!value) return { error: "El valor es obligatorio" };
+
+  if (data.label?.trim()) {
+    const label = data.label.trim();
+    await supabase
+      .from("organizations")
+      .update({
+        identifier_label: label,
+        identifier_allow_photo: data.allow_photo ?? true,
+      })
+      .eq("id", orgId);
+  }
+
+  const { data: maxRow } = await supabase
+    .from("org_identifiers")
+    .select("sort_order")
+    .eq("organization_id", orgId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: row, error } = await supabase
+    .from("org_identifiers")
+    .insert({
+      organization_id: orgId,
+      value,
+      photo_url: data.photo_url || null,
+      sort_order: (maxRow?.sort_order ?? -1) + 1,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Ya existe un identificador con ese valor" };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath(`/org/${orgId}/marca`);
+  revalidatePath(`/org/${orgId}/grilla`);
+  return { data: row };
+}
+
+export async function updateOrgIdentifierPhoto(
+  orgId: string,
+  identifierId: string,
+  photoUrl: string | null
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("org_identifiers")
+    .update({ photo_url: photoUrl })
+    .eq("id", identifierId)
+    .eq("organization_id", orgId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/org/${orgId}/marca`);
+  revalidatePath(`/org/${orgId}/grilla`);
+  return { success: true };
+}
+
+export async function deleteOrgIdentifier(orgId: string, identifierId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("organization_id", orgId)
+    .single();
+
+  if (!membership || !["admin", "creator", "designer"].includes(membership.role)) {
+    return { error: "Sin permiso" };
+  }
+
+  const { error } = await supabase
+    .from("org_identifiers")
+    .delete()
+    .eq("id", identifierId)
+    .eq("organization_id", orgId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/org/${orgId}/marca`);
+  revalidatePath(`/org/${orgId}/grilla`);
+  return { success: true };
+}
+
 export async function saveHashtagGroup(
   orgId: string,
   data: { id?: string; category: string; tags: string[] }
@@ -1023,64 +1404,6 @@ export async function deletePost(orgId: string, postId: string) {
   revalidatePath(`/org/${orgId}/home`);
   return { success: true };
 }
-
-export async function duplicatePost(orgId: string, postId: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "No autenticado" };
-
-  const { data: source } = await supabase
-    .from("posts")
-    .select("*")
-    .eq("id", postId)
-    .eq("organization_id", orgId)
-    .single();
-
-  if (!source) return { error: "Post no encontrado" };
-
-  const { data: post, error } = await supabase
-    .from("posts")
-    .insert({
-      organization_id: orgId,
-      title: `${source.title} (copia)`,
-      scheduled_at: null,
-      format: source.format,
-      pillar: source.pillar,
-      copy: source.copy,
-      caption: source.caption,
-      plate: source.plate,
-      in_drive: false,
-      references_text: source.references_text,
-      objective: source.objective,
-      cta: source.cta,
-      assigned_to: source.assigned_to,
-      community_manager_id: source.community_manager_id,
-      created_by: user.id,
-      status: "draft",
-    })
-    .select()
-    .single();
-
-  if (error) return { error: error.message };
-
-  if (post) {
-    await supabase.from("tasks").insert({
-      organization_id: orgId,
-      title: post.title,
-      description: "Post duplicado de la grilla",
-      assigned_to: source.assigned_to || user.id,
-      created_by: user.id,
-      post_id: post.id,
-      status: "contenido",
-    });
-  }
-
-  revalidatePath(`/org/${orgId}/grilla`);
-  return { data: post };
-}
-
 export async function reviewPost(
   orgId: string,
   postId: string,
@@ -1295,6 +1618,15 @@ async function autoUpdatePostStatusFromAssets(
       post.title
     );
   }
+
+  const resolvedOrgId = orgId ?? post.organization_id;
+  if (resolvedOrgId) {
+    revalidatePath(`/org/${resolvedOrgId}/grilla/${postId}`);
+    revalidatePath(`/org/${resolvedOrgId}/grilla`);
+    revalidatePath(`/org/${resolvedOrgId}/home`);
+  }
+  revalidatePath("/home");
+  revalidatePath("/home/calendario");
 
   return newStatus;
 }

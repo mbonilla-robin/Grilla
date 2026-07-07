@@ -7,13 +7,16 @@ import { Input } from "@/components/ui/input";
 import { updatePost } from "@/lib/actions";
 import { CaptionEditor } from "@/components/grilla/caption-editor";
 import { toDateInputValue } from "@/lib/utils";
+import { PostIdentifierField } from "@/components/grilla/post-identifier-field";
 import {
   PILLAR_OPTIONS,
   FORMAT_LABELS,
   type PostFormat,
   type PostWithAssets,
   type OrgHashtagGroup,
+  type OrgIdentifier,
 } from "@/lib/types";
+import type { OrgIdentifierConfig } from "@/lib/org-identifier";
 
 interface EditPostDialogProps {
   post: PostWithAssets;
@@ -21,6 +24,8 @@ interface EditPostDialogProps {
   onSaved?: (updates: Partial<PostWithAssets>) => void;
   pillarOptions?: string[];
   hashtagGroups?: OrgHashtagGroup[];
+  identifierConfig?: OrgIdentifierConfig;
+  identifiers?: OrgIdentifier[];
 }
 
 const formats = Object.entries(FORMAT_LABELS) as [PostFormat, string][];
@@ -31,6 +36,8 @@ export function EditPostDialog({
   onSaved,
   pillarOptions = [...PILLAR_OPTIONS],
   hashtagGroups = [],
+  identifierConfig = { label: null, allowPhoto: false, placeholder: null },
+  identifiers = [],
 }: EditPostDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -43,7 +50,12 @@ export function EditPostDialog({
   const [copy, setCopy] = useState(post.copy || "");
   const [caption, setCaption] = useState(post.caption || "");
   const [plate, setPlate] = useState(post.plate || "");
-  const [inDrive, setInDrive] = useState(post.in_drive);
+  const [orgIdentifierId, setOrgIdentifierId] = useState<string | null>(
+    post.org_identifier_id
+  );
+  const [identifierPhotoUrl, setIdentifierPhotoUrl] = useState<string | null>(
+    post.identifier_photo_url
+  );
 
   function handleOpen() {
     setTitle(post.title);
@@ -53,7 +65,8 @@ export function EditPostDialog({
     setCopy(post.copy || "");
     setCaption(post.caption || "");
     setPlate(post.plate || "");
-    setInDrive(post.in_drive);
+    setOrgIdentifierId(post.org_identifier_id);
+    setIdentifierPhotoUrl(post.identifier_photo_url);
     setOpen(true);
   }
 
@@ -69,11 +82,12 @@ export function EditPostDialog({
       copy: copy || null,
       caption: caption || null,
       plate: plate || null,
-      in_drive: inDrive,
+      org_identifier_id: orgIdentifierId,
+      identifier_photo_url: identifierPhotoUrl,
     });
 
     if (!result.error) {
-      const updates = {
+      onSaved?.({
         title: title.trim() || post.title,
         format,
         pillar: pillar || null,
@@ -81,9 +95,9 @@ export function EditPostDialog({
         copy: copy || null,
         caption: caption || null,
         plate: plate || null,
-        in_drive: inDrive,
-      };
-      onSaved?.(updates);
+        org_identifier_id: orgIdentifierId,
+        identifier_photo_url: identifierPhotoUrl,
+      });
       setOpen(false);
     }
 
@@ -173,25 +187,17 @@ export function EditPostDialog({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Placa"
-                  value={plate}
-                  onChange={(e) => setPlate(e.target.value)}
-                  placeholder="Ej: 73UCAA"
-                />
-                <div className="flex items-end">
-                  <label className="flex items-center gap-2 text-xs cursor-pointer h-8">
-                    <input
-                      type="checkbox"
-                      checked={inDrive}
-                      onChange={(e) => setInDrive(e.target.checked)}
-                      className="rounded border-border"
-                    />
-                    En Drive
-                  </label>
-                </div>
-              </div>
+              <PostIdentifierField
+                orgId={orgId}
+                config={identifierConfig}
+                identifiers={identifiers}
+                selectedId={orgIdentifierId}
+                onChange={({ id, value, photoUrl }) => {
+                  setOrgIdentifierId(id);
+                  setPlate(value);
+                  setIdentifierPhotoUrl(photoUrl);
+                }}
+              />
 
               <div className="flex justify-end gap-2 pt-1">
                 <Button

@@ -1,7 +1,16 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DayRailPortal } from "@/components/home/day-rail-portal";
+
+export function HomeMainLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="h-full min-h-0 w-full overflow-auto">
+      <div className="home-enter-stagger px-4 py-4 sm:px-6 sm:py-5 lg:px-8 xl:px-10 space-y-4 lg:space-y-5">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export function HomeDayRailLayout({
   dayPanel,
@@ -11,15 +20,17 @@ export function HomeDayRailLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <DayRailPortal>{dayPanel}</DayRailPortal>
-
-      <div className="h-full w-full min-w-0 overflow-auto">
-        <div className="px-4 py-4 sm:px-6 sm:py-5 lg:px-8 xl:px-10 space-y-4 lg:space-y-5">
+    <div className="flex h-full min-h-0 w-full">
+      <div className="flex-1 min-h-0 min-w-0 overflow-auto">
+        <div className="home-enter-stagger px-4 py-4 sm:px-6 sm:py-5 lg:px-8 xl:px-10 space-y-4 lg:space-y-5">
           {children}
         </div>
       </div>
-    </>
+
+      <aside className="home-animate-in-right hidden md:flex w-64 shrink-0 min-h-0 flex-col border-l border-border overflow-y-auto bg-neutral-50/80" style={{ animationDelay: "0.2s" }}>
+        {dayPanel}
+      </aside>
+    </div>
   );
 }
 
