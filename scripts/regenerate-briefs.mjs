@@ -128,6 +128,7 @@ async function callGemini(apiKey, model, systemPrompt, input) {
                   content: "english",
                   user_instructions: "spanish",
                   design_output: "english",
+                  internal_notes: "spanish",
                 },
                 identifier: input.identifier || null,
                 brandKit: input.brandKit

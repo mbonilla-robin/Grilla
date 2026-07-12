@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Upload, X, Loader2, Download } from "lucide-react";
 import { registerPostAsset, deletePostAsset } from "@/lib/actions";
 import { createClient } from "@/lib/supabase/client";
-import { sortPostAssets } from "@/lib/utils";
+import { cn, sortPostAssets } from "@/lib/utils";
 import type { PostAsset, PostStatus } from "@/lib/types";
 
 interface PostAssetUploaderProps {
@@ -32,6 +32,7 @@ export function PostAssetUploader({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -141,6 +142,33 @@ export function PostAssetUploader({
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  function handleDragOver(e: React.DragEvent) {
+    if (loading) return;
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const related = e.relatedTarget as Node | null;
+    if (!e.currentTarget.contains(related)) {
+      setIsDraggingOver(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    if (loading) return;
+    if (e.dataTransfer.files.length > 0) {
+      handleUpload(e.dataTransfer.files);
+    }
+  }
+
   async function handleDelete(assetId: string) {
     setDeletingId(assetId);
     const previous = localAssets;
@@ -167,6 +195,9 @@ export function PostAssetUploader({
         className="flex items-center gap-1.5"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         <input
           ref={inputRef}
@@ -214,7 +245,10 @@ export function PostAssetUploader({
           onClick={() => inputRef.current?.click()}
           disabled={loading}
           title={sorted.length === 0 ? "Subir diseños" : "Agregar slides"}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-dashed border-border text-muted hover:text-foreground hover:border-foreground/20 transition-colors"
+          className={cn(
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded border border-dashed border-border text-muted hover:text-foreground hover:border-foreground/20 transition-colors",
+            isDraggingOver && "border-accent bg-accent/10 text-foreground"
+          )}
         >
           {loading ? (
             <Loader2 size={11} className="animate-spin" />
@@ -227,7 +261,12 @@ export function PostAssetUploader({
   }
 
   return (
-    <div className={compact ? "space-y-2" : "space-y-3"}>
+    <div
+      className={compact ? "space-y-2" : "space-y-3"}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <input
         ref={inputRef}
         type="file"
@@ -298,9 +337,11 @@ export function PostAssetUploader({
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={loading}
-        className={`w-full flex items-center justify-center gap-2 border border-dashed border-border rounded-md text-muted hover:text-foreground hover:border-accent/40 hover:bg-background/50 transition-colors ${
-          compact ? "py-3 text-xs" : "py-4 text-sm"
-        }`}
+        className={cn(
+          "w-full flex items-center justify-center gap-2 border border-dashed border-border rounded-md text-muted hover:text-foreground hover:border-accent/40 hover:bg-background/50 transition-colors",
+          compact ? "py-3 text-xs" : "py-4 text-sm",
+          isDraggingOver && "border-accent bg-accent/10 text-foreground"
+        )}
       >
         {loading ? (
           <Loader2 size={14} className="animate-spin" />

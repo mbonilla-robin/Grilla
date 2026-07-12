@@ -54,8 +54,8 @@ export function formatCasingRulesForPrompt(casing: BrandTextCasing): string {
 
   return [
     `- Title: ${describe(casing.title)}`,
-    `- Subtitle (short): ${describe(casing.subtitle)}`,
-    `- Paragraph / Body (long text): ${describe(casing.body)}`,
+    `- Subtitle: ${describe(casing.subtitle)} — SOLO si hay Title + Subtitle corto + Paragraph debajo; si no hay párrafo, usa Paragraph en oración`,
+    `- Paragraph / Body (long text): ${describe(casing.body)} + incluir **negrita** o *cursiva* en frases clave`,
     `- Bullets: ${describe(casing.bullet)}`,
     `- CTA: ${describe(casing.cta)}`,
   ].join("\n");

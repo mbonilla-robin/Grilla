@@ -1,5 +1,6 @@
 import type { BrandTextCasing } from "@/lib/brand-text-casing";
 import { applyTextCasing } from "@/lib/brand-text-casing";
+import { inlineEmphasisToHtml, isShortSubtitle } from "@/lib/brief-emphasis";
 
 export type TextInstructionBlock =
   | { kind: "notice"; content: string }
@@ -198,9 +199,17 @@ export function formatSlideCopyAsTextInstructions(
       }
     }
     if (subtitleMatch) {
-      parts.push(
-        `Subtitle: ${caseText(subtitleMatch[1].trim(), "subtitle")}.${styleSuffix(configured, "body", fonts, colors.accent)}.`
-      );
+      const sub = subtitleMatch[1].trim();
+      const hasBodyBelow = Boolean(bodyMatch);
+      if (hasBodyBelow && isShortSubtitle(sub)) {
+        parts.push(
+          `Subtitle: ${caseText(sub, "subtitle")}.${styleSuffix(configured, "body", fonts, colors.accent)}.`
+        );
+      } else {
+        parts.push(
+          `Paragraph: ${caseText(sub, "body")}.${styleSuffix(configured, "body", fonts, colors.accent)}.`
+        );
+      }
     }
     if (bodyMatch) {
       parts.push(
@@ -275,13 +284,35 @@ export function formatSlideCopyAsTextInstructions(
       isShortHeadline(first) &&
       (first === first.toUpperCase() || /^[A-Z0-9][^.!?]*[.!?]?$/.test(first));
     if (headlineLike) {
+      const secondClean = second.replace(/\.\s*$/, "");
       return (
         prefix +
         [
           `Title: ${caseText(first.replace(/\.\s*$/, ""), "title")}${styleSuffix(configured, "heading", fonts, colors.primary)}.`,
-          `Subtitle: ${caseText(second.replace(/\.\s*$/, ""), "subtitle")}${styleSuffix(configured, "body", fonts, colors.accent)}.`,
+          `Paragraph: ${caseText(secondClean, "body")}${styleSuffix(configured, "body", fonts, colors.accent)}.`,
         ].join("\n")
       );
+    }
+  }
+
+  if (lines.length >= 3) {
+    const [headline, second, ...rest] = lines;
+    const parts: string[] = [];
+    if (!configured) parts.push("No Brand Kit configured.");
+    if (isShortHeadline(headline)) {
+      parts.push(
+        `Title: ${caseText(headline.replace(/\.\s*$/, ""), "title")}${styleSuffix(configured, "heading", fonts, colors.primary)}.`
+      );
+    }
+    const restText = rest.join(" ");
+    if (isShortSubtitle(second) && restText.trim()) {
+      parts.push(
+        `Subtitle: ${caseText(second.replace(/\.\s*$/, ""), "subtitle")}${styleSuffix(configured, "body", fonts, colors.accent)}.`
+      );
+      parts.push(
+        `Paragraph: ${caseText(restText, "body")}${styleSuffix(configured, "body", fonts, colors.accent)}.`
+      );
+      return parts.join("\n");
     }
   }
 
@@ -337,16 +368,16 @@ export function textInstructionsToHtml(text: string): string {
         case "notice":
           return `<p><em>${block.content}</em></p>`;
         case "labeled":
-          return `<p><strong>${block.label}:</strong> ${block.content}${block.details ? `<br/><span style="color:#737373;font-size:12px">${block.details}</span>` : ""}</p>`;
+          return `<p><strong>${block.label}:</strong> ${inlineEmphasisToHtml(block.content)}${block.details ? `<br/><span style="color:#737373;font-size:12px">${block.details}</span>` : ""}</p>`;
         case "bullets":
           return `<ul style="margin:4px 0;padding-left:20px">${block.items
             .map(
               (item) =>
-                `<li>${item.text}${item.details ? ` <span style="color:#737373;font-size:12px">(${item.details})</span>` : ""}</li>`
+                `<li>${inlineEmphasisToHtml(item.text)}${item.details ? ` <span style="color:#737373;font-size:12px">(${item.details})</span>` : ""}</li>`
             )
             .join("")}</ul>`;
         case "paragraph":
-          return `<p>${block.content}${block.details ? `<br/><span style="color:#737373;font-size:12px">${block.details}</span>` : ""}</p>`;
+          return `<p>${inlineEmphasisToHtml(block.content)}${block.details ? `<br/><span style="color:#737373;font-size:12px">${block.details}</span>` : ""}</p>`;
       }
     })
     .join("");

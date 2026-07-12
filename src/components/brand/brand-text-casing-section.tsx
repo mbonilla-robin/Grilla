@@ -6,8 +6,12 @@ import { cn } from "@/lib/utils";
 
 const CASING_FIELDS: Array<{ key: keyof BrandTextCasing; label: string; hint?: string }> = [
   { key: "title", label: "Títulos" },
-  { key: "subtitle", label: "Subtítulos cortos" },
-  { key: "body", label: "Párrafos / texto largo", hint: "Estilo oración" },
+  {
+    key: "subtitle",
+    label: "Subtítulos cortos",
+    hint: "MAYÚSC solo con párrafo debajo. Sin párrafo → va como párrafo en oración",
+  },
+  { key: "body", label: "Párrafos / texto largo", hint: "Oración + negritas/cursivas en lo clave" },
   { key: "bullet", label: "Bullets / listas" },
   { key: "cta", label: "CTA" },
 ];

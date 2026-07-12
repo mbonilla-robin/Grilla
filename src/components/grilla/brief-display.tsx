@@ -1,6 +1,7 @@
 import type { DesignBrief, DesignBriefSlide, BriefColorRef } from "@/lib/types";
 import { extractHexColors, mergeColorRefs } from "@/lib/brief-colors";
 import { parseTextInstructionBlocks } from "@/lib/brief-text";
+import { parseInlineEmphasis } from "@/lib/brief-emphasis";
 import { VisualConceptDisplay } from "@/components/grilla/visual-concept-display";
 
 function ColorSwatch({
@@ -52,6 +53,31 @@ function ColorPalette({ colors }: { colors: BriefColorRef[] }) {
   );
 }
 
+function InlineEmphasisText({ text }: { text: string }) {
+  return (
+    <>
+      {parseInlineEmphasis(text).map((segment, i) => {
+        switch (segment.kind) {
+          case "bold":
+            return (
+              <strong key={i} className="font-semibold text-foreground">
+                {segment.value}
+              </strong>
+            );
+          case "italic":
+            return (
+              <em key={i} className="italic text-foreground/95">
+                {segment.value}
+              </em>
+            );
+          default:
+            return <span key={i}>{segment.value}</span>;
+        }
+      })}
+    </>
+  );
+}
+
 function ColorRichText({ text }: { text: string }) {
   const parts = text.split(/(#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})\b)/g);
 
@@ -89,7 +115,9 @@ function TextInstructionsDisplay({ text }: { text: string }) {
               <div key={i} className="space-y-0.5">
                 <p className="text-sm leading-snug">
                   <span className="font-semibold text-foreground">{block.label}:</span>{" "}
-                  <span className="text-foreground/90">{block.content}</span>
+                  <span className="text-foreground/90">
+                    <InlineEmphasisText text={block.content} />
+                  </span>
                 </p>
                 {block.details && (
                   <p className="text-xs leading-relaxed text-muted pl-0">
@@ -103,7 +131,9 @@ function TextInstructionsDisplay({ text }: { text: string }) {
               <ul key={i} className="list-disc pl-5 space-y-1.5 text-sm leading-snug text-foreground/90">
                 {block.items.map((item, j) => (
                   <li key={j}>
-                    <span>{item.text}</span>
+                    <span>
+                      <InlineEmphasisText text={item.text} />
+                    </span>
                     {item.details && (
                       <span className="block text-xs text-muted mt-0.5">
                         <ColorRichText text={item.details} />
@@ -116,7 +146,9 @@ function TextInstructionsDisplay({ text }: { text: string }) {
           case "paragraph":
             return (
               <div key={i} className="space-y-0.5">
-                <p className="text-sm leading-relaxed text-foreground/90">{block.content}</p>
+                <p className="text-sm leading-relaxed text-foreground/90">
+                  <InlineEmphasisText text={block.content} />
+                </p>
                 {block.details && (
                   <p className="text-xs leading-relaxed text-muted">
                     <ColorRichText text={block.details} />
