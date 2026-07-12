@@ -1,6 +1,7 @@
 import type { DesignBrief, DesignBriefSlide, BriefColorRef } from "@/lib/types";
 import { extractHexColors, mergeColorRefs } from "@/lib/brief-colors";
 import { parseTextInstructionBlocks } from "@/lib/brief-text";
+import { VisualConceptDisplay } from "@/components/grilla/visual-concept-display";
 
 function ColorSwatch({
   hex,
@@ -207,9 +208,7 @@ function StructuredSlide({
       )}
 
       {slide.visual_concept && (
-        <BriefSection label="Concepto Visual:">
-          <ColorRichText text={slide.visual_concept} />
-        </BriefSection>
+        <VisualConceptDisplay text={slide.visual_concept} />
       )}
       {slide.text_instructions && (
         <BriefSection label="Instrucciones de Texto:">

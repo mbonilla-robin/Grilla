@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { DesignBrief, DesignBriefSlide, PostFormat } from "@/lib/types";
 import { brandKitToPalette, isBrandKitConfigured } from "@/lib/brief-colors";
 import { formatSlideCopyAsTextInstructions } from "@/lib/brief-text";
+import { normalizeBrandTextCasing } from "@/lib/brand-text-casing";
 import { parseDesignerCopy } from "@/lib/utils";
 import { resolvePostIdentifierReferences } from "@/lib/resolve-post-identifier";
 import type { OrgIdentifier } from "@/lib/types";
@@ -102,22 +103,29 @@ export async function POST(request: Request) {
 
 const BRIEF_SYSTEM_PROMPT = `Eres un director creativo senior de social media para marcas premium e industriales. Generas briefs de diseño detallados, accionables y con tono profesional.
 
+IDIOMA (crítico — respeta siempre esta separación):
+- El copy del post (campo "copy") está en INGLÉS. Preserva ese texto tal cual en text_instructions — nunca lo traduzcas.
+- Las instrucciones del usuario (campo "instructions") llegan en ESPAÑOL. Léelas, interprétalas y aplícalas, pero NO traduzcas el output del brief al español por ellas.
+- TODO el texto e información que generes para diseño debe estar en INGLÉS: execution_title, focus, format_label, visual_concept, text_instructions (copy + especificaciones tipográficas), image_treatment, layout, strategic_note, nombres y roles de colores.
+- Usa etiquetas en inglés dentro de text_instructions: Title, Subtitle, Body, Paragraph, CTA (no Título, Subtítulo, Párrafo).
+- El brief lo lee un diseñador; el contenido final del post es en inglés.
+
 SIEMPRE responde en JSON con esta estructura exacta:
 {
   "format": "feed|carousel|reel|story|image|video_carousel",
-  "execution_title": "Nombre de campaña o producto (ej: Built for the Field (ZXAuto Terralord 2024))",
+  "execution_title": "Campaign or product name (e.g. Built for the Field (ZXAuto Terralord 2024))",
   "slides": [
     {
       "slide": 1,
-      "focus": "Enfoque creativo en pocas palabras (ej: Professional Utility)",
-      "format_label": "Diseño de Post Único (Focus: ...) — o 'Carousel Slide 1 (Focus: ...)' si aplica",
-      "visual_concept": "Descripción detallada de fotografía/arte: tipo de toma, entorno, iluminación, actitud, materiales. Sé específico y cinematográfico.",
-      "text_instructions": "Especificaciones tipográficas respetando la ESTRUCTURA del copy del creador en este slide (ver reglas de formato abajo).",
+      "focus": "Creative focus in a few words (e.g. Professional Utility)",
+      "format_label": "Single Post Design (Focus: ...) — or 'Carousel Slide 1 (Focus: ...)' when applicable",
+      "visual_concept": "Detailed photography/art direction: shot type, environment, lighting, attitude, materials. Be specific and cinematic. Always in English.",
+      "text_instructions": "Typographic specs preserving the creator's copy STRUCTURE for this slide (see format rules below). Copy in English.",
       "image_treatment": "...",
       "layout": "...",
       "colors_used": [
-        { "hex": "#E5E5E5", "name": "Blanco marca", "role": "título" },
-        { "hex": "#DA4928", "name": "Naranja acento", "role": "subtítulo" }
+        { "hex": "#E5E5E5", "name": "Brand White", "role": "title" },
+        { "hex": "#DA4928", "name": "Accent Orange", "role": "subtitle" }
       ]
     }
   ],
@@ -129,35 +137,59 @@ SIEMPRE responde en JSON con esta estructura exacta:
 }
 
 REGLAS DE ESTILO (obligatorias):
-- Las etiquetas de sección van en español: Concepto Visual, Instrucciones de Texto, Tratamiento de Imagen, Layout.
-- El copy del post respeta el idioma del contenido recibido (inglés si el post está en inglés).
+- Todo el contenido generado del brief va en inglés (ver IDIOMA arriba). Las etiquetas de sección en la UI (Concepto Visual, etc.) las maneja la plataforma — no las repitas en el JSON.
 - OBLIGATORIO si hay brand kit: usa EXCLUSIVAMENTE los colores hex y las fuentes tipográficas del brand kit recibido. No inventes colores ni fuentes alternativas.
 - Copia brand_palette.colors y brand_palette.fonts directamente del brand kit del input.
-- En colors_used de cada slide, lista cada color del brand kit que uses con hex, name descriptivo y role (título, subtítulo, acento, fondo, logo, degradado).
-- En text_instructions cita el hex exacto del brand kit junto al color (ej: Blanco #E5E5E5) — la UI mostrará muestras visuales del color.
-- Usa las fuentes del brand kit por nombre exacto en título (heading) y cuerpo/subtítulo (body).
+- En colors_used de cada slide, lista cada color del brand kit que uses con hex, name descriptivo en inglés y role en inglés (title, subtitle, accent, background, logo, gradient).
+- En text_instructions cita el hex exacto del brand kit junto al color (ej: Brand White #E5E5E5) — la UI mostrará muestras visuales del color.
+- Usa las fuentes del brand kit por nombre exacto en heading y body.
+
+CAPITALIZACIÓN DEL COPY (obligatorio si brandKit incluye text_casing):
+- Aplica text_casing del brand kit al copy dentro de text_instructions — normaliza mayúsculas/minúsculas según la marca, sin cambiar palabras ni traducir.
+- uppercase = TODO EN MAYÚSCULAS (ej: ABNORMAL VIBRATIONS).
+- sentence = Sentence case: primera letra mayúscula, resto minúsculas (ej: Excessive movement may indicate imbalance...).
+- Reglas por tipo de línea en text_instructions:
+- Title → text_casing.title
+- Subtitle → text_casing.subtitle
+- Paragraph / Body → text_casing.body
+- Bullets (- ...) → text_casing.bullet
+- CTA → text_casing.cta
+- Ejemplo típico industrial: Title y Subtitle en MAYÚSCULAS; párrafos y bullets en oración.
+
+JERARQUÍA TIPOGRÁFICA — TÍTULOS CORTOS (crítico):
+- Title: es un HEADLINE corto e impactante. Ideal ~5 palabras; máximo 7 palabras (~40 caracteres). NUNCA un párrafo, bloque largo ni múltiples oraciones.
+- Si el copy del slide trae texto largo, NO lo etiquetes entero como Title. Extrae la frase más corta y contundente para Title; el resto va en Subtitle, Body o Paragraph.
+- Subtitle: una sola línea de apoyo (1 frase corta, máx ~15 palabras).
+- Paragraph / Body: texto narrativo o explicativo más largo.
+- CTA: acción clara en 1-2 frases cortas — no un bloque de párrafo.
+- execution_title y focus también deben ser concisos (ideal ~5 palabras, máximo 7).
+- Mal: Title: At Metalkor we have experience in rotating equipment maintenance and standardized processes under API, ASME, AWS, ISO, and OSHA standards.
+- Bien: Title: Ensure operational continuity. + Paragraph: At Metalkor, we have experience in rotating equipment maintenance...
+- Mal: Title: Excessive movement may indicate imbalance, misalignment, or internal wear in critical components.
+- Bien: Title: Abnormal vibrations + Paragraph: Excessive movement may indicate imbalance, misalignment, or internal wear in critical components.
 
 ESTRUCTURA DEL COPY (crítico — no forzar siempre Título/Subtítulo):
 - Analiza el campo "copy" del input ANTES de escribir text_instructions en cada slide.
 - NO conviertas todo a Título + Subtítulo. Respeta el formato que la creadora dejó en cada slide o sección.
 - Formatos soportados en text_instructions (puedes mezclar dentro de un slide si aplica):
-  1. Jerarquía explícita: líneas con etiqueta Título:, Subtítulo:, Cuerpo:, CTA: — solo cuando el copy original use ese formato o sea claramente un headline + apoyo.
+  1. Jerarquía explícita: líneas con etiqueta Title:, Subtitle:, Body:, CTA: — solo cuando el copy original use ese formato o sea claramente un headline + apoyo.
   2. Bullets: líneas que empiezan con "- " cuando el copy tiene listas, viñetas, ítems separados por " · ", o varias líneas cortas enumeradas.
-  3. Párrafo: bloque de texto continuo con etiqueta Párrafo: cuando el copy es un párrafo narrativo sin jerarquía de título.
+  3. Paragraph: bloque de texto continuo con etiqueta Paragraph: cuando el copy es un párrafo narrativo sin jerarquía de título.
 - Ejemplos de detección:
   · Copy "Título: X / Subtítulo: Y" → mantener Título + Subtítulo.
   · Copy "Slide 2: Ford F-800D — Bucket Truck / Pickman arm · Aerial access · ..." → bullets con "- Pickman arm", "- Aerial access", etc.
-  · Copy "Slide 3: Every project has different terrain..." → Párrafo: Every project has different terrain...
-  · Copy "Slide 1: ELEVATED ACCESS. / Built for operations..." → Título + Subtítulo (headline + línea de apoyo).
+  · Copy "Slide 3: Every project has different terrain..." → Paragraph: Every project has different terrain...
+  · Copy "Slide 1: ELEVATED ACCESS. / Built for operations..." → Title + Subtitle (headline corto + línea de apoyo).
+  · Copy con headline corto + párrafo explicativo → Title (solo el headline) + Paragraph (el resto).
   · Copy con 3+ ítems separados por " · " en una línea → convertir a bullets.
 - En carousels: un slide por tarjeta; cada slide puede tener formato distinto (slide 1 título/subtítulo, slide 2 párrafo, slide 3 bullets).
-- Las especificaciones tipográficas van entre paréntesis al final de cada línea: (Montserrat Extra Bold, Blanco #E5E5E5, tamaño masivo).
+- Las especificaciones tipográficas van entre paréntesis al final de cada línea, en inglés: (Montserrat Extra Bold, Brand White #E5E5E5, massive size).
 - Si brandKit es null en el input (sin Brand Kit configurado):
   - NO inventes colores hex, fuentes tipográficas, paletas ni nombres de marca visual.
   - Omite brand_palette del JSON o envíalo como null.
-  - En text_instructions, indica "Sin Brand Kit configurado" y describe la estructura del copy (Título/Subtítulo, bullets o Párrafo según corresponda) — sin fuentes ni colores inventados.
+  - En text_instructions, indica "No Brand Kit configured" y describe la estructura del copy (Title/Subtitle, bullets o Paragraph según corresponda) — sin fuentes ni colores inventados.
   - Deja colors_used como array vacío en cada slide.
-  - En strategic_note, indica que la marca no tiene Brand Kit y debe configurarse o coordinarse con el equipo.
+  - En strategic_note (en inglés), indica que la marca no tiene Brand Kit y debe configurarse o coordinarse con el equipo.
 - El tono es "Industrial-Premium": minimalista pero contundente, documental, operacional.
 - Si el input incluye "identifier" con label, values y/o items (cada uno con value y photoUrl): úsalos como referencia de los sujetos del post (ej. placas de carros con foto). Si hay varios identificadores, menciónalos por separado en visual_concept cuando sea relevante.
 - Para carousels: un slide por tarjeta, cada uno con su propio focus y variación visual coherente.
@@ -167,29 +199,28 @@ EJEMPLO DE REFERENCIA (sigue este nivel de detalle y tono):
 
 🎨 Ejecución: Adaptability Campaign
 Carousel Slide 1 (Focus: Hook)
-Concepto Visual: ...
-Instrucciones de Texto:
-Título: ADAPTABILITY IS NOT A FEATURE. (Montserrat Extra Bold, Blanco #E5E5E5, tamaño masivo).
-Subtítulo: It's how we operate. (Montserrat Regular/Medium, Naranja #DA4928, tracking abierto).
+visual_concept: Wide-angle documentary shot of industrial fleet vehicles in a real work environment. Natural lighting, ready-for-action attitude. No plastic retouching.
+text_instructions:
+Title: ADAPTABILITY IS NOT A FEATURE. (Montserrat Extra Bold, Brand White #E5E5E5, massive size).
+Subtitle: It's how we operate. (Montserrat Regular/Medium, Accent Orange #DA4928, open tracking).
 
 Carousel Slide 2 (Focus: Context)
-Concepto Visual: ...
-Instrucciones de Texto:
-Párrafo: Every project has different terrain, timelines, and technical demands. We don't offer a fixed solution — we build the right one. (Montserrat Regular/Medium, Blanco #E5E5E5, cuerpo legible).
+visual_concept: Complementary operational context shot, same Industrial-Premium aesthetic.
+text_instructions:
+Paragraph: Every project has different terrain, timelines, and technical demands. We don't offer a fixed solution — we build the right one. (Montserrat Regular/Medium, Brand White #E5E5E5, readable body size).
 
 Carousel Slide 3 (Focus: Capabilities)
-Concepto Visual: ...
-Instrucciones de Texto:
-- Ambulances for HSE coverage (Montserrat Medium, Naranja #DA4928).
-- Cranes for heavy lifts (Montserrat Medium, Blanco #E5E5E5).
-- 4x4s for remote access (Montserrat Medium, Blanco #E5E5E5).
-- Welding units for on-site intervention (Montserrat Medium, Blanco #E5E5E5).
+text_instructions:
+- Ambulances for HSE coverage (Montserrat Medium, Accent Orange #DA4928).
+- Cranes for heavy lifts (Montserrat Medium, Brand White #E5E5E5).
+- 4x4s for remote access (Montserrat Medium, Brand White #E5E5E5).
+- Welding units for on-site intervention (Montserrat Medium, Brand White #E5E5E5).
 
 Carousel Slide 4 (Focus: CTA)
-Instrucciones de Texto:
-CTA: Whatever your operation requires. PetroEquip has it ready. (Montserrat SemiBold, Naranja #DA4928, destacado).
+text_instructions:
+CTA: Whatever your operation requires. PetroEquip has it ready. (Montserrat SemiBold, Accent Orange #DA4928, emphasized).
 
-Nota Estratégica: "..."`;
+strategic_note: "..." (always in English)`;
 
 async function generateBrief(
   title: string,
@@ -201,6 +232,7 @@ async function generateBrief(
     fonts: { heading: string; body: string };
     tone_of_voice: string | null;
     guidelines: string | null;
+    text_casing?: unknown;
   } | null,
   instructions?: string,
   identifier?: {
@@ -256,6 +288,7 @@ async function callGemini(
       fonts: { heading: string; body: string };
       tone_of_voice: string | null;
       guidelines: string | null;
+      text_casing?: unknown;
     } | null;
     instructions?: string;
     identifier?: {
@@ -288,6 +321,11 @@ async function callGemini(
                 references: input.references,
                 format: input.format,
                 instructions: input.instructions || null,
+                language: {
+                  content: "english",
+                  user_instructions: "spanish",
+                  design_output: "english",
+                },
                 identifier: input.identifier || null,
                 brandKit: input.brandKit
                   ? {
@@ -295,6 +333,7 @@ async function callGemini(
                       fonts: input.brandKit.fonts,
                       tone: input.brandKit.tone_of_voice,
                       guidelines: input.brandKit.guidelines,
+                      text_casing: normalizeBrandTextCasing(input.brandKit.text_casing),
                     }
                   : null,
               }),
@@ -395,7 +434,7 @@ function generateMockBrief(
   title: string,
   copy: string | null,
   format: PostFormat,
-  brandKit: { colors: string[]; fonts: { heading: string; body: string } } | null,
+  brandKit: { colors: string[]; fonts: { heading: string; body: string }; text_casing?: unknown } | null,
   geminiError?: string,
   instructions?: string
 ): DesignBrief {
@@ -434,27 +473,28 @@ function generateMockBrief(
 
     return {
       slide: i + 1,
-      focus: slideLabel || (i === 0 ? "Enfoque principal" : `Slide ${i + 1}`),
+      focus: slideLabel || (i === 0 ? "Primary focus" : `Slide ${i + 1}`),
       format_label:
         slideCount > 1
-          ? `Carousel Slide ${i + 1}${slideLabel ? ` (${slideLabel})` : ""} (Focus: ${slideLabel || `Contenido ${i + 1}`})`
-          : "Diseño de Post Único (Focus: Enfoque principal)",
+          ? `Carousel Slide ${i + 1}${slideLabel ? ` (${slideLabel})` : ""} (Focus: ${slideLabel || `Content ${i + 1}`})`
+          : "Single Post Design (Focus: Primary focus)",
       visual_concept:
         i === 0
-          ? `Fotografía documental de gran angular relacionada con "${title}". Entorno real de trabajo, iluminación natural, actitud de "lista para la acción". Sin retoques plásticos.`
-          : `Visual complementario slide ${i + 1} coherente con la estética Industrial-Premium del tema "${title}".`,
+          ? `Wide-angle documentary photography related to "${title}". Real work environment, natural lighting, ready-for-action attitude. No plastic retouching.`
+          : `Complementary visual for slide ${i + 1}, consistent with the Industrial-Premium aesthetic of "${title}".`,
       text_instructions: formatSlideCopyAsTextInstructions(
         slideContent,
         configured,
         { heading: headingFont, body: bodyFont },
-        { primary, accent }
+        { primary, accent },
+        brandKit?.text_casing ? normalizeBrandTextCasing(brandKit.text_casing) : undefined
       ),
       image_treatment: configured
-        ? `Degradado ${primary} suave desde la base (opacidad 70% a 0%) para legibilidad. Mantener saturación en el sujeto principal, entorno ligeramente desaturado.`
-        : "Degradado suave desde la base para legibilidad del texto. Mantener saturación en el sujeto principal, entorno ligeramente desaturado.",
+        ? `Soft ${primary} gradient from the base (70% to 0% opacity) for legibility. Keep saturation on the main subject, slightly desaturated environment.`
+        : "Soft gradient from the base for text legibility. Keep saturation on the main subject, slightly desaturated environment.",
       layout: configured
-        ? `Alineación a la izquierda, tercio inferior o lateral. Logo de marca en esquina superior derecha, ${primary}, pequeño y equilibrado.`
-        : "Alineación a la izquierda, tercio inferior o lateral. Logo de marca en esquina superior derecha, pequeño y equilibrado.",
+        ? `Left alignment, lower third or side placement. Brand logo in top-right corner, ${primary}, small and balanced.`
+        : "Left alignment, lower third or side placement. Brand logo in top-right corner, small and balanced.",
       colors_used: colorRefs,
     };
   });
@@ -466,8 +506,8 @@ function generateMockBrief(
     brand_palette,
     slides,
     strategic_note: configured
-      ? `Diseño minimalista pero contundente. Prioriza contraste limpio y estética Industrial-Premium. Respeta el idioma del copy del post.${instructions ? ` Instrucciones adicionales: ${instructions}` : ""}`
-      : `Esta marca no tiene Brand Kit configurado. Coordinar colores y tipografías con el equipo de marca antes de diseñar, o configurar el Brand Kit en la plataforma.${instructions ? ` Instrucciones: ${instructions}` : ""}`,
+      ? `Minimalist but bold design. Prioritize clean contrast and Industrial-Premium aesthetic. All post copy stays in English.${instructions ? ` Additional instructions (Spanish): ${instructions}` : ""}`
+      : `This brand has no Brand Kit configured. Coordinate colors and typography with the brand team before designing, or set up the Brand Kit in the platform.${instructions ? ` Instructions (Spanish): ${instructions}` : ""}`,
     instructions: instructions || undefined,
     notes: geminiError
       ? `Gemini falló: ${geminiError}`

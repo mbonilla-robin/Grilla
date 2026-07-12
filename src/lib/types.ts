@@ -1,3 +1,7 @@
+import type { BrandTextCasing } from "@/lib/brand-text-casing";
+
+export type { BrandTextCasing, TextCasingRule } from "@/lib/brand-text-casing";
+
 export type MemberRole =
   | "admin"
   | "creator"
@@ -111,6 +115,7 @@ export interface BrandKit {
   guidelines: string | null;
   objective: string | null;
   kit_file_url: string | null;
+  text_casing?: BrandTextCasing | null;
   created_at: string;
   updated_at: string;
 }

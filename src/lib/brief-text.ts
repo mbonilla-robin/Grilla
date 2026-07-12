@@ -1,3 +1,6 @@
+import type { BrandTextCasing } from "@/lib/brand-text-casing";
+import { applyTextCasing } from "@/lib/brand-text-casing";
+
 export type TextInstructionBlock =
   | { kind: "notice"; content: string }
   | { kind: "labeled"; label: string; content: string; details?: string }
@@ -56,8 +59,8 @@ export function parseTextInstructionBlocks(text: string): TextInstructionBlock[]
       continue;
     }
 
-    if (/^sin brand kit configurado\.?$/i.test(line)) {
-      blocks.push({ kind: "notice", content: "Sin Brand Kit configurado" });
+    if (/^no brand kit configured\.?$/i.test(line) || /^sin brand kit configurado\.?$/i.test(line)) {
+      blocks.push({ kind: "notice", content: "No Brand Kit configured" });
       i++;
       continue;
     }
@@ -75,7 +78,7 @@ export function parseTextInstructionBlocks(text: string): TextInstructionBlock[]
       continue;
     }
 
-    const paragraphLabel = line.match(/^Párrafo:\s*(.+)$/i);
+    const paragraphLabel = line.match(/^(?:Párrafo|Paragraph):\s*(.+)$/i);
     if (paragraphLabel) {
       const parsed = parseContentWithDetails(paragraphLabel[1]);
       blocks.push({ kind: "paragraph", ...parsed });
@@ -115,41 +118,93 @@ function styleSuffix(
   return ` (${font}, ${color})`;
 }
 
+const MAX_TITLE_CHARS = 42;
+const MAX_TITLE_WORDS = 7;
+const IDEAL_TITLE_WORDS = 5;
+
+function splitHeadlineAndBody(text: string): { headline: string; remainder?: string } {
+  const trimmed = text.trim();
+  if (trimmed.length <= MAX_TITLE_CHARS) return { headline: trimmed };
+
+  const sentenceSplit = trimmed.match(/^(.{1,80}?[.!?])\s+([\s\S]+)$/);
+  if (sentenceSplit && sentenceSplit[1].length <= MAX_TITLE_CHARS + 15) {
+    return {
+      headline: sentenceSplit[1].replace(/[.!?]+$/, "").trim(),
+      remainder: sentenceSplit[2].trim(),
+    };
+  }
+
+  const words = trimmed.split(/\s+/);
+  if (words.length > MAX_TITLE_WORDS) {
+    const headline = words.slice(0, IDEAL_TITLE_WORDS).join(" ");
+    const remainder = words.slice(IDEAL_TITLE_WORDS).join(" ");
+    return { headline: headline.replace(/[.,;:!?]+$/, ""), remainder };
+  }
+
+  const cut = trimmed.slice(0, MAX_TITLE_CHARS);
+  const lastSpace = cut.lastIndexOf(" ");
+  return {
+    headline: (lastSpace > 20 ? cut.slice(0, lastSpace) : cut).replace(/[.,;:!?]+$/, ""),
+    remainder: trimmed.slice(lastSpace > 20 ? lastSpace + 1 : MAX_TITLE_CHARS).trim() || undefined,
+  };
+}
+
+function isShortHeadline(text: string) {
+  const trimmed = text.trim();
+  return trimmed.length <= MAX_TITLE_CHARS && trimmed.split(/\s+/).length <= MAX_TITLE_WORDS;
+}
+
 /** Infiere instrucciones de texto respetando la estructura del copy del slide. */
 export function formatSlideCopyAsTextInstructions(
   content: string,
   configured: boolean,
   fonts: { heading: string; body: string },
-  colors: { primary: string; accent: string }
+  colors: { primary: string; accent: string },
+  textCasing?: BrandTextCasing
 ): string {
+  const caseText = (text: string, kind: keyof BrandTextCasing) =>
+    textCasing ? applyTextCasing(text, textCasing[kind]) : text;
   const trimmed = content.trim();
   if (!trimmed) {
     return configured
-      ? `Párrafo: [contenido]${styleSuffix(configured, "body", fonts, colors.accent)}.`
-      : "Sin Brand Kit configurado.\nPárrafo: [contenido].";
+      ? `Paragraph: [content]${styleSuffix(configured, "body", fonts, colors.accent)}.`
+      : "No Brand Kit configured.\nParagraph: [content].";
   }
 
-  const prefix = configured ? "" : "Sin Brand Kit configurado.\n";
+  const prefix = configured ? "" : "No Brand Kit configured.\n";
   const titleMatch = trimmed.match(/(?:^|\n)(?:Título|Title)[:\s]*([^\n]+)/i);
   const subtitleMatch = trimmed.match(/(?:^|\n)(?:Subtítulo|Subtitle)[:\s]*([^\n]+)/i);
   const bodyMatch = trimmed.match(/(?:^|\n)(?:Cuerpo|Body)[:\s]*([\s\S]+)/i);
 
   if (titleMatch || subtitleMatch) {
     const parts: string[] = [];
-    if (!configured) parts.push("Sin Brand Kit configurado.");
+    if (!configured) parts.push("No Brand Kit configured.");
     if (titleMatch) {
-      parts.push(
-        `Título: ${titleMatch[1].trim()}.${styleSuffix(configured, "heading", fonts, colors.primary)}.`
-      );
+      const rawTitle = titleMatch[1].trim();
+      if (isShortHeadline(rawTitle)) {
+        parts.push(
+          `Title: ${caseText(rawTitle, "title")}.${styleSuffix(configured, "heading", fonts, colors.primary)}.`
+        );
+      } else {
+        const { headline, remainder } = splitHeadlineAndBody(rawTitle);
+        parts.push(
+          `Title: ${caseText(headline, "title")}.${styleSuffix(configured, "heading", fonts, colors.primary)}.`
+        );
+        if (remainder) {
+          parts.push(
+            `Paragraph: ${caseText(remainder, "body")}.${styleSuffix(configured, "body", fonts, colors.accent)}.`
+          );
+        }
+      }
     }
     if (subtitleMatch) {
       parts.push(
-        `Subtítulo: ${subtitleMatch[1].trim()}.${styleSuffix(configured, "body", fonts, colors.accent)}.`
+        `Subtitle: ${caseText(subtitleMatch[1].trim(), "subtitle")}.${styleSuffix(configured, "body", fonts, colors.accent)}.`
       );
     }
     if (bodyMatch) {
       parts.push(
-        `Cuerpo: ${bodyMatch[1].trim()}.${styleSuffix(configured, "body", fonts, colors.accent)}.`
+        `Body: ${caseText(bodyMatch[1].trim(), "body")}.${styleSuffix(configured, "body", fonts, colors.accent)}.`
       );
     }
     return parts.join("\n");
@@ -164,7 +219,7 @@ export function formatSlideCopyAsTextInstructions(
       bulletLines
         .map((line) => {
           const text = line.replace(/^[-•*]\s+/, "");
-          return `- ${text}${styleSuffix(configured, "body", fonts, colors.accent)}.`;
+          return `- ${caseText(text, "bullet")}${styleSuffix(configured, "body", fonts, colors.accent)}.`;
         })
         .join("\n")
     );
@@ -179,7 +234,7 @@ export function formatSlideCopyAsTextInstructions(
     return (
       prefix +
       dotItems
-        .map((item) => `- ${item}${styleSuffix(configured, "body", fonts, colors.accent)}.`)
+        .map((item) => `- ${caseText(item, "bullet")}${styleSuffix(configured, "body", fonts, colors.accent)}.`)
         .join("\n")
     );
   }
@@ -189,12 +244,12 @@ export function formatSlideCopyAsTextInstructions(
     if (line.length < 70 && line === line.toUpperCase()) {
       return (
         prefix +
-        `Título: ${line.replace(/\.\s*$/, "")}${styleSuffix(configured, "heading", fonts, colors.primary)}.`
+        `Title: ${caseText(line.replace(/\.\s*$/, ""), "title")}${styleSuffix(configured, "heading", fonts, colors.primary)}.`
       );
     }
     return (
       prefix +
-      `Párrafo: ${line}${styleSuffix(configured, "body", fonts, colors.accent)}.`
+      `Paragraph: ${caseText(line, "body")}${styleSuffix(configured, "body", fonts, colors.accent)}.`
     );
   }
 
@@ -204,27 +259,27 @@ export function formatSlideCopyAsTextInstructions(
       const items = second.split(/\s·\s/).map((s) => s.trim()).filter(Boolean);
       if (items.length >= 2) {
         const parts: string[] = [];
-        if (!configured) parts.push("Sin Brand Kit configurado.");
+        if (!configured) parts.push("No Brand Kit configured.");
         parts.push(
-          `Título: ${first.replace(/\.\s*$/, "")}${styleSuffix(configured, "heading", fonts, colors.primary)}.`
+          `Title: ${caseText(first.replace(/\.\s*$/, ""), "title")}${styleSuffix(configured, "heading", fonts, colors.primary)}.`
         );
         parts.push(
           ...items.map(
-            (item) => `- ${item}${styleSuffix(configured, "body", fonts, colors.accent)}.`
+            (item) => `- ${caseText(item, "bullet")}${styleSuffix(configured, "body", fonts, colors.accent)}.`
           )
         );
         return parts.join("\n");
       }
     }
     const headlineLike =
-      first.length < 90 &&
+      isShortHeadline(first) &&
       (first === first.toUpperCase() || /^[A-Z0-9][^.!?]*[.!?]?$/.test(first));
     if (headlineLike) {
       return (
         prefix +
         [
-          `Título: ${first.replace(/\.\s*$/, "")}${styleSuffix(configured, "heading", fonts, colors.primary)}.`,
-          `Subtítulo: ${second.replace(/\.\s*$/, "")}${styleSuffix(configured, "body", fonts, colors.accent)}.`,
+          `Title: ${caseText(first.replace(/\.\s*$/, ""), "title")}${styleSuffix(configured, "heading", fonts, colors.primary)}.`,
+          `Subtitle: ${caseText(second.replace(/\.\s*$/, ""), "subtitle")}${styleSuffix(configured, "body", fonts, colors.accent)}.`,
         ].join("\n")
       );
     }
@@ -233,33 +288,40 @@ export function formatSlideCopyAsTextInstructions(
   if (lines.length >= 2) {
     const [headline, ...rest] = lines;
     const parts: string[] = [];
-    if (!configured) parts.push("Sin Brand Kit configurado.");
-    if (headline.length < 90) {
+    if (!configured) parts.push("No Brand Kit configured.");
+    let restParts = rest;
+    if (isShortHeadline(headline)) {
       parts.push(
-        `Título: ${headline.replace(/\.\s*$/, "")}${styleSuffix(configured, "heading", fonts, colors.primary)}.`
+        `Title: ${caseText(headline.replace(/\.\s*$/, ""), "title")}${styleSuffix(configured, "heading", fonts, colors.primary)}.`
       );
+    } else {
+      const { headline: short, remainder } = splitHeadlineAndBody(headline);
+      parts.push(
+        `Title: ${caseText(short.replace(/\.\s*$/, ""), "title")}${styleSuffix(configured, "heading", fonts, colors.primary)}.`
+      );
+      if (remainder) restParts = [remainder, ...rest];
     }
-    const restText = (headline.length >= 90 ? lines : rest).join(" ");
+    const restText = restParts.join(" ");
     if (restText.includes(" · ")) {
       const items = restText.split(/\s·\s/).map((s) => s.trim()).filter(Boolean);
       if (items.length >= 2) {
         parts.push(
           ...items.map(
-            (item) => `- ${item}${styleSuffix(configured, "body", fonts, colors.accent)}.`
+            (item) => `- ${caseText(item, "bullet")}${styleSuffix(configured, "body", fonts, colors.accent)}.`
           )
         );
         return parts.join("\n");
       }
     }
     parts.push(
-      `Párrafo: ${restText}${styleSuffix(configured, "body", fonts, colors.accent)}.`
+      `Paragraph: ${caseText(restText, "body")}${styleSuffix(configured, "body", fonts, colors.accent)}.`
     );
     return parts.join("\n");
   }
 
   return (
     prefix +
-    `Párrafo: ${trimmed.replace(/\n+/g, " ")}${styleSuffix(configured, "body", fonts, colors.accent)}.`
+    `Paragraph: ${caseText(trimmed.replace(/\n+/g, " "), "body")}${styleSuffix(configured, "body", fonts, colors.accent)}.`
   );
 }
 

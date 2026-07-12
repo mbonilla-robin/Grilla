@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/utils";
 import { MAX_SLOT_WIDGETS } from "@/lib/widget-config";
 import { PILLAR_DEFAULTS } from "@/lib/pillar-colors";
-import type { CreateOrganizationInput, MemberRole, PostFormat, BulkPostInput } from "@/lib/types";
+import type { CreateOrganizationInput, MemberRole, PostFormat, BulkPostInput, BrandTextCasing } from "@/lib/types";
 import type { GrillaDraftPayload } from "@/lib/grilla-draft";
 import type { GrillaPeriod } from "@/lib/grilla-slot-utils";
 import { revalidatePath } from "next/cache";
@@ -1396,6 +1396,7 @@ export async function updateBrandKit(
     fonts?: { heading: string; body: string };
     guidelines?: string | null;
     logo_url?: string | null;
+    text_casing?: BrandTextCasing;
   }
 ) {
   const supabase = await createClient();
@@ -1421,6 +1422,7 @@ export async function updateBrandKit(
   if (data.fonts !== undefined) updates.fonts = data.fonts;
   if (data.guidelines !== undefined) updates.guidelines = data.guidelines;
   if (data.logo_url !== undefined) updates.logo_url = data.logo_url;
+  if (data.text_casing !== undefined) updates.text_casing = data.text_casing;
 
   const { error } = await supabase
     .from("brand_kits")

@@ -6,12 +6,67 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updateBrandKit } from "@/lib/actions";
-import type { BrandKit } from "@/lib/types";
+import type { BrandKit, BrandTextCasing } from "@/lib/types";
+import {
+  DEFAULT_BRAND_TEXT_CASING,
+  normalizeBrandTextCasing,
+  type TextCasingRule,
+} from "@/lib/brand-text-casing";
+import { cn } from "@/lib/utils";
 
 interface BrandVisualTabProps {
   orgId: string;
   brandKit: BrandKit;
   canEdit: boolean;
+}
+
+const CASING_FIELDS: Array<{ key: keyof BrandTextCasing; label: string; hint?: string }> = [
+  { key: "title", label: "Títulos" },
+  { key: "subtitle", label: "Subtítulos cortos" },
+  { key: "body", label: "Párrafos / texto largo", hint: "Estilo oración" },
+  { key: "bullet", label: "Bullets / listas" },
+  { key: "cta", label: "CTA" },
+];
+
+function CasingToggle({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: TextCasingRule;
+  onChange: (value: TextCasingRule) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="inline-flex rounded-md border border-border overflow-hidden shrink-0">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange("uppercase")}
+        className={cn(
+          "px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide transition-colors disabled:opacity-60",
+          value === "uppercase"
+            ? "bg-foreground text-background"
+            : "bg-surface text-muted hover:text-foreground"
+        )}
+      >
+        MAYÚSC
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange("sentence")}
+        className={cn(
+          "px-2 py-0.5 text-[10px] font-medium transition-colors disabled:opacity-60",
+          value === "sentence"
+            ? "bg-foreground text-background"
+            : "bg-surface text-muted hover:text-foreground"
+        )}
+      >
+        Oración
+      </button>
+    </div>
+  );
 }
 
 export function BrandVisualTab({ orgId, brandKit, canEdit }: BrandVisualTabProps) {
@@ -23,6 +78,9 @@ export function BrandVisualTab({ orgId, brandKit, canEdit }: BrandVisualTabProps
   const [headingFont, setHeadingFont] = useState(brandKit.fonts.heading || "Inter");
   const [bodyFont, setBodyFont] = useState(brandKit.fonts.body || "Inter");
   const [guidelines, setGuidelines] = useState(brandKit.guidelines || "");
+  const [textCasing, setTextCasing] = useState<BrandTextCasing>(
+    normalizeBrandTextCasing(brandKit.text_casing ?? DEFAULT_BRAND_TEXT_CASING)
+  );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -51,6 +109,7 @@ export function BrandVisualTab({ orgId, brandKit, canEdit }: BrandVisualTabProps
       colors,
       fonts: { heading: headingFont, body: bodyFont },
       guidelines: guidelines || null,
+      text_casing: textCasing,
     });
 
     setSaving(false);
@@ -134,6 +193,32 @@ export function BrandVisualTab({ orgId, brandKit, canEdit }: BrandVisualTabProps
           disabled={!canEdit}
           onChange={(e) => setBodyFont(e.target.value)}
         />
+      </div>
+
+      <div className="space-y-2.5">
+        <div>
+          <label className="text-sm text-muted">Capitalización en briefs</label>
+          <p className="text-[11px] text-muted/80 mt-0.5">
+            Define cómo va el copy en diseño. La IA lo aplica al generar briefs.
+          </p>
+        </div>
+        <div className="rounded-lg border border-border divide-y divide-border">
+          {CASING_FIELDS.map(({ key, label, hint }) => (
+            <div key={key} className="flex items-center justify-between gap-3 px-3 py-2">
+              <div className="min-w-0">
+                <p className="text-xs text-foreground">{label}</p>
+                {hint && <p className="text-[10px] text-muted">{hint}</p>}
+              </div>
+              <CasingToggle
+                value={textCasing[key]}
+                disabled={!canEdit}
+                onChange={(value) =>
+                  setTextCasing((prev) => ({ ...prev, [key]: value }))
+                }
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-1.5">
