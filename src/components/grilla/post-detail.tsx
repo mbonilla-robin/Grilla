@@ -34,7 +34,6 @@ import {
   type Post,
   type PostAsset,
   type PostFormat,
-  type PostStatus,
   type PostMetrics,
   type PostComment,
   type BriefHistoryEntry,

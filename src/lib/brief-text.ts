@@ -190,7 +190,8 @@ function processTextInstructionLine(line: string): string[] {
 
   const labeled = parseLabeledLine(trimmed);
   if (labeled) {
-    let { label, content, details } = labeled;
+    const { label } = labeled;
+    let { content, details } = labeled;
     const converted = convertMarkdownEmphasis(content, details);
     content = converted.content;
     details = converted.details;
