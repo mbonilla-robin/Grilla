@@ -94,6 +94,19 @@
     }
   }
 
+  @keyframes slide-in-from-right {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  .animate-slide-in-from-right {
+    animation: slide-in-from-right 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
   @keyframes home-bar-grow {
     from {
       transform: scaleX(0);

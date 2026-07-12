@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -17,6 +18,7 @@ import {
   Check,
   ExternalLink,
   Trash2,
+  Palette,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -118,6 +120,8 @@ export function PostDetail({
   identifierReferences = [],
 }: PostDetailProps) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [designPanelOpen, setDesignPanelOpen] = useState(false);
   const [status, setStatus] = useState(post.status);
   const [inDrive, setInDrive] = useState(post.in_drive);
   const [driveLoading, setDriveLoading] = useState(false);
@@ -140,6 +144,19 @@ export function PostDetail({
           .map((ref) => ref.value)
           .filter((value): value is string => !!value)
       : parseIdentifierValues(post.plate || "");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!designPanelOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [designPanelOpen]);
 
   async function handleStatusChange(newStatus: PostStatus) {
     setStatus(newStatus);
@@ -403,9 +420,52 @@ export function PostDetail({
     </>
   );
 
+  const designPanelContent = (
+    <>
+      {identifierConfig.label && identifierReferences.length > 0 && (
+        <IdentifierReferencesList
+          label={identifierConfig.label}
+          references={identifierReferences}
+        />
+      )}
+
+      {designerContentSection}
+      {briefSection}
+    </>
+  );
+
+  const mobileDesignPanel =
+    mounted && designPanelOpen
+      ? createPortal(
+          <div className="fixed inset-0 z-[60] md:hidden">
+            <div className="absolute inset-0 flex flex-col bg-surface animate-slide-in-from-right">
+              <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-4">
+                <button
+                  type="button"
+                  onClick={() => setDesignPanelOpen(false)}
+                  className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors"
+                >
+                  <ArrowLeft size={16} />
+                  Volver
+                </button>
+                <h2 className="text-label flex-1 text-center pr-16">
+                  Para diseño
+                </h2>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 space-y-8 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
+                {designPanelContent}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
-    <div className="grid h-full min-h-0 w-full max-w-6xl mx-auto grid-cols-2 divide-x divide-border">
-      <div className="min-h-0 overflow-y-auto px-6 py-6 space-y-8">
+    <>
+      {mobileDesignPanel}
+      <div className="grid h-full min-h-0 w-full max-w-6xl mx-auto grid-cols-1 md:grid-cols-2 md:divide-x divide-border">
+      <div className="min-h-0 overflow-y-auto px-4 md:px-6 py-6 space-y-8">
         <Link
           href={`/org/${orgId}/grilla`}
           className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors"
@@ -424,6 +484,15 @@ export function PostDetail({
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setDesignPanelOpen(true)}
+              className="md:hidden"
+            >
+              <Palette size={13} />
+              Diseño
+            </Button>
             {isAdmin && (
               <Button
                 size="sm"
@@ -456,21 +525,14 @@ export function PostDetail({
         {mainContentSections}
       </div>
 
-      <div className="min-h-0 overflow-y-auto px-6 py-6 space-y-8">
+      <div className="hidden md:block min-h-0 overflow-y-auto px-6 py-6 space-y-8">
         <h2 className="text-label">
           Para diseño
         </h2>
 
-        {identifierConfig.label && identifierReferences.length > 0 && (
-          <IdentifierReferencesList
-            label={identifierConfig.label}
-            references={identifierReferences}
-          />
-        )}
-
-        {designerContentSection}
-        {briefSection}
+        {designPanelContent}
       </div>
     </div>
+    </>
   );
 }
