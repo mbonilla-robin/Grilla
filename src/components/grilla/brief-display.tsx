@@ -1,7 +1,11 @@
 import type { DesignBrief, DesignBriefSlide, BriefColorRef } from "@/lib/types";
 import { extractHexColors, mergeColorRefs } from "@/lib/brief-colors";
 import { parseTextInstructionBlocks } from "@/lib/brief-text";
-import { parseInlineEmphasis } from "@/lib/brief-emphasis";
+import {
+  applyEmphasisHints,
+  parseEmphasisHints,
+  parseInlineEmphasis,
+} from "@/lib/brief-emphasis";
 import { VisualConceptDisplay } from "@/components/grilla/visual-concept-display";
 
 function ColorSwatch({
@@ -53,10 +57,14 @@ function ColorPalette({ colors }: { colors: BriefColorRef[] }) {
   );
 }
 
-function InlineEmphasisText({ text }: { text: string }) {
+function InlineEmphasisText({ text, details }: { text: string; details?: string }) {
+  const hints = parseEmphasisHints(details);
+  const segments =
+    hints.length > 0 ? applyEmphasisHints(text, hints) : parseInlineEmphasis(text);
+
   return (
     <>
-      {parseInlineEmphasis(text).map((segment, i) => {
+      {segments.map((segment, i) => {
         switch (segment.kind) {
           case "bold":
             return (
@@ -116,7 +124,7 @@ function TextInstructionsDisplay({ text }: { text: string }) {
                 <p className="text-sm leading-snug">
                   <span className="font-semibold text-foreground">{block.label}:</span>{" "}
                   <span className="text-foreground/90">
-                    <InlineEmphasisText text={block.content} />
+                    <InlineEmphasisText text={block.content} details={block.details} />
                   </span>
                 </p>
                 {block.details && (
@@ -132,7 +140,7 @@ function TextInstructionsDisplay({ text }: { text: string }) {
                 {block.items.map((item, j) => (
                   <li key={j}>
                     <span>
-                      <InlineEmphasisText text={item.text} />
+                      <InlineEmphasisText text={item.text} details={item.details} />
                     </span>
                     {item.details && (
                       <span className="block text-xs text-muted mt-0.5">
@@ -147,7 +155,7 @@ function TextInstructionsDisplay({ text }: { text: string }) {
             return (
               <div key={i} className="space-y-0.5">
                 <p className="text-sm leading-relaxed text-foreground/90">
-                  <InlineEmphasisText text={block.content} />
+                  <InlineEmphasisText text={block.content} details={block.details} />
                 </p>
                 {block.details && (
                   <p className="text-xs leading-relaxed text-muted">

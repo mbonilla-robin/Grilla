@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { DesignBrief, DesignBriefSlide, PostFormat } from "@/lib/types";
 import { brandKitToPalette, isBrandKitConfigured } from "@/lib/brief-colors";
-import { formatSlideCopyAsTextInstructions } from "@/lib/brief-text";
+import { formatSlideCopyAsTextInstructions, postProcessTextInstructions, truncateExecutionTitle } from "@/lib/brief-text";
 import { normalizeBrandTextCasing } from "@/lib/brand-text-casing";
 import { parseDesignerCopy } from "@/lib/utils";
 import { resolvePostIdentifierReferences } from "@/lib/resolve-post-identifier";
@@ -158,16 +158,17 @@ SUBTITLE — REGLA CONTEXTUAL (crítico, no aplicar ciego text_casing.subtitle):
 - En ese caso (3 niveles), el Subtitle va en MAYÚSCULAS si text_casing.subtitle = uppercase.
 - Si el slide solo tiene Title + un bloque de apoyo SIN párrafo separado debajo, NO uses Subtitle: convierte ese bloque en Paragraph con estilo oración — aunque en el copy original diga "subtítulo" o sea una segunda línea.
 - Mal (2 niveles): Title: BUILT FOR THE FIELD. / Subtitle: We deliver integrated solutions for demanding field operations.
-- Bien (2 niveles): Title: BUILT FOR THE FIELD. / Paragraph: We deliver integrated solutions for **demanding field operations**.
+- Bien (2 niveles): Title: BUILT FOR THE FIELD. / Paragraph: We deliver integrated solutions for demanding field operations.
 - Bien (3 niveles): Title: BUILT FOR THE FIELD. / Subtitle: READY WHEN YOU ARE. / Paragraph: Every unit in our fleet is configured for remote access.
 
 ÉNFASIS EN PÁRRAFOS (obligatorio en Paragraph / Body):
-- En líneas Paragraph y Body, resalta palabras o frases clave con **negrita** o *cursiva* dentro del copy usando markdown (**texto** / *texto*).
-- Aplica énfasis en 1-3 fragmentos por párrafo donde aporte jerarquía visual (beneficio, dato, acción, nombre de producto).
-- En los paréntesis tipográficos, indica el peso para lo enfatizado: (Montserrat Regular; **SemiBold** para frases en negrita; *Medium Italic* para cursiva).
-- Ejemplo: Paragraph: Every project has different terrain. **We build the right solution** for your operation. (*Field-tested* across Latin America.)
+- El copy va en texto PLANO — NUNCA uses asteriscos, markdown ni **negrita** / *cursiva* en el texto. Canva no los interpreta.
+- Resalta 1-3 fragmentos por párrafo indicándolos SOLO en los paréntesis tipográficos al final de la línea.
+- Formato: SemiBold on "frase exacta" o Italic on "frase exacta" dentro del paréntesis.
+- Ejemplo: Paragraph: Every project has different terrain. We build the right solution for your operation. (Montserrat Regular/Medium, Brand White #E5E5E5; SemiBold on "We build the right solution").
+- Mal: Paragraph: Every project. **We build the right solution** for your operation. (...)
 
-JERARQUÍA TIPOGRÁFICA — TÍTULOS CORTOS (crítico):
+JERARQUÍA TIPOGRÁFICA — TÍTULOS CORTOS (crítico — se aplica post-procesado si incumples):
 - Title: es un HEADLINE corto e impactante. Ideal ~5 palabras; máximo 7 palabras (~40 caracteres). NUNCA un párrafo, bloque largo ni múltiples oraciones.
 - Si el copy del slide trae texto largo, NO lo etiquetes entero como Title. Extrae la frase más corta y contundente para Title; el resto va en Subtitle, Body o Paragraph.
 - Subtitle: una sola línea de apoyo MUY corta (ideal ≤8 palabras). Solo si hay Paragraph debajo; si no hay párrafo, usa Paragraph en lugar de Subtitle.
@@ -190,8 +191,8 @@ ESTRUCTURA DEL COPY (crítico — no forzar siempre Título/Subtítulo):
   · Copy "Título: X / Subtítulo: Y" → mantener Título + Subtítulo.
   · Copy "Slide 2: Ford F-800D — Bucket Truck / Pickman arm · Aerial access · ..." → bullets con "- Pickman arm", "- Aerial access", etc.
   · Copy "Slide 3: Every project has different terrain..." → Paragraph: Every project has different terrain...
-  · Copy "Slide 1: ELEVATED ACCESS. / Built for operations..." → Title + Paragraph (la segunda línea actúa como párrafo, estilo oración con **énfasis**).
-  · Copy "Slide 1: HEADLINE / Short hook / Long explanatory paragraph..." → Title + Subtitle (MAYÚSC) + Paragraph (oración con **énfasis**).
+  · Copy "Slide 1: ELEVATED ACCESS. / Built for operations..." → Title + Paragraph (la segunda línea actúa como párrafo, estilo oración con énfasis en paréntesis).
+  · Copy "Slide 1: HEADLINE / Short hook / Long explanatory paragraph..." → Title + Subtitle (MAYÚSC) + Paragraph (oración con énfasis en paréntesis).
   · Copy con 3+ ítems separados por " · " en una línea → convertir a bullets.
 - En carousels: un slide por tarjeta; cada slide puede tener formato distinto (slide 1 título/subtítulo, slide 2 párrafo, slide 3 bullets).
 - Las especificaciones tipográficas van entre paréntesis al final de cada línea, en inglés: (Montserrat Extra Bold, Brand White #E5E5E5, massive size).
@@ -218,7 +219,7 @@ Paragraph: It's how we operate. (Montserrat Regular/Medium, Accent Orange #DA492
 Carousel Slide 2 (Focus: Context)
 visual_concept: Complementary operational context shot, same Industrial-Premium aesthetic.
 text_instructions:
-Paragraph: Every project has different terrain, timelines, and technical demands. **We don't offer a fixed solution** — we build the right one. (Montserrat Regular/Medium, Brand White #E5E5E5; **SemiBold** for bold phrase).
+Paragraph: Every project has different terrain, timelines, and technical demands. We don't offer a fixed solution — we build the right one. (Montserrat Regular/Medium, Brand White #E5E5E5; SemiBold on "We don't offer a fixed solution").
 
 Carousel Slide 3 (Focus: Capabilities)
 text_instructions:
@@ -423,6 +424,16 @@ function normalizeBrief(
     }));
   }
 
+  slides = slides.map((s) => ({
+    ...s,
+    text_instructions: s.text_instructions
+      ? postProcessTextInstructions(s.text_instructions)
+      : s.text_instructions,
+  }));
+
+  const rawExecutionTitle =
+    typeof raw.execution_title === "string" ? raw.execution_title : undefined;
+
   const brand_palette = configured
     ? (raw.brand_palette as DesignBrief["brand_palette"]) ||
       buildBrandPalette(brandKit)
@@ -430,8 +441,9 @@ function normalizeBrief(
 
   return {
     format: (raw.format as PostFormat) || fallbackFormat,
-    execution_title:
-      typeof raw.execution_title === "string" ? raw.execution_title : undefined,
+    execution_title: rawExecutionTitle
+      ? truncateExecutionTitle(rawExecutionTitle)
+      : undefined,
     brand_kit_configured: configured,
     brand_palette,
     slides,
@@ -494,12 +506,14 @@ function generateMockBrief(
         i === 0
           ? `Wide-angle documentary photography related to "${title}". Real work environment, natural lighting, ready-for-action attitude. No plastic retouching.`
           : `Complementary visual for slide ${i + 1}, consistent with the Industrial-Premium aesthetic of "${title}".`,
-      text_instructions: formatSlideCopyAsTextInstructions(
-        slideContent,
-        configured,
-        { heading: headingFont, body: bodyFont },
-        { primary, accent },
-        brandKit?.text_casing ? normalizeBrandTextCasing(brandKit.text_casing) : undefined
+      text_instructions: postProcessTextInstructions(
+        formatSlideCopyAsTextInstructions(
+          slideContent,
+          configured,
+          { heading: headingFont, body: bodyFont },
+          { primary, accent },
+          brandKit?.text_casing ? normalizeBrandTextCasing(brandKit.text_casing) : undefined
+        )
       ),
       image_treatment: configured
         ? `Soft ${primary} gradient from the base (70% to 0% opacity) for legibility. Keep saturation on the main subject, slightly desaturated environment.`
@@ -513,7 +527,7 @@ function generateMockBrief(
 
   return {
     format,
-    execution_title: title,
+    execution_title: truncateExecutionTitle(title),
     brand_kit_configured: configured,
     brand_palette,
     slides,

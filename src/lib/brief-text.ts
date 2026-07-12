@@ -1,6 +1,10 @@
 import type { BrandTextCasing } from "@/lib/brand-text-casing";
 import { applyTextCasing } from "@/lib/brand-text-casing";
-import { inlineEmphasisToHtml, isShortSubtitle } from "@/lib/brief-emphasis";
+import {
+  convertMarkdownEmphasis,
+  inlineEmphasisToHtml,
+  isShortSubtitle,
+} from "@/lib/brief-emphasis";
 
 export type TextInstructionBlock =
   | { kind: "notice"; content: string }
@@ -125,18 +129,25 @@ const IDEAL_TITLE_WORDS = 5;
 
 function splitHeadlineAndBody(text: string): { headline: string; remainder?: string } {
   const trimmed = text.trim();
-  if (trimmed.length <= MAX_TITLE_CHARS) return { headline: trimmed };
+  const wordCount = trimmed.split(/\s+/).length;
+  if (trimmed.length <= MAX_TITLE_CHARS && wordCount <= MAX_TITLE_WORDS) {
+    return { headline: trimmed };
+  }
 
   const sentenceSplit = trimmed.match(/^(.{1,80}?[.!?])\s+([\s\S]+)$/);
   if (sentenceSplit && sentenceSplit[1].length <= MAX_TITLE_CHARS + 15) {
-    return {
-      headline: sentenceSplit[1].replace(/[.!?]+$/, "").trim(),
-      remainder: sentenceSplit[2].trim(),
-    };
+    const headline = sentenceSplit[1].replace(/[.!?]+$/, "").trim();
+    if (headline.split(/\s+/).length <= MAX_TITLE_WORDS) {
+      return {
+        headline,
+        remainder: sentenceSplit[2].trim(),
+      };
+    }
   }
 
   const words = trimmed.split(/\s+/);
-  if (words.length > MAX_TITLE_WORDS) {
+
+  if (wordCount > MAX_TITLE_WORDS) {
     const headline = words.slice(0, IDEAL_TITLE_WORDS).join(" ");
     const remainder = words.slice(IDEAL_TITLE_WORDS).join(" ");
     return { headline: headline.replace(/[.,;:!?]+$/, ""), remainder };
@@ -153,6 +164,65 @@ function splitHeadlineAndBody(text: string): { headline: string; remainder?: str
 function isShortHeadline(text: string) {
   const trimmed = text.trim();
   return trimmed.length <= MAX_TITLE_CHARS && trimmed.split(/\s+/).length <= MAX_TITLE_WORDS;
+}
+
+function formatLabeledLine(label: string, content: string, details?: string) {
+  const clean = content.replace(/\.\s*$/, "").trim();
+  if (details) return `${label}: ${clean}. (${details}).`;
+  return `${label}: ${clean}.`;
+}
+
+function formatBulletLine(content: string, details?: string) {
+  const clean = content.replace(/\.\s*$/, "").trim();
+  if (details) return `- ${clean}. (${details}).`;
+  return `- ${clean}.`;
+}
+
+function processTextInstructionLine(line: string): string[] {
+  const trimmed = line.trim();
+  if (!trimmed) return [line];
+
+  if (isBulletLine(trimmed)) {
+    const parsed = parseContentWithDetails(trimmed.replace(/^[-•*]\s+/, ""));
+    const converted = convertMarkdownEmphasis(parsed.content, parsed.details);
+    return [formatBulletLine(converted.content, converted.details)];
+  }
+
+  const labeled = parseLabeledLine(trimmed);
+  if (labeled) {
+    let { label, content, details } = labeled;
+    const converted = convertMarkdownEmphasis(content, details);
+    content = converted.content;
+    details = converted.details;
+
+    if (/^title$/i.test(label.trim()) && !isShortHeadline(content)) {
+      const { headline, remainder } = splitHeadlineAndBody(content);
+      const titleLine = formatLabeledLine(label, headline, details);
+      if (!remainder) return [titleLine];
+      const para = convertMarkdownEmphasis(remainder, undefined);
+      return [titleLine, formatLabeledLine("Paragraph", para.content, para.details)];
+    }
+
+    return [formatLabeledLine(label, content, details)];
+  }
+
+  const converted = convertMarkdownEmphasis(trimmed, undefined);
+  return [converted.content];
+}
+
+/** Normalizes AI-generated text_instructions: short titles, Canva-friendly emphasis. */
+export function postProcessTextInstructions(text: string): string {
+  if (!text?.trim()) return text;
+  return text
+    .split("\n")
+    .flatMap((line) => processTextInstructionLine(line))
+    .join("\n");
+}
+
+export function truncateExecutionTitle(title: string): string {
+  const trimmed = title.trim();
+  if (!trimmed || isShortHeadline(trimmed)) return trimmed;
+  return splitHeadlineAndBody(trimmed).headline.replace(/[.,;:!?]+$/, "");
 }
 
 /** Infiere instrucciones de texto respetando la estructura del copy del slide. */
@@ -368,16 +438,16 @@ export function textInstructionsToHtml(text: string): string {
         case "notice":
           return `<p><em>${block.content}</em></p>`;
         case "labeled":
-          return `<p><strong>${block.label}:</strong> ${inlineEmphasisToHtml(block.content)}${block.details ? `<br/><span style="color:#737373;font-size:12px">${block.details}</span>` : ""}</p>`;
+          return `<p><strong>${block.label}:</strong> ${inlineEmphasisToHtml(block.content, block.details)}${block.details ? `<br/><span style="color:#737373;font-size:12px">${block.details}</span>` : ""}</p>`;
         case "bullets":
           return `<ul style="margin:4px 0;padding-left:20px">${block.items
             .map(
               (item) =>
-                `<li>${inlineEmphasisToHtml(item.text)}${item.details ? ` <span style="color:#737373;font-size:12px">(${item.details})</span>` : ""}</li>`
+                `<li>${inlineEmphasisToHtml(item.text, item.details)}${item.details ? ` <span style="color:#737373;font-size:12px">(${item.details})</span>` : ""}</li>`
             )
             .join("")}</ul>`;
         case "paragraph":
-          return `<p>${inlineEmphasisToHtml(block.content)}${block.details ? `<br/><span style="color:#737373;font-size:12px">${block.details}</span>` : ""}</p>`;
+          return `<p>${inlineEmphasisToHtml(block.content, block.details)}${block.details ? `<br/><span style="color:#737373;font-size:12px">${block.details}</span>` : ""}</p>`;
       }
     })
     .join("");
