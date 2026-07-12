@@ -30,7 +30,6 @@ import { PostMetricsForm } from "@/components/grilla/post-metrics-form";
 import { PostComments } from "@/components/grilla/post-comments";
 import { CaptionEditor } from "@/components/grilla/caption-editor";
 import {
-  STATUS_LABELS,
   FORMAT_LABELS,
   type Post,
   type PostAsset,
@@ -53,6 +52,12 @@ import {
 } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { PostPhaseTimeline } from "@/components/grilla/post-phase-timeline";
+import {
+  WORKFLOW_PHASES,
+  representativeStatusForPhase,
+  workflowPhaseFromStatus,
+  type WorkflowPhaseKey,
+} from "@/lib/post-progress";
 
 const formatIcons: Record<PostFormat, typeof ImageIcon> = {
   image: ImageIcon,
@@ -158,7 +163,8 @@ export function PostDetail({
     };
   }, [designPanelOpen]);
 
-  async function handleStatusChange(newStatus: PostStatus) {
+  async function handlePhaseChange(phase: WorkflowPhaseKey) {
+    const newStatus = representativeStatusForPhase(phase);
     setStatus(newStatus);
     await updatePostStatus(post.id, newStatus, orgId);
   }
@@ -195,23 +201,15 @@ export function PostDetail({
     <div className="space-y-1 border-b border-border pb-6">
       <PropertyRow label="Estado">
         <select
-          value={status}
-          onChange={(e) => handleStatusChange(e.target.value as PostStatus)}
+          value={workflowPhaseFromStatus(status)}
+          onChange={(e) =>
+            handlePhaseChange(e.target.value as WorkflowPhaseKey)
+          }
           className="h-7 rounded-md border border-border bg-surface px-2 text-xs focus:outline-none focus:ring-1 focus:ring-foreground/10"
         >
-          {(
-            [
-              "draft",
-              "brief_ready",
-              "in_design",
-              "review",
-              "approved",
-              "scheduled",
-              "published",
-            ] as const
-          ).map((s) => (
-            <option key={s} value={s}>
-              {STATUS_LABELS[s]}
+          {WORKFLOW_PHASES.map((phase) => (
+            <option key={phase.key} value={phase.key}>
+              {phase.label}
             </option>
           ))}
         </select>

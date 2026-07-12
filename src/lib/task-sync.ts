@@ -2,7 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TaskStatus } from "@/lib/types";
 import type { TaskWithPost } from "@/lib/task-due";
 
-export const OPEN_TASK_STATUSES: TaskStatus[] = ["contenido", "brief_listo"];
+export const OPEN_TASK_STATUSES: TaskStatus[] = [
+  "contenido",
+  "brief_listo",
+  "ajustes",
+];
 
 const LEGACY_OPEN = new Set(["pending", "in_progress"]);
 
@@ -20,6 +24,7 @@ export function normalizeTaskStatus(status: string): TaskStatus {
     status === "contenido" ||
     status === "brief_listo" ||
     status === "en_revision" ||
+    status === "ajustes" ||
     status === "aprobado"
   ) {
     return status;
@@ -32,7 +37,11 @@ export function effectiveTaskStatus(
   task: Pick<TaskWithPost, "status"> & { post?: { status?: string } | null }
 ): TaskStatus {
   const base = normalizeTaskStatus(task.status);
-  if (base === "contenido" && task.post?.status === "brief_ready") {
+  const postStatus = task.post?.status;
+  if (postStatus === "ajustes" || postStatus === "in_design") {
+    return "ajustes";
+  }
+  if (base === "contenido" && postStatus === "brief_ready") {
     return "brief_listo";
   }
   return base;
@@ -45,7 +54,9 @@ export function isOpenTask(task: TaskWithPost): boolean {
   const postStatus = task.post?.status;
   if (postStatus && POST_CLOSED_STATUSES.has(postStatus)) return false;
 
-  return status === "contenido" || status === "brief_listo";
+  return (
+    status === "contenido" || status === "brief_listo" || status === "ajustes"
+  );
 }
 
 export function taskStatusFromPost(
@@ -57,6 +68,9 @@ export function taskStatusFromPost(
   }
   if (hasAssets || postStatus === "review") {
     return "en_revision";
+  }
+  if (postStatus === "ajustes" || postStatus === "in_design") {
+    return "ajustes";
   }
   if (postStatus === "brief_ready") {
     return "brief_listo";
@@ -70,6 +84,7 @@ export function dbTaskStatus(status: TaskStatus): string {
     contenido: "contenido",
     brief_listo: "contenido",
     en_revision: "en_revision",
+    ajustes: "en_revision",
     aprobado: "aprobado",
   };
   return map[status];

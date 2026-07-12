@@ -1499,7 +1499,7 @@ export async function reviewPost(
 
   if (!canReview) return { error: "Sin permiso para revisar" };
 
-  const newStatus = action === "approve" ? "approved" : "in_design";
+  const newStatus = action === "approve" ? "approved" : "ajustes";
 
   const { data: post } = await supabase
     .from("posts")
@@ -1640,7 +1640,7 @@ async function autoUpdatePostStatusFromAssets(
   const [{ data: post }, { count }] = await Promise.all([
     supabase
       .from("posts")
-      .select("status, title, organization_id")
+      .select("status, title, organization_id, brief")
       .eq("id", postId)
       .single(),
     supabase
@@ -1656,7 +1656,7 @@ async function autoUpdatePostStatusFromAssets(
 
   if (
     assetCount > 0 &&
-    ["draft", "brief_ready", "in_design"].includes(post.status)
+    ["draft", "brief_ready", "in_design", "ajustes"].includes(post.status)
   ) {
     newStatus = "review";
     await supabase
@@ -1664,7 +1664,7 @@ async function autoUpdatePostStatusFromAssets(
       .update({ status: newStatus })
       .eq("id", postId);
   } else if (assetCount === 0 && post.status === "review") {
-    newStatus = "draft";
+    newStatus = post.brief ? "brief_ready" : "draft";
     await supabase
       .from("posts")
       .update({ status: newStatus })

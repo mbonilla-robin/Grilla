@@ -87,13 +87,13 @@ export async function notifyPostStatusChange(
     });
   }
 
-  if (newStatus === "in_design" && post.assigned_to) {
+  if (newStatus === "ajustes" && post.assigned_to) {
     await createNotification({
       userId: post.assigned_to,
       orgId,
       type: "assignment",
-      title: "Nuevo brief para diseñar",
-      body: `"${postTitle}" está listo para diseño`,
+      title: "Ajustes solicitados",
+      body: `"${postTitle}" necesita cambios antes de aprobar`,
       link,
       relatedPostId: postId,
     });
@@ -173,6 +173,7 @@ export async function notifyTaskStatusChange(
     contenido: TASK_STATUS_LABELS.contenido,
     brief_listo: TASK_STATUS_LABELS.brief_listo,
     en_revision: TASK_STATUS_LABELS.en_revision,
+    ajustes: TASK_STATUS_LABELS.ajustes,
     aprobado: TASK_STATUS_LABELS.aprobado,
   };
 

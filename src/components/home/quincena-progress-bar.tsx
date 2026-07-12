@@ -18,6 +18,7 @@ const PHASE_DOT_COLOR: Record<WorkflowPhaseKey, string> = {
   contenido: "bg-neutral-300",
   brief_listo: "bg-brand/70",
   en_revision: "bg-brand",
+  ajustes: "bg-amber-400",
   aprobado: "bg-brand-dark",
 };
 

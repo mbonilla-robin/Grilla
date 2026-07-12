@@ -17,6 +17,7 @@ const statusDotClass: Record<TaskStatus, string> = {
   contenido: "bg-white ring-1 ring-border",
   brief_listo: "bg-brand-muted ring-1 ring-brand/40",
   en_revision: "bg-brand ring-1 ring-brand-dark/50",
+  ajustes: "bg-amber-200 ring-1 ring-amber-400",
   aprobado: "bg-brand-dark ring-1 ring-foreground/20",
 };
 
@@ -85,6 +86,7 @@ function DayRailTaskCard({
             taskStatus === "contenido" && "bg-white ring-border",
             taskStatus === "brief_listo" && "bg-brand-muted ring-brand/30",
             taskStatus === "en_revision" && "bg-brand ring-brand-dark/50",
+            taskStatus === "ajustes" && "bg-amber-200 ring-amber-400",
             taskStatus === "aprobado" && "bg-brand-dark ring-foreground/20"
           )}
         />

@@ -208,7 +208,7 @@ export async function getGlobalHomeData(userId: string) {
           .from("posts")
           .select("*", { count: "exact", head: true })
           .eq("organization_id", org.id)
-          .in("status", ["draft", "brief_ready", "in_design", "review"]);
+          .in("status", ["draft", "brief_ready", "ajustes", "in_design", "review"]);
 
         const { count: inReview } = await supabase
           .from("posts")
@@ -220,7 +220,7 @@ export async function getGlobalHomeData(userId: string) {
           .from("posts")
           .select("id, post_assets(id)")
           .eq("organization_id", org.id)
-          .in("status", ["draft", "brief_ready", "in_design"]);
+          .in("status", ["draft", "brief_ready", "ajustes", "in_design"]);
 
         const needsDesign = (designCandidates || []).filter(
           (p) => !(p.post_assets as { id: string }[] | null)?.length
@@ -506,14 +506,14 @@ export async function getOrgHomeData(userId: string, orgId: string) {
       .from("posts")
       .select("id, title, scheduled_at, status, format, organization_id, post_assets(id)")
       .eq("organization_id", orgId)
-      .in("status", ["draft", "brief_ready", "in_design"])
+      .in("status", ["draft", "brief_ready", "ajustes", "in_design"])
       .order("scheduled_at", { ascending: true })
       .limit(20),
     supabase
       .from("posts")
       .select("*, organizations(name, id)")
       .eq("organization_id", orgId)
-      .in("status", ["draft", "brief_ready", "in_design", "review"])
+      .in("status", ["draft", "brief_ready", "ajustes", "in_design", "review"])
       .order("scheduled_at", { ascending: true })
       .limit(8),
     supabase
@@ -531,7 +531,7 @@ export async function getOrgHomeData(userId: string, orgId: string) {
       .from("posts")
       .select("*", { count: "exact", head: true })
       .eq("organization_id", orgId)
-      .in("status", ["draft", "brief_ready", "in_design", "review"]),
+      .in("status", ["draft", "brief_ready", "ajustes", "in_design", "review"]),
     supabase
       .from("posts")
       .select("*", { count: "exact", head: true })

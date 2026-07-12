@@ -20,6 +20,11 @@ export const taskStatusCardStyles: Record<
     progress: "bg-brand-foreground/75",
     pill: "bg-brand text-brand-foreground border-brand-dark/30",
   },
+  ajustes: {
+    card: "border-amber-300 bg-amber-50 hover:border-amber-400",
+    progress: "bg-amber-400",
+    pill: "bg-amber-100 text-amber-900 border-amber-300",
+  },
   aprobado: {
     card: "border-brand-dark bg-brand-dark hover:border-foreground/25",
     progress: "bg-brand-foreground/90",
@@ -31,7 +36,8 @@ export const taskStatusCardStyles: Record<
 export const statusBadgeStyles: Record<PostStatus, string> = {
   draft: "bg-white text-foreground border border-border",
   brief_ready: "bg-brand-muted text-foreground border border-brand/40",
-  in_design: "bg-white text-foreground border border-border",
+  in_design: "bg-amber-50 text-amber-900 border border-amber-300",
+  ajustes: "bg-amber-50 text-amber-900 border border-amber-300",
   review: "bg-brand text-brand-foreground",
   approved: "bg-brand-dark text-brand-foreground",
   scheduled: "bg-brand-dark text-brand-foreground",
@@ -41,7 +47,8 @@ export const statusBadgeStyles: Record<PostStatus, string> = {
 export const statusDotStyles: Record<PostStatus, string> = {
   draft: "bg-white border border-border",
   brief_ready: "bg-brand-muted border border-brand/40",
-  in_design: "bg-white border border-border",
+  in_design: "bg-amber-100 border border-amber-300",
+  ajustes: "bg-amber-100 border border-amber-300",
   review: "bg-brand",
   approved: "bg-brand-dark",
   scheduled: "bg-brand-dark",
@@ -51,7 +58,8 @@ export const statusDotStyles: Record<PostStatus, string> = {
 export const statusCalendarStyles: Record<string, string> = {
   draft: "bg-white text-foreground border border-border",
   brief_ready: "bg-brand-muted text-foreground border border-brand/40",
-  in_design: "bg-white text-foreground border border-border",
+  in_design: "bg-amber-50 text-amber-900 border border-amber-300",
+  ajustes: "bg-amber-50 text-amber-900 border border-amber-300",
   review: "bg-brand text-brand-foreground",
   approved: "bg-brand-dark text-brand-foreground",
   scheduled: "bg-brand-dark text-brand-foreground",

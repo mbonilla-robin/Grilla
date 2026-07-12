@@ -4,6 +4,7 @@ import type { PostStatus } from "@/lib/types";
 const STATUS_RANK: Record<PostStatus, number> = {
   draft: 1,
   brief_ready: 2,
+  ajustes: 3,
   in_design: 3,
   review: 4,
   approved: 5,

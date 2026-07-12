@@ -2,6 +2,7 @@ const PHASE_COLORS = {
   contenido: "#a3a3a3",
   brief_listo: "#ffe082",
   en_revision: "#ffd54f",
+  ajustes: "#ffb74d",
   aprobado: "#ffc107",
 } as const;
 
@@ -11,25 +12,28 @@ const PHASE_ORDER: PhaseKey[] = [
   "contenido",
   "brief_listo",
   "en_revision",
+  "ajustes",
   "aprobado",
 ];
 
 const PHASE_AT: Record<PhaseKey, number> = {
   contenido: 0,
-  brief_listo: 25,
-  en_revision: 50,
-  aprobado: 75,
+  brief_listo: 20,
+  en_revision: 40,
+  ajustes: 60,
+  aprobado: 80,
 };
 
 export function quincenaProgressColor(pct: number): string {
   return PHASE_COLORS[quincenaProgressPhase(pct)];
 }
 
-/** Alineado con workflowPhaseProgress: contenido=25, brief=50, revisión=75, aprobado=100 */
+/** Alineado con workflowPhaseProgress: contenido=20, brief=40, revisión=60, ajustes=80, aprobado=100 */
 export function quincenaProgressPhase(progressPct: number): PhaseKey {
-  if (progressPct <= 25) return "contenido";
-  if (progressPct <= 50) return "brief_listo";
-  if (progressPct <= 75) return "en_revision";
+  if (progressPct <= 20) return "contenido";
+  if (progressPct <= 40) return "brief_listo";
+  if (progressPct <= 60) return "en_revision";
+  if (progressPct <= 80) return "ajustes";
   return "aprobado";
 }
 

@@ -13,6 +13,7 @@ const PHASE_BAR_STYLES = [
   "bg-white border border-border",
   "bg-brand-muted",
   "bg-brand",
+  "bg-amber-200 border border-amber-300",
   "bg-brand-dark",
 ] as const;
 

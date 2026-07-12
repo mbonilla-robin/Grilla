@@ -23,6 +23,7 @@ export interface QuincenaPhaseBreakdown {
   contenido: number;
   brief_listo: number;
   en_revision: number;
+  ajustes: number;
   aprobado: number;
 }
 
@@ -86,6 +87,7 @@ function analyzeQuincenaPosts(posts: QuincenaBoardSnapshot["posts"]) {
     contenido: 0,
     brief_listo: 0,
     en_revision: 0,
+    ajustes: 0,
     aprobado: 0,
   };
 
@@ -114,6 +116,11 @@ function formatProgressSummary(phases: QuincenaPhaseBreakdown): string {
   if (phases.en_revision > 0) {
     parts.push(
       `${phases.en_revision} en revisión`
+    );
+  }
+  if (phases.ajustes > 0) {
+    parts.push(
+      `${phases.ajustes} con ajustes`
     );
   }
   if (phases.brief_listo > 0) {
