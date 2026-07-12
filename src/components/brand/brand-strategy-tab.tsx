@@ -4,7 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { updateBrandStrategy } from "@/lib/actions";
-import type { BrandKit } from "@/lib/types";
+import type { BrandKit, BrandTextCasing } from "@/lib/types";
+import {
+  DEFAULT_BRAND_TEXT_CASING,
+  normalizeBrandTextCasing,
+} from "@/lib/brand-text-casing";
+import { BrandTextCasingSection } from "@/components/brand/brand-text-casing-section";
 
 interface BrandStrategyTabProps {
   orgId: string;
@@ -22,6 +27,9 @@ export function BrandStrategyTab({
   const router = useRouter();
   const [tone, setTone] = useState(brandKit.tone_of_voice || "");
   const [objective, setObjective] = useState(brandKit.objective || "");
+  const [textCasing, setTextCasing] = useState<BrandTextCasing>(
+    normalizeBrandTextCasing(brandKit.text_casing ?? DEFAULT_BRAND_TEXT_CASING)
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -34,6 +42,7 @@ export function BrandStrategyTab({
     const result = await updateBrandStrategy(orgId, {
       tone_of_voice: tone,
       objective,
+      text_casing: textCasing,
     });
 
     setSaving(false);
@@ -78,6 +87,12 @@ export function BrandStrategyTab({
           className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none disabled:opacity-60"
         />
       </div>
+
+      <BrandTextCasingSection
+        value={textCasing}
+        onChange={setTextCasing}
+        disabled={!canEdit}
+      />
 
       {canEdit ? (
         <div className="flex items-center gap-3">

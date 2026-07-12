@@ -1057,7 +1057,7 @@ export async function deleteContentPillar(orgId: string, pillarId: string) {
 
 export async function updateBrandStrategy(
   orgId: string,
-  data: { tone_of_voice?: string; objective?: string }
+  data: { tone_of_voice?: string; objective?: string; text_casing?: BrandTextCasing }
 ) {
   const supabase = await createClient();
   const {
@@ -1076,12 +1076,15 @@ export async function updateBrandStrategy(
     return { error: "Sin permiso para editar la marca" };
   }
 
+  const updates: Record<string, unknown> = {
+    tone_of_voice: data.tone_of_voice?.trim() || null,
+    objective: data.objective?.trim() || null,
+  };
+  if (data.text_casing !== undefined) updates.text_casing = data.text_casing;
+
   const { error } = await supabase
     .from("brand_kits")
-    .update({
-      tone_of_voice: data.tone_of_voice?.trim() || null,
-      objective: data.objective?.trim() || null,
-    })
+    .update(updates)
     .eq("organization_id", orgId);
 
   if (error) return { error: error.message };
