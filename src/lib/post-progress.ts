@@ -1,5 +1,24 @@
 import type { PostStatus, TaskStatus } from "@/lib/types";
 
+/** Estados previos a revisión que avanzan automáticamente cuando hay diseños cargados */
+export const PRE_REVIEW_ASSET_STATUSES: PostStatus[] = [
+  "draft",
+  "brief_ready",
+  "in_design",
+  "ajustes",
+];
+
+/** Estado visible/efectivo: con archivos en pre-revisión → en revisión */
+export function effectivePostStatus(
+  status: PostStatus,
+  assetCount: number
+): PostStatus {
+  if (assetCount > 0 && PRE_REVIEW_ASSET_STATUSES.includes(status)) {
+    return "review";
+  }
+  return status;
+}
+
 const TASK_STATUS_ORDER: TaskStatus[] = [
   "contenido",
   "brief_listo",

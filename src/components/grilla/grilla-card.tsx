@@ -19,6 +19,7 @@ import {
 } from "@/lib/types";
 import type { OrgIdentifierConfig } from "@/lib/org-identifier";
 import { formatPostLabel } from "@/lib/post-display";
+import { effectivePostStatus } from "@/lib/post-progress";
 import { parseIdentifierValues } from "@/lib/resolve-post-identifier";
 
 interface GrillaCardProps {
@@ -66,7 +67,7 @@ export function GrillaCard({
   return (
     <article className="group grid h-full min-w-0 grid-rows-[auto_1fr_auto] rounded-2xl border border-border bg-surface overflow-hidden shadow-sm hover:border-brand/40 transition-colors">
       <div className="flex shrink-0 items-center justify-between px-2.5 pt-2 pb-1">
-        <PostStatusBadge status={post.status} />
+        <PostStatusBadge status={post.status} assetCount={assets.length} />
         <div className="flex items-center gap-0.5">
           <EditPostDialog
             post={post}
@@ -164,7 +165,11 @@ export function GrillaCard({
           mini
           uploadOnly
           onAssetsChanged={(next) =>
-            setPost((p) => ({ ...p, assets: next }))
+            setPost((p) => ({
+              ...p,
+              assets: next,
+              status: effectivePostStatus(p.status, next.length),
+            }))
           }
           onStatusChanged={(status) => setPost((p) => ({ ...p, status }))}
         />

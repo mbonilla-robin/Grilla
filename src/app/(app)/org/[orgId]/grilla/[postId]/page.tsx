@@ -4,6 +4,7 @@ import { PostDetail } from "@/components/grilla/post-detail";
 import { getPostComments } from "@/lib/notifications-data";
 import { getOrgTeamMembers } from "@/lib/team-data";
 import { sortPostAssets } from "@/lib/utils";
+import { syncStalePostStatusesFromAssets } from "@/lib/post-status-sync";
 import { getOrgIdentifiers } from "@/lib/org-identifiers-data";
 import { getOrgIdentifierConfig } from "@/lib/org-identifier";
 import { resolvePostIdentifierReferences } from "@/lib/resolve-post-identifier";
@@ -54,17 +55,22 @@ export default async function PostPage({
 
   const assets = sortPostAssets((post.post_assets as PostAsset[]) || []);
   const { post_assets: _, ...postData } = post;
+
+  const [syncedPost] = await syncStalePostStatusesFromAssets(supabase, [
+    { ...(postData as Post), assets },
+  ]);
+  const resolvedPost = syncedPost ?? (postData as Post);
   const identifierConfig = org
     ? getOrgIdentifierConfig(org)
     : { label: null, allowPhoto: false, placeholder: null };
   const identifierReferences = resolvePostIdentifierReferences(
-    postData as Post,
+    resolvedPost,
     identifiers
   );
 
   return (
     <PostDetail
-      post={postData as Post}
+      post={resolvedPost}
       orgId={orgId}
       orgName={org?.name ?? ""}
       assets={assets}

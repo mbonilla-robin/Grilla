@@ -1627,74 +1627,10 @@ export async function registerPostAsset(
 
   if (error) return { error: error.message };
 
-  const newStatus = await autoUpdatePostStatusFromAssets(supabase, postId, orgId);
+  const { syncPostStatusFromAssets } = await import("@/lib/post-status-sync");
+  const newStatus = await syncPostStatusFromAssets(supabase, postId, orgId);
 
   return { success: true, asset, newStatus };
-}
-
-async function autoUpdatePostStatusFromAssets(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  postId: string,
-  orgId?: string
-): Promise<string | null> {
-  const [{ data: post }, { count }] = await Promise.all([
-    supabase
-      .from("posts")
-      .select("status, title, organization_id, brief")
-      .eq("id", postId)
-      .single(),
-    supabase
-      .from("post_assets")
-      .select("*", { count: "exact", head: true })
-      .eq("post_id", postId),
-  ]);
-
-  if (!post) return null;
-
-  const assetCount = count ?? 0;
-  let newStatus: string | null = null;
-
-  if (
-    assetCount > 0 &&
-    ["draft", "brief_ready", "in_design", "ajustes"].includes(post.status)
-  ) {
-    newStatus = "review";
-    await supabase
-      .from("posts")
-      .update({ status: newStatus })
-      .eq("id", postId);
-  } else if (assetCount === 0 && post.status === "review") {
-    newStatus = post.brief ? "brief_ready" : "draft";
-    await supabase
-      .from("posts")
-      .update({ status: newStatus })
-      .eq("id", postId);
-  }
-
-  const { syncTasksForPost } = await import("@/lib/task-sync");
-  await syncTasksForPost(supabase, postId, post.status);
-
-  if (newStatus === "review") {
-    const resolvedOrgId = orgId ?? post.organization_id;
-    const { notifyPostStatusChange } = await import("@/lib/notifications");
-    await notifyPostStatusChange(
-      postId,
-      resolvedOrgId,
-      newStatus,
-      post.title
-    );
-  }
-
-  const resolvedOrgId = orgId ?? post.organization_id;
-  if (resolvedOrgId) {
-    revalidatePath(`/org/${resolvedOrgId}/grilla/${postId}`);
-    revalidatePath(`/org/${resolvedOrgId}/grilla`);
-    revalidatePath(`/org/${resolvedOrgId}/home`);
-  }
-  revalidatePath("/home");
-  revalidatePath("/home/calendario");
-
-  return newStatus;
 }
 
 export async function deletePostAsset(
@@ -1728,7 +1664,8 @@ export async function deletePostAsset(
 
   if (error) return { error: error.message };
 
-  const newStatus = await autoUpdatePostStatusFromAssets(supabase, postId, orgId);
+  const { syncPostStatusFromAssets } = await import("@/lib/post-status-sync");
+  const newStatus = await syncPostStatusFromAssets(supabase, postId, orgId);
 
   return { success: true, newStatus };
 }

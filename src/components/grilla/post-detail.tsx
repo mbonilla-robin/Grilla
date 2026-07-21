@@ -53,6 +53,7 @@ import { cn } from "@/lib/utils";
 import { PostPhaseTimeline } from "@/components/grilla/post-phase-timeline";
 import {
   WORKFLOW_PHASES,
+  effectivePostStatus,
   representativeStatusForPhase,
   workflowPhaseFromStatus,
   type WorkflowPhaseKey,
@@ -126,7 +127,9 @@ export function PostDetail({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [designPanelOpen, setDesignPanelOpen] = useState(false);
-  const [status, setStatus] = useState(post.status);
+  const [status, setStatus] = useState(() =>
+    effectivePostStatus(post.status, initialAssets.length)
+  );
   const [inDrive, setInDrive] = useState(post.in_drive);
   const [driveLoading, setDriveLoading] = useState(false);
   const [assets, setAssets] = useState(initialAssets);
@@ -321,7 +324,11 @@ export function PostDetail({
         postId={post.id}
         orgId={orgId}
         assets={sortPostAssets(assets)}
-        onAssetsChanged={setAssets}
+        zipFileName={post.title || undefined}
+        onAssetsChanged={(next) => {
+          setAssets(next);
+          setStatus((s) => effectivePostStatus(s, next.length));
+        }}
         onStatusChanged={setStatus}
       />
     </section>

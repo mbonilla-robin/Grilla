@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pruneDuplicatePosts } from "@/lib/post-dedupe";
+import { syncStalePostStatusesFromAssets } from "@/lib/post-status-sync";
 import { ProductionOrgContext } from "@/components/layout/production-org-context";
 import { AddToGrillaButton } from "@/components/grilla/add-to-grilla-button";
 import { GrillaCards } from "@/components/grilla/grilla-cards";
@@ -114,7 +115,12 @@ export default async function GrillaPage({
     };
   });
 
-  const enrichedPosts = await enrichPostsWithTeam(postsWithAssets);
+  const syncedPosts = await syncStalePostStatusesFromAssets(
+    supabase,
+    postsWithAssets
+  );
+
+  const enrichedPosts = await enrichPostsWithTeam(syncedPosts);
   const pillarNames =
     pillars.length > 0 ? pillars.map((p) => p.name) : [...PILLAR_OPTIONS];
   const allowedFormats = (org?.post_formats as PostFormat[] | null)?.length

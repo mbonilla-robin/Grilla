@@ -79,18 +79,29 @@ export async function POST(request: Request) {
 
   const withHistory = await supabase
     .from("posts")
-    .update({ brief, brief_history: newHistory, status: "brief_ready" })
+    .update({ brief, brief_history: newHistory })
     .eq("id", postId);
 
   if (withHistory.error?.message?.includes("brief_history")) {
-    await supabase
-      .from("posts")
-      .update({ brief, status: "brief_ready" })
-      .eq("id", postId);
+    await supabase.from("posts").update({ brief }).eq("id", postId);
   }
 
-  const { syncTasksForPost } = await import("@/lib/task-sync");
-  await syncTasksForPost(supabase, postId, post.status);
+  const { count: assetCount } = await supabase
+    .from("post_assets")
+    .select("*", { count: "exact", head: true })
+    .eq("post_id", postId);
+
+  if ((assetCount ?? 0) > 0) {
+    const { syncPostStatusFromAssets } = await import("@/lib/post-status-sync");
+    await syncPostStatusFromAssets(supabase, postId, orgId);
+  } else {
+    await supabase
+      .from("posts")
+      .update({ status: "brief_ready" })
+      .eq("id", postId);
+    const { syncTasksForPost } = await import("@/lib/task-sync");
+    await syncTasksForPost(supabase, postId, post.status);
+  }
 
   revalidatePath(`/org/${orgId}/grilla/${postId}`);
   revalidatePath(`/org/${orgId}/grilla`);

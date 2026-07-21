@@ -90,7 +90,7 @@ export function ReviewQueue({ orgId, posts: initialPosts }: ReviewQueueProps) {
                 <div>
                   <h3 className="text-sm font-semibold">{post.title}</h3>
                   <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted">
-                    <PostStatusBadge status={post.status} />
+                    <PostStatusBadge status={post.status} assetCount={assets.length} />
                     <span>{FORMAT_LABELS[post.format]}</span>
                     {post.pillar && <span>· {post.pillar}</span>}
                     {post.scheduled_at && (

@@ -14,8 +14,30 @@ interface PostAssetUploaderProps {
   compact?: boolean;
   mini?: boolean;
   uploadOnly?: boolean;
+  /** Base name for the zip when downloading all files (without .zip). */
+  zipFileName?: string;
   onAssetsChanged?: (assets: PostAsset[]) => void;
   onStatusChanged?: (status: PostStatus) => void;
+}
+
+function uniqueZipEntryName(fileName: string, index: number, used: Set<string>) {
+  const fallback = `slide-${index + 1}`;
+  const raw = (fileName || fallback).trim() || fallback;
+  if (!used.has(raw)) {
+    used.add(raw);
+    return raw;
+  }
+  const dot = raw.lastIndexOf(".");
+  const base = dot > 0 ? raw.slice(0, dot) : raw;
+  const ext = dot > 0 ? raw.slice(dot) : "";
+  let n = 2;
+  let candidate = `${base}-${n}${ext}`;
+  while (used.has(candidate)) {
+    n += 1;
+    candidate = `${base}-${n}${ext}`;
+  }
+  used.add(candidate);
+  return candidate;
 }
 
 export function PostAssetUploader({
@@ -25,11 +47,13 @@ export function PostAssetUploader({
   compact = false,
   mini = false,
   uploadOnly = false,
+  zipFileName,
   onAssetsChanged,
   onStatusChanged,
 }: PostAssetUploaderProps) {
   const [localAssets, setLocalAssets] = useState(initialAssets);
   const [loading, setLoading] = useState(false);
+  const [zipping, setZipping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -186,7 +210,57 @@ export function PostAssetUploader({
     setDeletingId(null);
   }
 
+  async function handleDownloadAll() {
+    const ready = sortPostAssets(localAssets).filter(
+      (a) => !a.id.startsWith("temp-")
+    );
+    if (ready.length === 0 || zipping) return;
+
+    setZipping(true);
+    setError(null);
+
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      const usedNames = new Set<string>();
+
+      await Promise.all(
+        ready.map(async (asset, i) => {
+          const res = await fetch(asset.file_url);
+          if (!res.ok) {
+            throw new Error(`No se pudo descargar ${asset.file_name}`);
+          }
+          const blob = await res.blob();
+          zip.file(uniqueZipEntryName(asset.file_name, i, usedNames), blob);
+        })
+      );
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      const base =
+        (zipFileName || "archivos-post")
+          .replace(/[^\w\s\-àáâãäåæçèéêëìíîïñòóôõöùúûüýÿ]/gi, "")
+          .trim()
+          .replace(/\s+/g, "-")
+          .slice(0, 80) || "archivos-post";
+      a.download = `${base}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Error al descargar los archivos"
+      );
+    } finally {
+      setZipping(false);
+    }
+  }
+
   const sorted = sortPostAssets(localAssets);
+  const readyCount = sorted.filter((a) => !a.id.startsWith("temp-")).length;
   const thumbSize = mini ? "h-7 w-7" : "h-14 w-14";
 
   if (mini) {
@@ -283,53 +357,79 @@ export function PostAssetUploader({
       )}
 
       {sorted.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {sorted.map((asset, i) => (
-            <div
-              key={asset.id}
-              className={`relative group ${thumbSize} rounded-md overflow-hidden border border-border bg-background shrink-0`}
-            >
-              {asset.file_type === "video" ? (
-                <video
-                  src={asset.file_url}
-                  className="h-full w-full object-cover"
-                  muted
-                />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={asset.file_url}
-                  alt={asset.file_name}
-                  className="h-full w-full object-cover"
-                />
-              )}
-              <span className="absolute top-0.5 left-0.5 bg-black/60 text-white text-[9px] px-1 rounded">
-                {i + 1}
-              </span>
+        <div className="space-y-2">
+          {readyCount > 0 && (
+            <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => handleDelete(asset.id)}
-                disabled={deletingId === asset.id || asset.id.startsWith("temp-")}
-                className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={handleDownloadAll}
+                disabled={zipping}
+                className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors disabled:opacity-50"
+                title="Descargar todos los archivos en un ZIP"
               >
-                {deletingId === asset.id ? (
-                  <Loader2 size={10} className="animate-spin" />
+                {zipping ? (
+                  <Loader2 size={12} className="animate-spin" />
                 ) : (
-                  <X size={10} />
+                  <Download size={12} />
                 )}
+                {zipping
+                  ? "Preparando ZIP…"
+                  : readyCount === 1
+                    ? "Descargar archivo"
+                    : `Descargar todos (${readyCount})`}
               </button>
-              <a
-                href={asset.file_url}
-                download={asset.file_name}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="absolute bottom-0.5 right-0.5 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Descargar original"
-              >
-                <Download size={10} />
-              </a>
             </div>
-          ))}
+          )}
+          <div className="flex flex-wrap gap-1.5">
+            {sorted.map((asset, i) => (
+              <div
+                key={asset.id}
+                className={`relative group ${thumbSize} rounded-md overflow-hidden border border-border bg-background shrink-0`}
+              >
+                {asset.file_type === "video" ? (
+                  <video
+                    src={asset.file_url}
+                    className="h-full w-full object-cover"
+                    muted
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={asset.file_url}
+                    alt={asset.file_name}
+                    className="h-full w-full object-cover"
+                  />
+                )}
+                <span className="absolute top-0.5 left-0.5 bg-black/60 text-white text-[9px] px-1 rounded">
+                  {i + 1}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(asset.id)}
+                  disabled={
+                    deletingId === asset.id || asset.id.startsWith("temp-")
+                  }
+                  className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  {deletingId === asset.id ? (
+                    <Loader2 size={10} className="animate-spin" />
+                  ) : (
+                    <X size={10} />
+                  )}
+                </button>
+                <a
+                  href={asset.file_url}
+                  download={asset.file_name}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute bottom-0.5 right-0.5 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Descargar original"
+                >
+                  <Download size={10} />
+                </a>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
