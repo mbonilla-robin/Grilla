@@ -24,6 +24,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { updatePost, updatePostStatus, deletePost } from "@/lib/actions";
 import { PostAssetUploader } from "@/components/grilla/post-asset-uploader";
+import { DownloadAllAssetsButton } from "@/components/grilla/download-all-assets-button";
 import { BriefPanel } from "@/components/grilla/brief-panel";
 import { CreativeBriefForm } from "@/components/grilla/creative-brief-form";
 import { PostMetricsForm } from "@/components/grilla/post-metrics-form";
@@ -308,23 +309,28 @@ export function PostDetail({
 
   const assetsSection = (
     <section>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between gap-3 mb-3">
         <h2 className="text-label">
           Archivos
         </h2>
-        <Link
-          href={`/org/${orgId}/feed?post=${post.id}`}
-          className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
-        >
-          <ExternalLink size={11} />
-          Ver en Feed
-        </Link>
+        <div className="flex items-center gap-2">
+          <DownloadAllAssetsButton
+            assets={assets}
+            zipFileName={post.title || undefined}
+          />
+          <Link
+            href={`/org/${orgId}/feed?post=${post.id}`}
+            className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
+          >
+            <ExternalLink size={11} />
+            Ver en Feed
+          </Link>
+        </div>
       </div>
       <PostAssetUploader
         postId={post.id}
         orgId={orgId}
         assets={sortPostAssets(assets)}
-        zipFileName={post.title || undefined}
         onAssetsChanged={(next) => {
           setAssets(next);
           setStatus((s) => effectivePostStatus(s, next.length));

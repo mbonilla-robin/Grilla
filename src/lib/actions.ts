@@ -1670,6 +1670,55 @@ export async function deletePostAsset(
   return { success: true, newStatus };
 }
 
+export async function reorderPostAssets(
+  postId: string,
+  orgId: string,
+  orderedIds: string[]
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "No autenticado" };
+  if (orderedIds.length === 0) return { success: true };
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("post_assets")
+    .select("id")
+    .eq("post_id", postId);
+
+  if (fetchError) return { error: fetchError.message };
+
+  const existingIds = new Set((existing ?? []).map((a) => a.id));
+  if (
+    orderedIds.length !== existingIds.size ||
+    orderedIds.some((id) => !existingIds.has(id))
+  ) {
+    return { error: "El orden de archivos no es válido" };
+  }
+
+  const results = await Promise.all(
+    orderedIds.map((id, index) =>
+      supabase
+        .from("post_assets")
+        .update({ sort_order: index })
+        .eq("id", id)
+        .eq("post_id", postId)
+    )
+  );
+
+  const failed = results.find((r) => r.error);
+  if (failed?.error) return { error: failed.error.message };
+
+  revalidatePath(`/org/${orgId}/grilla/${postId}`);
+  revalidatePath(`/org/${orgId}/grilla`);
+  revalidatePath(`/org/${orgId}/feed`);
+  revalidatePath(`/org/${orgId}/revision`);
+
+  return { success: true };
+}
+
 export async function createOrgAssetLink(
   orgId: string,
   data: { category: string; label: string; url: string }

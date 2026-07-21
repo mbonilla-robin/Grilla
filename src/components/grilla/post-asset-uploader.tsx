@@ -2,10 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Upload, X, Loader2, Download } from "lucide-react";
-import { registerPostAsset, deletePostAsset } from "@/lib/actions";
+import {
+  registerPostAsset,
+  deletePostAsset,
+  reorderPostAssets,
+} from "@/lib/actions";
 import { createClient } from "@/lib/supabase/client";
 import { cn, sortPostAssets } from "@/lib/utils";
 import type { PostAsset, PostStatus } from "@/lib/types";
+
+const ASSET_DRAG_TYPE = "text/post-asset-id";
 
 interface PostAssetUploaderProps {
   postId: string;
@@ -14,30 +20,8 @@ interface PostAssetUploaderProps {
   compact?: boolean;
   mini?: boolean;
   uploadOnly?: boolean;
-  /** Base name for the zip when downloading all files (without .zip). */
-  zipFileName?: string;
   onAssetsChanged?: (assets: PostAsset[]) => void;
   onStatusChanged?: (status: PostStatus) => void;
-}
-
-function uniqueZipEntryName(fileName: string, index: number, used: Set<string>) {
-  const fallback = `slide-${index + 1}`;
-  const raw = (fileName || fallback).trim() || fallback;
-  if (!used.has(raw)) {
-    used.add(raw);
-    return raw;
-  }
-  const dot = raw.lastIndexOf(".");
-  const base = dot > 0 ? raw.slice(0, dot) : raw;
-  const ext = dot > 0 ? raw.slice(dot) : "";
-  let n = 2;
-  let candidate = `${base}-${n}${ext}`;
-  while (used.has(candidate)) {
-    n += 1;
-    candidate = `${base}-${n}${ext}`;
-  }
-  used.add(candidate);
-  return candidate;
 }
 
 export function PostAssetUploader({
@@ -47,16 +31,16 @@ export function PostAssetUploader({
   compact = false,
   mini = false,
   uploadOnly = false,
-  zipFileName,
   onAssetsChanged,
   onStatusChanged,
 }: PostAssetUploaderProps) {
   const [localAssets, setLocalAssets] = useState(initialAssets);
   const [loading, setLoading] = useState(false);
-  const [zipping, setZipping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -166,15 +150,15 @@ export function PostAssetUploader({
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  function handleDragOver(e: React.DragEvent) {
-    if (loading) return;
+  function handleFileDragOver(e: React.DragEvent) {
+    if (loading || draggingId) return;
     if (!e.dataTransfer.types.includes("Files")) return;
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingOver(true);
   }
 
-  function handleDragLeave(e: React.DragEvent) {
+  function handleFileDragLeave(e: React.DragEvent) {
     e.preventDefault();
     e.stopPropagation();
     const related = e.relatedTarget as Node | null;
@@ -183,11 +167,11 @@ export function PostAssetUploader({
     }
   }
 
-  function handleDrop(e: React.DragEvent) {
+  function handleFileDrop(e: React.DragEvent) {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingOver(false);
-    if (loading) return;
+    if (loading || draggingId) return;
     if (e.dataTransfer.files.length > 0) {
       handleUpload(e.dataTransfer.files);
     }
@@ -210,58 +194,89 @@ export function PostAssetUploader({
     setDeletingId(null);
   }
 
-  async function handleDownloadAll() {
-    const ready = sortPostAssets(localAssets).filter(
-      (a) => !a.id.startsWith("temp-")
-    );
-    if (ready.length === 0 || zipping) return;
+  function handleAssetDragStart(e: React.DragEvent, assetId: string) {
+    if (assetId.startsWith("temp-") || loading) {
+      e.preventDefault();
+      return;
+    }
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData(ASSET_DRAG_TYPE, assetId);
+    // Firefox needs some data set to allow drag
+    e.dataTransfer.setData("text/plain", assetId);
+    setDraggingId(assetId);
+    setIsDraggingOver(false);
+  }
 
-    setZipping(true);
-    setError(null);
+  function handleAssetDragOver(e: React.DragEvent, targetId: string) {
+    if (!draggingId || draggingId === targetId) return;
+    if (targetId.startsWith("temp-")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    setDropTargetId(targetId);
+  }
 
-    try {
-      const JSZip = (await import("jszip")).default;
-      const zip = new JSZip();
-      const usedNames = new Set<string>();
-
-      await Promise.all(
-        ready.map(async (asset, i) => {
-          const res = await fetch(asset.file_url);
-          if (!res.ok) {
-            throw new Error(`No se pudo descargar ${asset.file_name}`);
-          }
-          const blob = await res.blob();
-          zip.file(uniqueZipEntryName(asset.file_name, i, usedNames), blob);
-        })
-      );
-
-      const content = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(content);
-      const a = document.createElement("a");
-      a.href = url;
-      const base =
-        (zipFileName || "archivos-post")
-          .replace(/[^\w\s\-àáâãäåæçèéêëìíîïñòóôõöùúûüýÿ]/gi, "")
-          .trim()
-          .replace(/\s+/g, "-")
-          .slice(0, 80) || "archivos-post";
-      a.download = `${base}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      setError(
-        e instanceof Error ? e.message : "Error al descargar los archivos"
-      );
-    } finally {
-      setZipping(false);
+  function handleAssetDragLeave(e: React.DragEvent, targetId: string) {
+    const related = e.relatedTarget as Node | null;
+    if (!e.currentTarget.contains(related) && dropTargetId === targetId) {
+      setDropTargetId(null);
     }
   }
 
+  async function handleAssetDrop(e: React.DragEvent, targetId: string) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const sourceId =
+      e.dataTransfer.getData(ASSET_DRAG_TYPE) ||
+      e.dataTransfer.getData("text/plain") ||
+      draggingId;
+
+    setDropTargetId(null);
+    setDraggingId(null);
+
+    if (!sourceId || sourceId === targetId || sourceId.startsWith("temp-")) {
+      return;
+    }
+
+    const sorted = sortPostAssets(localAssets);
+    const fromIndex = sorted.findIndex((a) => a.id === sourceId);
+    const toIndex = sorted.findIndex((a) => a.id === targetId);
+    if (fromIndex < 0 || toIndex < 0) return;
+
+    const next = [...sorted];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+
+    const reordered = next.map((asset, index) => ({
+      ...asset,
+      sort_order: index,
+    }));
+
+    const previous = localAssets;
+    updateAssets(reordered);
+    setError(null);
+
+    const result = await reorderPostAssets(
+      postId,
+      orgId,
+      reordered.map((a) => a.id)
+    );
+
+    if (result.error) {
+      updateAssets(previous);
+      setError(result.error);
+    }
+  }
+
+  function handleAssetDragEnd() {
+    setDraggingId(null);
+    setDropTargetId(null);
+  }
+
   const sorted = sortPostAssets(localAssets);
-  const readyCount = sorted.filter((a) => !a.id.startsWith("temp-")).length;
   const thumbSize = mini ? "h-7 w-7" : "h-14 w-14";
+  const canReorder = !mini && sorted.length > 1;
 
   if (mini) {
     return (
@@ -269,9 +284,9 @@ export function PostAssetUploader({
         className="flex items-center gap-1.5"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
+        onDragOver={handleFileDragOver}
+        onDragLeave={handleFileDragLeave}
+        onDrop={handleFileDrop}
       >
         <input
           ref={inputRef}
@@ -337,9 +352,9 @@ export function PostAssetUploader({
   return (
     <div
       className={compact ? "space-y-2" : "space-y-3"}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
+      onDragOver={handleFileDragOver}
+      onDragLeave={handleFileDragLeave}
+      onDrop={handleFileDrop}
     >
       <input
         ref={inputRef}
@@ -357,39 +372,39 @@ export function PostAssetUploader({
       )}
 
       {sorted.length > 0 && (
-        <div className="space-y-2">
-          {readyCount > 0 && (
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleDownloadAll}
-                disabled={zipping}
-                className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors disabled:opacity-50"
-                title="Descargar todos los archivos en un ZIP"
-              >
-                {zipping ? (
-                  <Loader2 size={12} className="animate-spin" />
-                ) : (
-                  <Download size={12} />
-                )}
-                {zipping
-                  ? "Preparando ZIP…"
-                  : readyCount === 1
-                    ? "Descargar archivo"
-                    : `Descargar todos (${readyCount})`}
-              </button>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-1.5">
-            {sorted.map((asset, i) => (
+        <div className="flex flex-wrap gap-1.5">
+          {sorted.map((asset, i) => {
+            const isTemp = asset.id.startsWith("temp-");
+            const isDragging = draggingId === asset.id;
+            const isDropTarget = dropTargetId === asset.id;
+
+            return (
               <div
                 key={asset.id}
-                className={`relative group ${thumbSize} rounded-md overflow-hidden border border-border bg-background shrink-0`}
+                draggable={canReorder && !isTemp && !loading}
+                onDragStart={(e) => handleAssetDragStart(e, asset.id)}
+                onDragOver={(e) => handleAssetDragOver(e, asset.id)}
+                onDragLeave={(e) => handleAssetDragLeave(e, asset.id)}
+                onDrop={(e) => handleAssetDrop(e, asset.id)}
+                onDragEnd={handleAssetDragEnd}
+                title={
+                  canReorder && !isTemp
+                    ? "Arrastra para cambiar el orden"
+                    : undefined
+                }
+                className={cn(
+                  `relative group ${thumbSize} rounded-md overflow-hidden border border-border bg-background shrink-0`,
+                  canReorder &&
+                    !isTemp &&
+                    "cursor-grab active:cursor-grabbing",
+                  isDragging && "opacity-40",
+                  isDropTarget && "ring-2 ring-accent border-accent"
+                )}
               >
                 {asset.file_type === "video" ? (
                   <video
                     src={asset.file_url}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover pointer-events-none"
                     muted
                   />
                 ) : (
@@ -397,7 +412,8 @@ export function PostAssetUploader({
                   <img
                     src={asset.file_url}
                     alt={asset.file_name}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover pointer-events-none"
+                    draggable={false}
                   />
                 )}
                 <span className="absolute top-0.5 left-0.5 bg-black/60 text-white text-[9px] px-1 rounded">
@@ -406,9 +422,7 @@ export function PostAssetUploader({
                 <button
                   type="button"
                   onClick={() => handleDelete(asset.id)}
-                  disabled={
-                    deletingId === asset.id || asset.id.startsWith("temp-")
-                  }
+                  disabled={deletingId === asset.id || isTemp}
                   className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   {deletingId === asset.id ? (
@@ -422,14 +436,16 @@ export function PostAssetUploader({
                   download={asset.file_name}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  draggable={false}
                   className="absolute bottom-0.5 right-0.5 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Descargar original"
                 >
                   <Download size={10} />
                 </a>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       )}
 
@@ -454,7 +470,9 @@ export function PostAssetUploader({
       </button>
       {!compact && sorted.length > 0 && (
         <p className="text-[10px] text-muted">
-          Archivo 1 = portada del Feed · Calidad original para publicar
+          Archivo 1 = portada del Feed
+          {canReorder ? " · Arrastra para reordenar" : ""} · Calidad original
+          para publicar
         </p>
       )}
     </div>
