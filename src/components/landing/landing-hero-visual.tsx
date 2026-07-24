@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  GrillaLogoAssembly,
+  LOGO_ASSEMBLY_DURATION_MS,
+} from "@/components/brand/grilla-logo-assembly";
 
 const TAGLINES = [
   { line1: "Tu espacio", line2: "creativo" },
@@ -9,7 +13,8 @@ const TAGLINES = [
   { line1: "Colabora", line2: "con tu equipo" },
 ] as const;
 
-const LOGO_DURATION_MS = 2800;
+const LOGO_HOLD_MS = 900;
+const LOGO_DURATION_MS = LOGO_ASSEMBLY_DURATION_MS + LOGO_HOLD_MS;
 const TAGLINE_DURATION_MS = 4000;
 
 export function LandingHeroVisual() {
@@ -31,14 +36,9 @@ export function LandingHeroVisual() {
     <div className="landing-hero-stage">
       <div className="landing-hero-showcase">
         {step === 0 ? (
-          <img
-            key="logo"
-            src="/grilla-logo.svg"
-            alt="Grilla"
-            width={188}
-            height={100}
-            className="landing-showcase-logo"
-            draggable={false}
+          <GrillaLogoAssembly
+            key="logo-assembly"
+            className="landing-showcase-logo-assembly"
           />
         ) : tagline ? (
           <div key={step} className="landing-showcase-tagline" aria-live="polite">
