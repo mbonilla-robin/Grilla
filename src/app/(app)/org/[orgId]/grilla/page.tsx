@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pruneDuplicatePosts } from "@/lib/post-dedupe";
 import { syncStalePostStatusesFromAssets } from "@/lib/post-status-sync";
-import { ProductionOrgContext } from "@/components/layout/production-org-context";
 import { AddToGrillaButton } from "@/components/grilla/add-to-grilla-button";
 import { GrillaCards } from "@/components/grilla/grilla-cards";
 import { GrillaMonthFilter } from "@/components/grilla/grilla-month-filter";
@@ -17,7 +16,6 @@ import { getOrgIdentifiers } from "@/lib/org-identifiers-data";
 import { getOrgCatalogEvents } from "@/lib/calendar-data";
 import {
   PILLAR_OPTIONS,
-  type Organization,
   type OrgHashtagGroup,
   type PostAsset,
   type PostFormat,
@@ -79,7 +77,6 @@ export default async function GrillaPage({
     assignmentOptions,
     pillars,
     hashtagGroups,
-    { data: memberships },
     identifiers,
     catalogEvents,
   ] = await Promise.all([
@@ -93,17 +90,9 @@ export default async function GrillaPage({
     getPostAssignmentOptions(orgId),
     getOrgPillars(orgId),
     getOrgHashtagGroups(orgId),
-    supabase
-      .from("organization_members")
-      .select("organizations(*)")
-      .eq("user_id", user.id),
     getOrgIdentifiers(orgId),
     getOrgCatalogEvents(orgId),
   ]);
-
-  const organizations = (memberships || []).map(
-    (m) => m.organizations as unknown as Organization
-  );
 
   if (error) {
     console.error("Grilla query error:", error.message);
@@ -136,20 +125,14 @@ export default async function GrillaPage({
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 pt-2 pb-4 sm:px-6 sm:pt-3 sm:pb-6">
-      <div className="mb-4 flex flex-col items-center gap-4 md:mb-6 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0 text-center md:text-left">
-          <ProductionOrgContext
-            organizations={organizations}
-            currentOrgId={orgId}
-            page="grilla"
-            className="mb-1 md:mb-0.5"
-          />
+      <div className="mb-4 flex items-start justify-between gap-4 md:mb-6">
+        <div className="min-w-0">
           <h1 className="text-title-sub">Grilla</h1>
           <p className="text-xs text-muted mt-0.5">
             Tarjetas editoriales · conectadas al Feed
           </p>
         </div>
-        <div className="w-full md:w-auto">
+        <div className="shrink-0">
           <AddToGrillaButton
             orgId={orgId}
             assignmentOptions={assignmentOptions}
@@ -161,7 +144,6 @@ export default async function GrillaPage({
             identifiers={identifiers}
             allowedFormats={allowedFormats}
             catalogEvents={catalogEvents}
-            triggerClassName="w-full md:w-auto"
           />
         </div>
       </div>
