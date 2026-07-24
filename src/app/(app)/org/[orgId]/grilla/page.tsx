@@ -168,9 +168,7 @@ export default async function GrillaPage({
         </div>
         {availableMonths.length > 0 && (
           <Suspense fallback={null}>
-            <div className="w-full max-w-md mx-auto md:mx-0">
-              <GrillaMonthFilter months={availableMonths} />
-            </div>
+            <GrillaMonthFilter months={availableMonths} />
           </Suspense>
         )}
       </div>

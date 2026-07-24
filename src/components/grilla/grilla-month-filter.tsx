@@ -73,17 +73,17 @@ export function GrillaMonthFilter({ months }: GrillaMonthFilterProps) {
   if (months.length === 0) return null;
 
   return (
-    <div className="flex w-full items-center gap-1 sm:w-auto sm:gap-1.5">
+    <div className="flex w-full items-center gap-1.5 sm:gap-2">
       <button
         type="button"
         onClick={() => shiftWindow(-1)}
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground transition-colors"
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground transition-colors"
         aria-label="Meses anteriores"
       >
-        <ChevronLeft size={14} />
+        <ChevronLeft size={16} />
       </button>
 
-      <div className="grid min-w-0 flex-1 grid-cols-5 gap-1 sm:gap-1.5">
+      <div className="grid min-w-0 flex-1 grid-cols-5 gap-1.5 sm:gap-2">
         {windowMonths.map((value) => {
           const isActive = selected === value;
           const count = counts.get(value) ?? 0;
@@ -93,7 +93,7 @@ export function GrillaMonthFilter({ months }: GrillaMonthFilterProps) {
               type="button"
               onClick={() => selectMonth(value)}
               className={cn(
-                "inline-flex h-7 min-w-0 flex-col items-center justify-center rounded-md border px-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs",
+                "inline-flex h-9 min-w-0 w-full items-center justify-center rounded-md border px-2 text-xs font-medium transition-colors sm:text-sm",
                 isActive
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground"
@@ -109,10 +109,10 @@ export function GrillaMonthFilter({ months }: GrillaMonthFilterProps) {
       <button
         type="button"
         onClick={() => shiftWindow(1)}
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground transition-colors"
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground transition-colors"
         aria-label="Meses siguientes"
       >
-        <ChevronRight size={14} />
+        <ChevronRight size={16} />
       </button>
     </div>
   );
