@@ -1,84 +1,119 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { MonthOption } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface GrillaMonthFilterProps {
   months: MonthOption[];
+}
+
+const WINDOW_SIZE = 5;
+
+function currentMonthValue(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function shiftMonthValue(monthValue: string, delta: number): string {
+  const [year, month] = monthValue.split("-").map(Number);
+  const date = new Date(year, month - 1 + delta, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function shortMonthLabel(monthValue: string): string {
+  const [year, month] = monthValue.split("-").map(Number);
+  const label = new Intl.DateTimeFormat("es", { month: "short" }).format(
+    new Date(year, month - 1, 1)
+  );
+  return label.replace(/\.$/, "").replace(/^./, (c) => c.toUpperCase());
+}
+
+function buildWindow(start: string): string[] {
+  return Array.from({ length: WINDOW_SIZE }, (_, i) =>
+    shiftMonthValue(start, i)
+  );
 }
 
 export function GrillaMonthFilter({ months }: GrillaMonthFilterProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const month = searchParams.get("month") || "all";
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const now = currentMonthValue();
+  const selected = searchParams.get("month") || now;
+  const windowStart = searchParams.get("from") || now;
 
-  const options = [
-    { value: "all", label: "Todos", count: months.reduce((n, m) => n + m.count, 0) },
-    ...months,
-  ];
+  const counts = useMemo(() => {
+    const map = new Map(months.map((m) => [m.value, m.count]));
+    return map;
+  }, [months]);
 
-  const selected = options.find((o) => o.value === month) ?? options[0];
+  const windowMonths = useMemo(() => buildWindow(windowStart), [windowStart]);
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  function select(value: string) {
+  function navigate(nextMonth: string, nextFrom?: string) {
     const params = new URLSearchParams(searchParams.toString());
-    if (value === "all") params.delete("month");
-    else params.set("month", value);
-    const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
-    setOpen(false);
+    params.set("month", nextMonth);
+    const from = nextFrom ?? windowStart;
+    if (from === now) params.delete("from");
+    else params.set("from", from);
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function selectMonth(value: string) {
+    navigate(value);
+  }
+
+  function shiftWindow(delta: number) {
+    const nextFrom = shiftMonthValue(windowStart, delta);
+    const stillVisible = buildWindow(nextFrom).includes(selected);
+    navigate(stillVisible ? selected : nextFrom, nextFrom);
   }
 
   if (months.length === 0) return null;
 
   return (
-    <div ref={ref} className="relative">
+    <div className="flex w-full items-center gap-1 sm:w-auto sm:gap-1.5">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-border bg-surface text-xs text-foreground hover:bg-neutral-50 transition-colors"
+        onClick={() => shiftWindow(-1)}
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground transition-colors"
+        aria-label="Meses anteriores"
       >
-        <span>{selected.label}</span>
-        <ChevronDown
-          size={12}
-          className={`text-muted transition-transform ${open ? "rotate-180" : ""}`}
-        />
+        <ChevronLeft size={14} />
       </button>
 
-      {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 min-w-[180px] rounded-md border border-border bg-surface py-1 shadow-sm">
-          {options.map((opt) => (
+      <div className="grid min-w-0 flex-1 grid-cols-5 gap-1 sm:gap-1.5">
+        {windowMonths.map((value) => {
+          const isActive = selected === value;
+          const count = counts.get(value) ?? 0;
+          return (
             <button
-              key={opt.value}
+              key={value}
               type="button"
-              onClick={() => select(opt.value)}
-              className="flex w-full items-center justify-between gap-3 px-2.5 py-1.5 text-left text-xs hover:bg-neutral-50 transition-colors"
+              onClick={() => selectMonth(value)}
+              className={cn(
+                "inline-flex h-7 min-w-0 flex-col items-center justify-center rounded-md border px-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs",
+                isActive
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground"
+              )}
+              title={`${shortMonthLabel(value)} · ${count} post${count === 1 ? "" : "s"}`}
             >
-              <span className={month === opt.value ? "text-foreground" : "text-muted"}>
-                {opt.label}
-              </span>
-              <span className="flex items-center gap-1.5 text-muted">
-                <span className="text-[10px] tabular-nums">{opt.count}</span>
-                {month === opt.value && <Check size={12} />}
-              </span>
+              <span className="truncate leading-none">{shortMonthLabel(value)}</span>
             </button>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => shiftWindow(1)}
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground transition-colors"
+        aria-label="Meses siguientes"
+      >
+        <ChevronRight size={14} />
+      </button>
     </div>
   );
 }

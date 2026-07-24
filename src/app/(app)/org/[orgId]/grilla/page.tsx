@@ -31,15 +31,21 @@ function monthRange(month: string) {
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
+function currentMonthParam() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export default async function GrillaPage({
   params,
   searchParams,
 }: {
   params: Promise<{ orgId: string }>;
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; from?: string }>;
 }) {
   const { orgId } = await params;
-  const { month = "all" } = await searchParams;
+  const { month: monthParam } = await searchParams;
+  const month = monthParam && monthParam !== "all" ? monthParam : currentMonthParam();
   const supabase = await createClient();
   const {
     data: { user },
@@ -58,7 +64,7 @@ export default async function GrillaPage({
       .eq("organization_id", orgId)
       .order("scheduled_at", { ascending: true, nullsFirst: false });
 
-    if (month !== "all") {
+    if (month) {
       const { start, end } = monthRange(month);
       postsQuery = postsQuery.gte("scheduled_at", start).lt("scheduled_at", end);
     }
@@ -130,26 +136,19 @@ export default async function GrillaPage({
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 pt-2 pb-4 sm:px-6 sm:pt-3 sm:pb-6">
-      <div className="mb-6">
+      <div className="mb-6 space-y-4">
         <div className="flex flex-col items-center gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="flex w-full flex-col items-center gap-3 md:w-auto md:flex-row md:items-center md:gap-4">
-            <div className="min-w-0 text-center md:text-left">
-              <ProductionOrgContext
-                organizations={organizations}
-                currentOrgId={orgId}
-                page="grilla"
-                className="mb-1 md:mb-0.5"
-              />
-              <h1 className="text-title-sub">Grilla</h1>
-              <p className="text-xs text-muted mt-0.5">
-                Tarjetas editoriales · conectadas al Feed
-              </p>
-            </div>
-            {availableMonths.length > 0 && (
-              <Suspense fallback={null}>
-                <GrillaMonthFilter months={availableMonths} />
-              </Suspense>
-            )}
+          <div className="min-w-0 text-center md:text-left">
+            <ProductionOrgContext
+              organizations={organizations}
+              currentOrgId={orgId}
+              page="grilla"
+              className="mb-1 md:mb-0.5"
+            />
+            <h1 className="text-title-sub">Grilla</h1>
+            <p className="text-xs text-muted mt-0.5">
+              Tarjetas editoriales · conectadas al Feed
+            </p>
           </div>
           <div className="w-full md:w-auto">
             <AddToGrillaButton
@@ -167,6 +166,13 @@ export default async function GrillaPage({
             />
           </div>
         </div>
+        {availableMonths.length > 0 && (
+          <Suspense fallback={null}>
+            <div className="w-full max-w-md mx-auto md:mx-0">
+              <GrillaMonthFilter months={availableMonths} />
+            </div>
+          </Suspense>
+        )}
       </div>
       <GrillaCards
         posts={enrichedPosts}
