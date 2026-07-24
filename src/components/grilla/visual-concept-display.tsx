@@ -82,7 +82,7 @@ export function VisualConceptDisplay({ text }: VisualConceptDisplayProps) {
           onClick={toggleLanguage}
           disabled={loading}
           title={lang === "en" ? "Ver en español" : "Ver en inglés"}
-          className="inline-flex items-center gap-0.5 rounded border border-border/70 bg-surface px-1 py-px text-[9px] font-medium uppercase tracking-wide text-muted hover:text-foreground hover:border-border disabled:opacity-50 transition-colors"
+          className="no-print inline-flex items-center gap-0.5 rounded border border-border/70 bg-surface px-1 py-px text-[9px] font-medium uppercase tracking-wide text-muted hover:text-foreground hover:border-border disabled:opacity-50 transition-colors"
         >
           <Languages size={9} strokeWidth={2} />
           {loading ? "…" : lang === "en" ? "ES" : "EN"}

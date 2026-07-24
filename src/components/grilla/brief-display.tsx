@@ -228,7 +228,7 @@ function StructuredSlide({
     (slide.focus ? `Diseño de Post (Focus: ${slide.focus})` : null);
 
   return (
-    <div className="rounded-lg border border-border px-4 py-4 space-y-4 bg-neutral-50/50">
+    <div className="brief-print-avoid-break rounded-lg border border-border px-4 py-4 space-y-4 bg-neutral-50/50">
       {showSlideNumber && (
         <p className="text-[10px] font-medium text-muted uppercase tracking-wide">
           Slide {slide.slide}
@@ -273,7 +273,7 @@ function LegacySlide({ slide }: { slide: DesignBriefSlide }) {
   const colors = slideColorRefs(slide);
 
   return (
-    <div className="rounded-lg border border-border px-4 py-3 space-y-1.5 bg-neutral-50/50">
+    <div className="brief-print-avoid-break rounded-lg border border-border px-4 py-3 space-y-1.5 bg-neutral-50/50">
       <p className="text-[10px] font-medium text-muted uppercase tracking-wide">
         Slide {slide.slide}
       </p>
@@ -293,7 +293,7 @@ function LegacySlide({ slide }: { slide: DesignBriefSlide }) {
 function BrandKitBar({ brief }: { brief: DesignBrief }) {
   if (brief.brand_kit_configured === false) {
     return (
-      <div className="rounded-lg border border-amber-200/80 bg-amber-50/50 px-4 py-3 space-y-1">
+      <div className="brief-print-avoid-break rounded-lg border border-amber-200/80 bg-amber-50/50 px-4 py-3 space-y-1">
         <p className="text-xs font-semibold text-amber-900">
           Sin Brand Kit configurado
         </p>
@@ -310,7 +310,7 @@ function BrandKitBar({ brief }: { brief: DesignBrief }) {
   if (!palette) return null;
 
   return (
-    <div className="rounded-lg border border-border bg-surface px-4 py-3 space-y-3">
+    <div className="brief-print-avoid-break rounded-lg border border-border bg-surface px-4 py-3 space-y-3">
       <p className="text-[10px] font-medium text-muted uppercase tracking-wide">
         Brand kit aplicado
       </p>
@@ -365,7 +365,7 @@ export function BriefDisplay({ brief }: { brief: DesignBrief }) {
       )}
 
       {brief.strategic_note && (
-        <div className="rounded-lg border border-amber-200/80 bg-amber-50/50 px-4 py-3 space-y-2">
+        <div className="brief-print-avoid-break rounded-lg border border-amber-200/80 bg-amber-50/50 px-4 py-3 space-y-2">
           <p className="text-xs font-semibold text-amber-900">
             💡 Nota Estratégica para el Diseñador:
           </p>

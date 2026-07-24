@@ -1,59 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Sparkles, Download, History, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BriefDisplay } from "@/components/grilla/brief-display";
-import { textInstructionsToHtml } from "@/lib/brief-text";
 import type { DesignBrief, BriefHistoryEntry, PostStatus } from "@/lib/types";
 
 interface BriefPanelProps {
   postId: string;
   orgId: string;
+  postTitle?: string;
   initialBrief: DesignBrief | null;
   initialHistory?: BriefHistoryEntry[];
   onStatusChange?: (status: PostStatus) => void;
 }
 
-function exportBriefPdf(brief: DesignBrief, postTitle: string) {
-  const slidesHtml = (brief.slides || [])
-    .map(
-      (s) => `
-      <div style="margin-bottom:24px;padding:16px;border:1px solid #e5e5e5;border-radius:8px;">
-        <h3 style="margin:0 0 8px;font-size:14px;">Slide ${s.slide}${s.focus ? ` — ${s.focus}` : ""}</h3>
-        ${s.visual_concept ? `<p><strong>Concepto Visual:</strong> ${s.visual_concept}</p>` : ""}
-        ${s.text_instructions ? `<p><strong>Instrucciones de Texto:</strong></p>${textInstructionsToHtml(s.text_instructions)}` : ""}
-        ${s.image_treatment ? `<p><strong>Tratamiento:</strong> ${s.image_treatment}</p>` : ""}
-        ${s.layout ? `<p><strong>Layout:</strong> ${s.layout}</p>` : ""}
-      </div>`
-    )
-    .join("");
+function exportBriefPdf(
+  source: HTMLElement,
+  meta: { title: string; generatedAt: string }
+) {
+  const existing = document.querySelector(".brief-print-portal");
+  existing?.remove();
 
-  const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Brief — ${postTitle}</title>
-<style>body{font-family:system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#171717;line-height:1.6}
-h1{font-size:20px;margin-bottom:4px}h2{font-size:16px;margin-top:32px}
-.meta{color:#737373;font-size:12px;margin-bottom:24px}
-.note{background:#fffbeb;border:1px solid #fde68a;padding:12px;border-radius:8px;margin-top:16px;font-size:13px}
-@media print{body{margin:20px}}</style></head><body>
-<h1>Brief de diseño</h1>
-<p class="meta">${postTitle} · Generado ${new Date(brief.generated_at).toLocaleDateString("es")}</p>
-${brief.execution_title ? `<h2>🎨 ${brief.execution_title}</h2>` : ""}
-${slidesHtml}
-${brief.strategic_note ? `<div class="note"><strong>Nota estratégica:</strong> ${brief.strategic_note}</div>` : ""}
-</body></html>`;
+  const portal = document.createElement("div");
+  portal.className = "brief-print-portal";
 
-  const win = window.open("", "_blank");
-  if (!win) return;
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  setTimeout(() => win.print(), 500);
+  const header = document.createElement("div");
+  header.className = "brief-print-header";
+  header.innerHTML = `<h1>Brief de diseño</h1><p>${escapeHtml(meta.title)} · Generado ${escapeHtml(
+    new Date(meta.generatedAt).toLocaleDateString("es", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
+  )}</p>`;
+  portal.appendChild(header);
+
+  const clone = source.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll(".no-print").forEach((el) => el.remove());
+  portal.appendChild(clone);
+  document.body.appendChild(portal);
+
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    document.body.classList.remove("printing-brief");
+    portal.remove();
+    window.removeEventListener("afterprint", cleanup);
+  };
+
+  window.addEventListener("afterprint", cleanup);
+  document.body.classList.add("printing-brief");
+
+  // Let the browser paint the portal before opening the print dialog
+  requestAnimationFrame(() => {
+    window.print();
+    // Fallback if afterprint never fires (some browsers)
+    setTimeout(cleanup, 60_000);
+  });
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export function BriefPanel({
   postId,
   orgId,
+  postTitle,
   initialBrief,
   initialHistory = [],
   onStatusChange,
@@ -64,6 +83,7 @@ export function BriefPanel({
   const [instructions, setInstructions] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [selectedHistory, setSelectedHistory] = useState<number | null>(null);
+  const briefRef = useRef<HTMLDivElement>(null);
 
   async function generateBrief() {
     setGenerating(true);
@@ -98,6 +118,14 @@ export function BriefPanel({
   const displayBrief =
     selectedHistory !== null ? history[selectedHistory] : brief;
 
+  function handleExportPdf() {
+    if (!displayBrief || !briefRef.current) return;
+    exportBriefPdf(briefRef.current, {
+      title: postTitle?.trim() || displayBrief.execution_title || postId,
+      generatedAt: displayBrief.generated_at,
+    });
+  }
+
   return (
     <section className="space-y-4">
       {!brief && (
@@ -120,88 +148,90 @@ export function BriefPanel({
 
       {brief && (
         <div className="space-y-3">
-          <textarea
-            value={instructions}
-            onChange={(e) => setInstructions(e.target.value)}
-            rows={2}
-            placeholder="Instrucciones para regenerar: ej. 'usa más el color naranja', 'hazlo más corporativo'..."
-            className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none"
-          />
+          <div className="no-print space-y-3">
+            <textarea
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              rows={2}
+              placeholder="Instrucciones para regenerar: ej. 'usa más el color naranja', 'hazlo más corporativo'..."
+              className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none"
+            />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={generateBrief}
-              loading={generating}
-            >
-              <Sparkles size={13} />
-              Regenerar
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => brief && exportBriefPdf(brief, postId)}
-            >
-              <Download size={13} />
-              Exportar PDF
-            </Button>
-            {history.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setShowHistory(!showHistory);
-                  setSelectedHistory(null);
-                }}
-                className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground"
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={generateBrief}
+                loading={generating}
               >
-                <History size={12} />
-                Historial ({history.length})
-                {showHistory ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              </button>
+                <Sparkles size={13} />
+                Regenerar
+              </Button>
+              <Button size="sm" variant="secondary" onClick={handleExportPdf}>
+                <Download size={13} />
+                Exportar PDF
+              </Button>
+              {history.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowHistory(!showHistory);
+                    setSelectedHistory(null);
+                  }}
+                  className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground"
+                >
+                  <History size={12} />
+                  Historial ({history.length})
+                  {showHistory ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+              )}
+            </div>
+
+            {showHistory && history.length > 0 && (
+              <div className="rounded-lg border border-border divide-y divide-border">
+                {history.map((entry, i) => (
+                  <button
+                    key={entry.generated_at + i}
+                    type="button"
+                    onClick={() =>
+                      setSelectedHistory(selectedHistory === i ? null : i)
+                    }
+                    className={`w-full text-left px-3 py-2 text-xs hover:bg-neutral-50 transition-colors ${
+                      selectedHistory === i ? "bg-neutral-50 font-medium" : ""
+                    }`}
+                  >
+                    Versión {history.length - i} ·{" "}
+                    {new Date(entry.archived_at).toLocaleDateString("es", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    {entry.execution_title && ` — ${entry.execution_title}`}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {selectedHistory !== null && (
+              <p className="text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1">
+                Viendo versión anterior.{" "}
+                <button
+                  type="button"
+                  onClick={() => setSelectedHistory(null)}
+                  className="underline"
+                >
+                  Volver a la actual
+                </button>
+              </p>
             )}
           </div>
 
-          {showHistory && history.length > 0 && (
-            <div className="rounded-lg border border-border divide-y divide-border">
-              {history.map((entry, i) => (
-                <button
-                  key={entry.generated_at + i}
-                  type="button"
-                  onClick={() =>
-                    setSelectedHistory(selectedHistory === i ? null : i)
-                  }
-                  className={`w-full text-left px-3 py-2 text-xs hover:bg-neutral-50 transition-colors ${
-                    selectedHistory === i ? "bg-neutral-50 font-medium" : ""
-                  }`}
-                >
-                  Versión {history.length - i} ·{" "}
-                  {new Date(entry.archived_at).toLocaleDateString("es", {
-                    day: "numeric",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                  {entry.execution_title && ` — ${entry.execution_title}`}
-                </button>
-              ))}
+          {displayBrief && (
+            <div ref={briefRef}>
+              <BriefDisplay brief={displayBrief} />
             </div>
           )}
-
-          {selectedHistory !== null && (
-            <p className="text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1">
-              Viendo versión anterior.{" "}
-              <button
-                type="button"
-                onClick={() => setSelectedHistory(null)}
-                className="underline"
-              >
-                Volver a la actual
-              </button>
-            </p>
-          )}
-
-          {displayBrief && <BriefDisplay brief={displayBrief} />}
         </div>
       )}
     </section>

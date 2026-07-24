@@ -1947,3 +1947,68 @@
     width: auto;
   }
 }
+
+/* Brief PDF export — print only the on-screen brief */
+.brief-print-portal {
+  display: none;
+}
+
+.brief-print-header {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body.printing-brief {
+    background: #fff !important;
+    color: #171717 !important;
+  }
+
+  body.printing-brief > *:not(.brief-print-portal) {
+    display: none !important;
+  }
+
+  body.printing-brief .brief-print-portal {
+    display: block !important;
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0;
+    background: #fff;
+    color: #171717;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.printing-brief .brief-print-portal .no-print {
+    display: none !important;
+  }
+
+  body.printing-brief .brief-print-header {
+    display: block !important;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e5e5e5;
+  }
+
+  body.printing-brief .brief-print-header h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  body.printing-brief .brief-print-header p {
+    margin: 0;
+    font-size: 0.75rem;
+    color: #737373;
+  }
+
+  body.printing-brief .brief-print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
