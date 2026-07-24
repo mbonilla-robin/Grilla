@@ -158,14 +158,13 @@ export function GrillaOrgSwipe({
 
   const paint = useCallback((x: number, withTransition: boolean) => {
     const track = trackRef.current;
-    const w = widthRef.current;
-    if (!track || !w) return;
+    if (!track) return;
     xRef.current = x;
     track.style.transition = withTransition
       ? `transform ${SNAP_MS}ms ${EASE}`
       : "none";
-    // Center panel sits at -w; drag shifts from there
-    track.style.transform = `translate3d(${-w + x}px, 0, 0)`;
+    // Current panel is in normal flow at x=0; neighbors sit absolute ±width
+    track.style.transform = `translate3d(${x}px, 0, 0)`;
   }, []);
 
   const paintRef = useRef(paint);
@@ -419,47 +418,47 @@ export function GrillaOrgSwipe({
 
   return (
     <div className="space-y-5 md:space-y-6">
+      {/*
+        Current panel stays in normal flow so height follows its content.
+        Neighbors are absolute so a taller adjacent org cannot push the dots down.
+      */}
       <div ref={viewportRef} className="relative w-full overflow-hidden">
         <div
           ref={trackRef}
-          className="flex w-[300%] will-change-transform"
+          className="relative w-full will-change-transform"
           style={{ touchAction: "pan-y" }}
         >
-          <div
-            className="w-1/3 shrink-0 grow-0"
-            aria-hidden={!prevOrg}
-            style={{ pointerEvents: "none" }}
-          >
-            {prevOrg ? (
+          {prevOrg && (
+            <div
+              className="absolute top-0 right-full w-full"
+              aria-hidden
+              style={{ pointerEvents: "none" }}
+            >
               <PanelGrid
                 orgId={prevOrg.id}
                 posts={neighborPosts[prevOrg.id]}
                 loading={loadingNeighbors[prevOrg.id]}
               />
-            ) : (
-              <div className="min-h-[8rem]" />
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="w-1/3 shrink-0 grow-0">
+          <div className="relative w-full">
             <PanelGrid orgId={currentOrgId} posts={posts} />
           </div>
 
-          <div
-            className="w-1/3 shrink-0 grow-0"
-            aria-hidden={!nextOrg}
-            style={{ pointerEvents: "none" }}
-          >
-            {nextOrg ? (
+          {nextOrg && (
+            <div
+              className="absolute top-0 left-full w-full"
+              aria-hidden
+              style={{ pointerEvents: "none" }}
+            >
               <PanelGrid
                 orgId={nextOrg.id}
                 posts={neighborPosts[nextOrg.id]}
                 loading={loadingNeighbors[nextOrg.id]}
               />
-            ) : (
-              <div className="min-h-[8rem]" />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
