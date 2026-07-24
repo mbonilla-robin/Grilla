@@ -3,85 +3,209 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { Building2 } from "lucide-react";
+import { GrillaCards } from "@/components/grilla/grilla-cards";
+import {
+  fetchGrillaPostsClient,
+  getCachedGrillaPosts,
+  seedGrillaPostsCache,
+} from "@/lib/grilla-posts-client";
 import { cn } from "@/lib/utils";
-import type { Organization } from "@/lib/types";
+import type { Organization, PostWithAssets } from "@/lib/types";
 
 interface GrillaOrgSwipeProps {
   organizations: Organization[];
   currentOrgId: string;
-  month?: string;
-  children: ReactNode;
+  month: string;
+  posts: PostWithAssets[];
 }
 
-const SWIPE_THRESHOLD = 72;
-const WHEEL_THRESHOLD = 90;
-const AXIS_LOCK_RATIO = 1.35;
-const MAX_DRAG = 140;
-const WHEEL_IDLE_MS = 140;
-const WHEEL_SCALE = 0.85;
+const SWIPE_THRESHOLD_RATIO = 0.18;
+const VELOCITY_THRESHOLD = 0.35;
+const AXIS_LOCK_RATIO = 1.2;
+const WHEEL_IDLE_MS = 130;
+const WHEEL_SCALE = 1.15;
+const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+const SNAP_MS = 320;
 
-function orgHref(orgId: string, month?: string) {
-  const qs = month ? `?month=${encodeURIComponent(month)}` : "";
-  return `/org/${orgId}/grilla${qs}`;
+function orgHref(orgId: string, month: string) {
+  return `/org/${orgId}/grilla?month=${encodeURIComponent(month)}`;
+}
+
+function PanelGrid({
+  orgId,
+  posts,
+  loading,
+}: {
+  orgId: string;
+  posts: PostWithAssets[] | undefined;
+  loading?: boolean;
+}) {
+  if (loading && !posts) {
+    return (
+      <div className="grid items-stretch gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-48 animate-pulse rounded-2xl border border-border bg-neutral-100"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  return <GrillaCards posts={posts || []} orgId={orgId} />;
 }
 
 export function GrillaOrgSwipe({
   organizations,
   currentOrgId,
   month,
-  children,
+  posts,
 }: GrillaOrgSwipeProps) {
   const router = useRouter();
   const index = organizations.findIndex((o) => o.id === currentOrgId);
   const canSwipe = organizations.length > 1 && index >= 0;
 
-  const prevOrg = canSwipe
-    ? organizations[(index - 1 + organizations.length) % organizations.length]
-    : null;
-  const nextOrg = canSwipe
-    ? organizations[(index + 1) % organizations.length]
-    : null;
+  const prevOrg = canSwipe && index > 0 ? organizations[index - 1] : null;
+  const nextOrg =
+    canSwipe && index < organizations.length - 1
+      ? organizations[index + 1]
+      : null;
 
-  const [offset, setOffset] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const [exiting, setExiting] = useState<"left" | "right" | null>(null);
+  const [neighborPosts, setNeighborPosts] = useState<
+    Record<string, PostWithAssets[]>
+  >(() => {
+    const initial: Record<string, PostWithAssets[]> = {
+      [currentOrgId]: posts,
+    };
+    if (prevOrg) {
+      const cached = getCachedGrillaPosts(prevOrg.id, month);
+      if (cached) initial[prevOrg.id] = cached;
+    }
+    if (nextOrg) {
+      const cached = getCachedGrillaPosts(nextOrg.id, month);
+      if (cached) initial[nextOrg.id] = cached;
+    }
+    return initial;
+  });
+  const [loadingNeighbors, setLoadingNeighbors] = useState<
+    Record<string, boolean>
+  >({});
 
-  const surfaceRef = useRef<HTMLDivElement>(null);
-  const startX = useRef(0);
-  const startY = useRef(0);
-  const axis = useRef<"undecided" | "horizontal" | "vertical">("undecided");
-  const offsetRef = useRef(0);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const widthRef = useRef(0);
+  const xRef = useRef(0);
   const navigating = useRef(false);
   const draggingRef = useRef(false);
-  const exitingRef = useRef<"left" | "right" | null>(null);
-  const canSwipeRef = useRef(canSwipe);
+  const axis = useRef<"undecided" | "horizontal" | "vertical">("undecided");
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const lastX = useRef(0);
+  const lastT = useRef(0);
+  const velocity = useRef(0);
+  const suppressClick = useRef(false);
+  const wheelAxis = useRef<"undecided" | "horizontal" | "vertical">("undecided");
+  const wheelIdleTimer = useRef<number | null>(null);
   const prevOrgRef = useRef(prevOrg);
   const nextOrgRef = useRef(nextOrg);
-  const wheelAxis = useRef<"undecided" | "horizontal" | "vertical">("undecided");
-  const wheelAccum = useRef(0);
-  const wheelIdleTimer = useRef<number | null>(null);
+  const canSwipeRef = useRef(canSwipe);
 
-  canSwipeRef.current = canSwipe;
   prevOrgRef.current = prevOrg;
   nextOrgRef.current = nextOrg;
-  exitingRef.current = exiting;
+  canSwipeRef.current = canSwipe;
+
+  // Keep server posts + cache in sync
+  useEffect(() => {
+    seedGrillaPostsCache(currentOrgId, month, posts);
+    setNeighborPosts((prev) => ({ ...prev, [currentOrgId]: posts }));
+  }, [currentOrgId, month, posts]);
+
+  // Prefetch adjacent org grids so swipe reveals real cards
+  useEffect(() => {
+    if (!canSwipe) return;
+    let cancelled = false;
+
+    async function load(orgId: string) {
+      const cached = getCachedGrillaPosts(orgId, month);
+      if (cached) {
+        if (!cancelled) {
+          setNeighborPosts((prev) => ({ ...prev, [orgId]: cached }));
+        }
+        return;
+      }
+      setLoadingNeighbors((prev) => ({ ...prev, [orgId]: true }));
+      const data = await fetchGrillaPostsClient(orgId, month);
+      if (cancelled) return;
+      setNeighborPosts((prev) => ({ ...prev, [orgId]: data }));
+      setLoadingNeighbors((prev) => ({ ...prev, [orgId]: false }));
+    }
+
+    if (prevOrg) void load(prevOrg.id);
+    if (nextOrg) void load(nextOrg.id);
+    if (prevOrg) router.prefetch(orgHref(prevOrg.id, month));
+    if (nextOrg) router.prefetch(orgHref(nextOrg.id, month));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canSwipe, prevOrg, nextOrg, month, router]);
+
+  const paint = useCallback((x: number, withTransition: boolean) => {
+    const track = trackRef.current;
+    const w = widthRef.current;
+    if (!track || !w) return;
+    xRef.current = x;
+    track.style.transition = withTransition
+      ? `transform ${SNAP_MS}ms ${EASE}`
+      : "none";
+    // Center panel sits at -w; drag shifts from there
+    track.style.transform = `translate3d(${-w + x}px, 0, 0)`;
+  }, []);
+
+  const paintRef = useRef(paint);
+  paintRef.current = paint;
+
+  useLayoutEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+
+    const update = () => {
+      widthRef.current = el.clientWidth;
+      // Reset to centered current panel after measure / org change
+      if (!navigating.current) {
+        paintRef.current(0, false);
+      }
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [canSwipe, currentOrgId]);
+
+  useEffect(() => {
+    navigating.current = false;
+    paintRef.current(0, false);
+  }, [currentOrgId]);
 
   const goTo = useCallback(
     (orgId: string, direction: "left" | "right") => {
       if (navigating.current || orgId === currentOrgId) return;
       navigating.current = true;
-      setExiting(direction);
-      exitingRef.current = direction;
-      setOffset(direction === "left" ? -MAX_DRAG * 1.4 : MAX_DRAG * 1.4);
+      suppressClick.current = true;
+
+      const w = widthRef.current || viewportRef.current?.clientWidth || 0;
+      // Slide fully to the neighbor grid, then sync the URL
+      paintRef.current(direction === "left" ? -w : w, true);
+
       window.setTimeout(() => {
         router.push(orgHref(orgId, month));
-      }, 160);
+      }, SNAP_MS - 40);
     },
     [currentOrgId, month, router]
   );
@@ -90,77 +214,75 @@ export function GrillaOrgSwipe({
   goToRef.current = goTo;
 
   useEffect(() => {
-    if (!canSwipe || !prevOrg || !nextOrg) return;
-    router.prefetch(orgHref(prevOrg.id, month));
-    router.prefetch(orgHref(nextOrg.id, month));
-  }, [canSwipe, prevOrg, nextOrg, month, router]);
-
-  useEffect(() => {
-    navigating.current = false;
-    setExiting(null);
-    exitingRef.current = null;
-    setOffset(0);
-    offsetRef.current = 0;
-    setDragging(false);
-    draggingRef.current = false;
-    wheelAxis.current = "undecided";
-    wheelAccum.current = 0;
-    if (wheelIdleTimer.current) {
-      window.clearTimeout(wheelIdleTimer.current);
-      wheelIdleTimer.current = null;
-    }
-  }, [currentOrgId]);
-
-  // Touch + trackpad (wheel) listeners
-  useEffect(() => {
-    const el = surfaceRef.current;
+    const el = viewportRef.current;
     if (!el || !canSwipe) return;
 
-    function resetOffset() {
-      setOffset(0);
-      offsetRef.current = 0;
+    function rubberBand(dx: number) {
+      const w = widthRef.current || 1;
+      const hasPrev = !!prevOrgRef.current;
+      const hasNext = !!nextOrgRef.current;
+
+      if (dx > 0 && !hasPrev) return dx * 0.22;
+      if (dx < 0 && !hasNext) return dx * 0.22;
+      if (dx > w) return w + (dx - w) * 0.12;
+      if (dx < -w) return -w + (dx + w) * 0.12;
+      return dx;
     }
 
-    function commitFromDelta(dx: number, threshold: number) {
-      if (dx <= -threshold && nextOrgRef.current) {
+    function setXLive(x: number) {
+      paintRef.current(rubberBand(x), false);
+    }
+
+    function snapBack() {
+      draggingRef.current = false;
+      paintRef.current(0, true);
+    }
+
+    function commitFromDelta(dx: number, vx: number) {
+      const w = widthRef.current || 1;
+      const threshold = Math.max(48, w * SWIPE_THRESHOLD_RATIO);
+      const flickNext = vx < -VELOCITY_THRESHOLD;
+      const flickPrev = vx > VELOCITY_THRESHOLD;
+
+      if ((dx <= -threshold || flickNext) && nextOrgRef.current) {
         goToRef.current(nextOrgRef.current.id, "left");
         return true;
       }
-      if (dx >= threshold && prevOrgRef.current) {
+      if ((dx >= threshold || flickPrev) && prevOrgRef.current) {
         goToRef.current(prevOrgRef.current.id, "right");
         return true;
       }
       return false;
     }
 
+    function isFormControl(target: EventTarget | null) {
+      const node = target as HTMLElement | null;
+      return !!node?.closest(
+        "input, textarea, select, [role='dialog'], [data-no-org-swipe]"
+      );
+    }
+
     function onTouchStart(e: TouchEvent) {
-      if (!canSwipeRef.current || navigating.current || exitingRef.current) {
-        return;
-      }
-      const target = e.target as HTMLElement | null;
-      if (
-        target?.closest(
-          "button, a, input, textarea, select, [role='dialog'], [data-no-org-swipe]"
-        )
-      ) {
+      if (!canSwipeRef.current || navigating.current) return;
+      if (isFormControl(e.target)) {
         axis.current = "vertical";
         return;
       }
+
       const t = e.touches[0];
       startX.current = t.clientX;
       startY.current = t.clientY;
+      lastX.current = t.clientX;
+      lastT.current = performance.now();
+      velocity.current = 0;
       axis.current = "undecided";
       draggingRef.current = true;
-      setDragging(true);
+      suppressClick.current = false;
+      paintRef.current(xRef.current, false);
     }
 
     function onTouchMove(e: TouchEvent) {
-      if (
-        !canSwipeRef.current ||
-        !draggingRef.current ||
-        navigating.current ||
-        exitingRef.current
-      ) {
+      if (!canSwipeRef.current || !draggingRef.current || navigating.current) {
         return;
       }
       if (axis.current === "vertical") return;
@@ -168,138 +290,116 @@ export function GrillaOrgSwipe({
       const t = e.touches[0];
       const dx = t.clientX - startX.current;
       const dy = t.clientY - startY.current;
+      const now = performance.now();
+      const dt = Math.max(1, now - lastT.current);
+      velocity.current = ((t.clientX - lastX.current) / dt) * (1000 / 60);
+      lastX.current = t.clientX;
+      lastT.current = now;
 
       if (axis.current === "undecided") {
-        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
         if (Math.abs(dy) * AXIS_LOCK_RATIO >= Math.abs(dx)) {
           axis.current = "vertical";
           draggingRef.current = false;
-          setDragging(false);
-          resetOffset();
+          paintRef.current(0, true);
           return;
         }
         axis.current = "horizontal";
+        suppressClick.current = true;
       }
 
-      if (axis.current === "horizontal" && e.cancelable) {
-        e.preventDefault();
-      }
-
-      const clamped = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, dx));
-      offsetRef.current = clamped;
-      setOffset(clamped);
+      if (axis.current === "horizontal" && e.cancelable) e.preventDefault();
+      setXLive(dx);
     }
 
     function onTouchEnd() {
       if (!canSwipeRef.current || navigating.current) return;
-      const dx = offsetRef.current;
+      if (!draggingRef.current) return;
       draggingRef.current = false;
-      setDragging(false);
 
       if (axis.current !== "horizontal") {
-        resetOffset();
+        paintRef.current(0, true);
         return;
       }
 
-      if (!commitFromDelta(dx, SWIPE_THRESHOLD)) {
-        resetOffset();
+      if (!commitFromDelta(xRef.current, velocity.current)) {
+        snapBack();
       }
+    }
+
+    function onClickCapture(e: MouseEvent) {
+      if (!suppressClick.current) return;
+      e.preventDefault();
+      e.stopPropagation();
+      suppressClick.current = false;
     }
 
     function finishWheelGesture() {
       wheelIdleTimer.current = null;
-      if (navigating.current || exitingRef.current) {
+      if (navigating.current) {
         wheelAxis.current = "undecided";
-        wheelAccum.current = 0;
         return;
       }
 
       const wasHorizontal = wheelAxis.current === "horizontal";
       wheelAxis.current = "undecided";
       draggingRef.current = false;
-      setDragging(false);
 
-      if (!wasHorizontal) {
-        wheelAccum.current = 0;
-        return;
-      }
+      if (!wasHorizontal) return;
 
-      const dx = offsetRef.current;
-      wheelAccum.current = 0;
-
-      if (!commitFromDelta(dx, WHEEL_THRESHOLD)) {
-        resetOffset();
+      if (!commitFromDelta(xRef.current, 0)) {
+        snapBack();
       }
     }
 
     function onWheel(e: WheelEvent) {
-      if (!canSwipeRef.current || navigating.current || exitingRef.current) {
-        return;
-      }
-      if (draggingRef.current && axis.current === "horizontal") return;
+      if (!canSwipeRef.current || navigating.current) return;
+      if (isFormControl(e.target)) return;
 
-      const target = e.target as HTMLElement | null;
-      if (
-        target?.closest(
-          "button, a, input, textarea, select, [role='dialog'], [data-no-org-swipe]"
-        )
-      ) {
-        return;
-      }
-
-      // Normalize line/page deltas to pixel-ish values
       const modeScale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 40 : 1;
       let dx = e.deltaX * modeScale;
       let dy = e.deltaY * modeScale;
 
-      // Some mice send horizontal via shift + vertical wheel
       if (e.shiftKey && Math.abs(dx) < Math.abs(dy)) {
         dx = dy;
         dy = 0;
       }
 
       if (wheelAxis.current === "undecided") {
-        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+        if (Math.abs(dx) < 1.2 && Math.abs(dy) < 1.2) return;
         if (Math.abs(dy) * AXIS_LOCK_RATIO >= Math.abs(dx)) {
           wheelAxis.current = "vertical";
         } else {
           wheelAxis.current = "horizontal";
           draggingRef.current = true;
-          setDragging(true);
+          paintRef.current(xRef.current, false);
         }
       }
 
       if (wheelAxis.current === "vertical") {
-        // Let the page scroll; reset after idle so next gesture can be horizontal
         if (wheelIdleTimer.current) window.clearTimeout(wheelIdleTimer.current);
         wheelIdleTimer.current = window.setTimeout(() => {
           wheelAxis.current = "undecided";
-          wheelAccum.current = 0;
           wheelIdleTimer.current = null;
         }, WHEEL_IDLE_MS);
         return;
       }
 
-      // Horizontal trackpad swipe — block browser back/forward + page scroll
       if (e.cancelable) e.preventDefault();
-
-      // Positive deltaX = fingers moved left = content to the left = next org
-      wheelAccum.current += dx;
-      const visual = Math.max(
-        -MAX_DRAG,
-        Math.min(MAX_DRAG, -wheelAccum.current * WHEEL_SCALE)
-      );
-      offsetRef.current = visual;
-      setOffset(visual);
+      setXLive(xRef.current - dx * WHEEL_SCALE);
 
       if (wheelIdleTimer.current) window.clearTimeout(wheelIdleTimer.current);
-      wheelIdleTimer.current = window.setTimeout(finishWheelGesture, WHEEL_IDLE_MS);
+      wheelIdleTimer.current = window.setTimeout(
+        finishWheelGesture,
+        WHEEL_IDLE_MS
+      );
     }
 
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd);
     el.addEventListener("touchcancel", onTouchEnd);
+    el.addEventListener("click", onClickCapture, true);
     el.addEventListener("wheel", onWheel, { passive: false });
 
     return () => {
@@ -307,63 +407,64 @@ export function GrillaOrgSwipe({
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
       el.removeEventListener("touchcancel", onTouchEnd);
+      el.removeEventListener("click", onClickCapture, true);
       el.removeEventListener("wheel", onWheel);
       if (wheelIdleTimer.current) window.clearTimeout(wheelIdleTimer.current);
     };
   }, [canSwipe]);
 
   if (!canSwipe) {
-    return <>{children}</>;
+    return <GrillaCards posts={posts} orgId={currentOrgId} />;
   }
 
-  const peekOrg = offset < -12 ? nextOrg : offset > 12 ? prevOrg : null;
-  const peekSide = offset < 0 ? "right" : "left";
-
   return (
-    <div className="relative overflow-hidden">
-      {peekOrg && (
+    <div className="space-y-5 md:space-y-6">
+      <div ref={viewportRef} className="relative w-full overflow-hidden">
         <div
-          className={cn(
-            "pointer-events-none absolute inset-y-0 z-10 flex w-16 items-center justify-center sm:w-20",
-            peekSide === "right" ? "right-0" : "left-0"
-          )}
-          aria-hidden
+          ref={trackRef}
+          className="flex w-[300%] will-change-transform"
+          style={{ touchAction: "pan-y" }}
         >
           <div
-            className={cn(
-              "flex max-w-[4.5rem] flex-col items-center gap-1.5 rounded-xl bg-brand/90 px-2 py-3 text-center shadow-sm",
-              peekSide === "right" ? "mr-1" : "ml-1"
-            )}
-            style={{
-              opacity: Math.min(1, Math.abs(offset) / SWIPE_THRESHOLD),
-              transform: `scale(${0.85 + Math.min(0.15, Math.abs(offset) / SWIPE_THRESHOLD / 6)})`,
-            }}
+            className="w-1/3 shrink-0 grow-0"
+            aria-hidden={!prevOrg}
+            style={{ pointerEvents: "none" }}
           >
-            <Building2 size={14} className="text-brand-foreground" />
-            <span className="line-clamp-3 text-[10px] font-semibold leading-tight text-brand-foreground">
-              {peekOrg.name}
-            </span>
+            {prevOrg ? (
+              <PanelGrid
+                orgId={prevOrg.id}
+                posts={neighborPosts[prevOrg.id]}
+                loading={loadingNeighbors[prevOrg.id]}
+              />
+            ) : (
+              <div className="min-h-[8rem]" />
+            )}
+          </div>
+
+          <div className="w-1/3 shrink-0 grow-0">
+            <PanelGrid orgId={currentOrgId} posts={posts} />
+          </div>
+
+          <div
+            className="w-1/3 shrink-0 grow-0"
+            aria-hidden={!nextOrg}
+            style={{ pointerEvents: "none" }}
+          >
+            {nextOrg ? (
+              <PanelGrid
+                orgId={nextOrg.id}
+                posts={neighborPosts[nextOrg.id]}
+                loading={loadingNeighbors[nextOrg.id]}
+              />
+            ) : (
+              <div className="min-h-[8rem]" />
+            )}
           </div>
         </div>
-      )}
-
-      <div
-        ref={surfaceRef}
-        className={cn(
-          "will-change-transform",
-          !dragging && "transition-transform duration-200 ease-out",
-          exiting && "transition-transform duration-150 ease-in opacity-80"
-        )}
-        style={{
-          transform: `translate3d(${offset}px, 0, 0)`,
-          touchAction: "pan-y",
-        }}
-      >
-        {children}
       </div>
 
       <div
-        className="mt-5 flex items-center justify-center gap-1.5 pb-1 md:mt-6"
+        className="flex items-center justify-center gap-1.5"
         role="tablist"
         aria-label="Organizaciones"
       >
@@ -376,11 +477,10 @@ export function GrillaOrgSwipe({
               role="tab"
               aria-selected={active}
               aria-label={org.name}
-              disabled={navigating.current || !!exiting}
+              disabled={navigating.current}
               onClick={() => {
                 if (active || navigating.current) return;
-                const direction = i > index ? "left" : "right";
-                goTo(org.id, direction);
+                goTo(org.id, i > index ? "left" : "right");
               }}
               className={cn(
                 "h-1.5 rounded-full transition-all",
