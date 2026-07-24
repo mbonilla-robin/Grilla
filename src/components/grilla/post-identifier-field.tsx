@@ -51,12 +51,11 @@ export function PostIdentifierField({
       <div className="space-y-1.5">
         <div className="flex items-baseline justify-between gap-2">
           <label className="text-sm text-muted">{config.label}</label>
-          {selectedIds.length > 0 && (
-            <span className="text-[10px] text-muted">
-              {selectedIds.length} seleccionad
-              {selectedIds.length === 1 ? "o" : "os"}
-            </span>
-          )}
+          <span className="text-[10px] text-muted">
+            {selectedIds.length > 0
+              ? `${selectedIds.length} seleccionad${selectedIds.length === 1 ? "o" : "os"}`
+              : "Puedes elegir varias"}
+          </span>
         </div>
 
         {identifiers.length === 0 ? (
