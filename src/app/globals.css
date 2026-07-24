@@ -867,7 +867,6 @@
     .auth-logo-intro,
     .auth-tagline-text,
     .landing-showcase-logo,
-    .landing-showcase-logo-assembly,
     .landing-showcase-line,
     .landing-cta-icon,
     .home-animate-in,
@@ -1175,8 +1174,9 @@
   }
 
   .landing-showcase-logo-assembly {
-    width: 10.5rem;
-    max-width: 10.5rem;
+    width: auto;
+    max-width: min(8rem, 42vw);
+    margin-inline: auto;
   }
 
   @media (min-width: 1024px) {
@@ -1185,8 +1185,7 @@
     }
 
     .landing-showcase-logo-assembly {
-      width: 12.5rem;
-      max-width: 12.5rem;
+      max-width: 9rem;
     }
   }
 
@@ -2023,11 +2022,11 @@
     page-break-inside: avoid;
   }
 
-  /* Grilla logo assembly sting — horizontal wordmark, black on light */
+  /* Grilla logo assembly sting — stacked square mark (gri / lla) */
   .logo-assembly {
     position: relative;
-    width: 100%;
-    max-width: 16rem;
+    display: block;
+    flex-shrink: 0;
     overflow: visible;
   }
 
@@ -2035,7 +2034,6 @@
     position: absolute;
     display: block;
     pointer-events: none;
-    opacity: 0;
     will-change: transform, opacity;
   }
 
@@ -2043,14 +2041,6 @@
     display: block;
     width: 100%;
     height: 100%;
-  }
-
-  .logo-assembly-playing .logo-assembly-letter {
-    animation-name: var(--logo-anim);
-    animation-duration: var(--logo-dur);
-    animation-timing-function: var(--logo-ease);
-    animation-delay: var(--logo-delay);
-    animation-fill-mode: forwards;
   }
 
   .logo-assembly-g {
@@ -2078,7 +2068,7 @@
   @keyframes logo-pop-g {
     0% {
       opacity: 0;
-      transform: translate(-120%, 8%) rotate(-28deg);
+      transform: translate(-42%, 6%) rotate(-42deg);
     }
     100% {
       opacity: 1;
@@ -2089,7 +2079,7 @@
   @keyframes logo-pop-r {
     0% {
       opacity: 0;
-      transform: translate(0, -110%) rotate(-8deg);
+      transform: translate(0, -95%) rotate(-8deg);
     }
     38% {
       opacity: 1;
@@ -2097,15 +2087,15 @@
     }
     52% {
       opacity: 1;
-      transform: rotate(-12deg) translate(-4%, 0);
+      transform: rotate(-14deg) translate(-3%, 0);
     }
     68% {
       opacity: 1;
-      transform: rotate(18deg) translate(10%, -2%);
+      transform: rotate(22deg) translate(8%, -2%);
     }
     84% {
       opacity: 1;
-      transform: rotate(-3deg);
+      transform: rotate(-4deg);
     }
     100% {
       opacity: 1;
@@ -2116,7 +2106,7 @@
   @keyframes logo-pop-i {
     0% {
       opacity: 0;
-      transform: translateY(-130%);
+      transform: translateY(-120%);
     }
     100% {
       opacity: 1;
@@ -2124,23 +2114,22 @@
     }
   }
 
-  /* Starts near the r, gets flicked onto the i */
   @keyframes logo-pop-idot {
     0% {
       opacity: 0;
-      transform: translate(-380%, 80%) scale(0.85) rotate(-20deg);
+      transform: translate(-620%, 150%) scale(0.85) rotate(-20deg);
     }
     12% {
       opacity: 1;
-      transform: translate(-380%, 80%) scale(0.85) rotate(-20deg);
+      transform: translate(-620%, 150%) scale(0.85) rotate(-20deg);
     }
     55% {
       opacity: 1;
-      transform: translate(-140%, -220%) rotate(18deg) scale(1.08);
+      transform: translate(-210%, -200%) rotate(18deg) scale(1.05);
     }
     82% {
       opacity: 1;
-      transform: translate(12%, 25%) rotate(-4deg);
+      transform: translate(10%, 20%) rotate(-4deg);
     }
     100% {
       opacity: 1;
@@ -2151,7 +2140,7 @@
   @keyframes logo-pop-l1 {
     0% {
       opacity: 0;
-      transform: translateY(70%);
+      transform: translateY(75%);
     }
     100% {
       opacity: 1;
@@ -2162,7 +2151,7 @@
   @keyframes logo-pop-l2 {
     0% {
       opacity: 0;
-      transform: translateY(-70%);
+      transform: translateY(-75%);
     }
     100% {
       opacity: 1;
@@ -2173,19 +2162,11 @@
   @keyframes logo-pop-a {
     0% {
       opacity: 0;
-      transform: translate(110%, 10%) rotate(20deg);
+      transform: translate(120%, 18%) rotate(24deg);
     }
     100% {
       opacity: 1;
       transform: none;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .logo-assembly-letter {
-      opacity: 1;
-      animation: none !important;
-      transform: none !important;
     }
   }
 }

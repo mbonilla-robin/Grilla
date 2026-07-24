@@ -13,7 +13,7 @@ const TAGLINES = [
   { line1: "Colabora", line2: "con tu equipo" },
 ] as const;
 
-const LOGO_HOLD_MS = 900;
+const LOGO_HOLD_MS = 1200;
 const LOGO_DURATION_MS = LOGO_ASSEMBLY_DURATION_MS + LOGO_HOLD_MS;
 const TAGLINE_DURATION_MS = 4000;
 
@@ -39,6 +39,7 @@ export function LandingHeroVisual() {
           <GrillaLogoAssembly
             key="logo-assembly"
             className="landing-showcase-logo-assembly"
+            width="8rem"
           />
         ) : tagline ? (
           <div key={step} className="landing-showcase-tagline" aria-live="polite">
