@@ -73,17 +73,17 @@ export function GrillaMonthFilter({ months }: GrillaMonthFilterProps) {
   if (months.length === 0) return null;
 
   return (
-    <div className="flex w-full items-center gap-1 md:gap-3">
+    <div className="flex w-full items-center gap-1 md:gap-2">
       <button
         type="button"
         onClick={() => shiftWindow(-1)}
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground transition-colors md:h-12 md:w-12"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground transition-colors"
         aria-label="Meses anteriores"
       >
-        <ChevronLeft className="h-3.5 w-3.5 md:h-[18px] md:w-[18px]" />
+        <ChevronLeft className="h-3.5 w-3.5" />
       </button>
 
-      <div className="grid min-w-0 flex-1 grid-cols-5 gap-1 md:gap-3">
+      <div className="grid min-w-0 flex-1 grid-cols-5 gap-1 md:gap-2">
         {windowMonths.map((value) => {
           const isActive = selected === value;
           const count = counts.get(value) ?? 0;
@@ -93,9 +93,7 @@ export function GrillaMonthFilter({ months }: GrillaMonthFilterProps) {
               type="button"
               onClick={() => selectMonth(value)}
               className={cn(
-                "inline-flex min-w-0 w-full items-center justify-center rounded-md border font-medium transition-colors",
-                "h-7 px-1 text-[11px] sm:text-xs",
-                "md:h-12 md:px-4 md:text-sm",
+                "inline-flex h-7 min-w-0 w-full items-center justify-center rounded-md border px-1 text-[11px] font-medium transition-colors sm:text-xs",
                 isActive
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground"
@@ -111,10 +109,10 @@ export function GrillaMonthFilter({ months }: GrillaMonthFilterProps) {
       <button
         type="button"
         onClick={() => shiftWindow(1)}
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground transition-colors md:h-12 md:w-12"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground transition-colors"
         aria-label="Meses siguientes"
       >
-        <ChevronRight className="h-3.5 w-3.5 md:h-[18px] md:w-[18px]" />
+        <ChevronRight className="h-3.5 w-3.5" />
       </button>
     </div>
   );
