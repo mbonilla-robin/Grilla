@@ -73,7 +73,7 @@ export function GrillaMonthFilter({ months }: GrillaMonthFilterProps) {
   if (months.length === 0) return null;
 
   return (
-    <div className="flex w-full min-w-0 max-w-full items-center gap-1 overflow-hidden">
+    <div className="flex w-full min-w-0 max-w-full items-center gap-1.5">
       <button
         type="button"
         onClick={() => shiftWindow(-1)}
@@ -83,7 +83,7 @@ export function GrillaMonthFilter({ months }: GrillaMonthFilterProps) {
         <ChevronLeft className="h-3.5 w-3.5" />
       </button>
 
-      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
         {windowMonths.map((value) => {
           const isActive = selected === value;
           const count = counts.get(value) ?? 0;
@@ -93,7 +93,7 @@ export function GrillaMonthFilter({ months }: GrillaMonthFilterProps) {
               type="button"
               onClick={() => selectMonth(value)}
               className={cn(
-                "inline-flex h-7 min-w-0 flex-1 basis-0 items-center justify-center rounded-md border px-0.5 text-[11px] font-medium transition-colors sm:px-1 sm:text-xs",
+                "box-border inline-flex h-7 min-w-0 flex-1 basis-0 items-center justify-center rounded-md border px-1 text-[11px] font-medium transition-colors sm:text-xs",
                 isActive
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-surface text-muted hover:bg-neutral-50 hover:text-foreground"
