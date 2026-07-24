@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { pruneDuplicatePosts } from "@/lib/post-dedupe";
 import { syncStalePostStatusesFromAssets } from "@/lib/post-status-sync";
 import { AddToGrillaButton } from "@/components/grilla/add-to-grilla-button";
+import { GrillaBrandButton } from "@/components/grilla/grilla-brand-button";
 import { GrillaCards } from "@/components/grilla/grilla-cards";
 import { GrillaMonthFilter } from "@/components/grilla/grilla-month-filter";
 import { getAvailableMonths, sortPostAssets } from "@/lib/utils";
@@ -16,6 +17,7 @@ import { getOrgIdentifiers } from "@/lib/org-identifiers-data";
 import { getOrgCatalogEvents } from "@/lib/calendar-data";
 import {
   PILLAR_OPTIONS,
+  type Organization,
   type OrgHashtagGroup,
   type PostAsset,
   type PostFormat,
@@ -77,6 +79,7 @@ export default async function GrillaPage({
     assignmentOptions,
     pillars,
     hashtagGroups,
+    { data: memberships },
     identifiers,
     catalogEvents,
   ] = await Promise.all([
@@ -90,9 +93,17 @@ export default async function GrillaPage({
     getPostAssignmentOptions(orgId),
     getOrgPillars(orgId),
     getOrgHashtagGroups(orgId),
+    supabase
+      .from("organization_members")
+      .select("organizations(*)")
+      .eq("user_id", user.id),
     getOrgIdentifiers(orgId),
     getOrgCatalogEvents(orgId),
   ]);
+
+  const organizations = (memberships || []).map(
+    (m) => m.organizations as unknown as Organization
+  );
 
   if (error) {
     console.error("Grilla query error:", error.message);
@@ -132,7 +143,12 @@ export default async function GrillaPage({
             Tarjetas editoriales · conectadas al Feed
           </p>
         </div>
-        <div className="shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
+          <GrillaBrandButton
+            organizations={organizations}
+            currentOrgId={orgId}
+            month={month}
+          />
           <AddToGrillaButton
             orgId={orgId}
             assignmentOptions={assignmentOptions}

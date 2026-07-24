@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { Logo } from "./logo";
 import { MobileTabBar } from "./mobile-tab-bar";
-import { HeaderOrgSwitcher } from "./header-org-switcher";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { CreateOrgDialog } from "@/components/org/create-org-dialog";
@@ -165,15 +164,11 @@ export function AppShell({
 
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-background">
         <header className="flex h-14 items-center justify-between gap-3 px-4 border-b border-border bg-surface shrink-0">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link href="/home" className="md:hidden shrink-0">
-              <Logo size="sm" showText={false} />
-            </Link>
-            <HeaderOrgSwitcher
-              organizations={organizations}
-              currentOrgId={currentOrgId}
-            />
-          </div>
+          <Link href="/home" className="md:hidden shrink-0">
+            <Logo size="sm" showText={false} />
+          </Link>
+          <span className="hidden md:block text-sm font-medium">Inicio</span>
+          <div className="md:hidden flex-1" />
           <NotificationBell userId={userId} initialCount={unreadNotifications} />
         </header>
         <div
