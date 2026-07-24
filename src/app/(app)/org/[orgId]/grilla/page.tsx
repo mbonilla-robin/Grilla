@@ -135,57 +135,53 @@ export default async function GrillaPage({
   const identifierConfig = org ? getOrgIdentifierConfig(org) : { label: null, allowPhoto: false, placeholder: null };
 
   return (
-    <div className="w-full pt-2 pb-4 sm:pt-3 sm:pb-6">
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
-        <div className="mb-4 flex flex-col items-center gap-4 md:mb-6 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0 text-center md:text-left">
-            <ProductionOrgContext
-              organizations={organizations}
-              currentOrgId={orgId}
-              page="grilla"
-              className="mb-1 md:mb-0.5"
-            />
-            <h1 className="text-title-sub">Grilla</h1>
-            <p className="text-xs text-muted mt-0.5">
-              Tarjetas editoriales · conectadas al Feed
-            </p>
-          </div>
-          <div className="w-full md:w-auto">
-            <AddToGrillaButton
-              orgId={orgId}
-              assignmentOptions={assignmentOptions}
-              currentUserId={user.id}
-              pillarOptions={pillarNames}
-              pillars={pillars}
-              hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
-              identifierConfig={identifierConfig}
-              identifiers={identifiers}
-              allowedFormats={allowedFormats}
-              catalogEvents={catalogEvents}
-              triggerClassName="w-full md:w-auto"
-            />
-          </div>
+    <div className="mx-auto w-full max-w-7xl px-4 pt-2 pb-4 sm:px-6 sm:pt-3 sm:pb-6">
+      <div className="mb-4 flex flex-col items-center gap-4 md:mb-6 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0 text-center md:text-left">
+          <ProductionOrgContext
+            organizations={organizations}
+            currentOrgId={orgId}
+            page="grilla"
+            className="mb-1 md:mb-0.5"
+          />
+          <h1 className="text-title-sub">Grilla</h1>
+          <p className="text-xs text-muted mt-0.5">
+            Tarjetas editoriales · conectadas al Feed
+          </p>
+        </div>
+        <div className="w-full md:w-auto">
+          <AddToGrillaButton
+            orgId={orgId}
+            assignmentOptions={assignmentOptions}
+            currentUserId={user.id}
+            pillarOptions={pillarNames}
+            pillars={pillars}
+            hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
+            identifierConfig={identifierConfig}
+            identifiers={identifiers}
+            allowedFormats={allowedFormats}
+            catalogEvents={catalogEvents}
+            triggerClassName="w-full md:w-auto"
+          />
         </div>
       </div>
 
       {availableMonths.length > 0 && (
-        <div className="mb-4 w-full px-4 sm:px-6 md:mb-6">
+        <div className="mb-4 w-full min-w-0 md:mb-6">
           <Suspense fallback={null}>
             <GrillaMonthFilter months={availableMonths} />
           </Suspense>
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
-        <GrillaCards
-          posts={enrichedPosts}
-          orgId={orgId}
-          pillarOptions={pillarNames}
-          hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
-          identifierConfig={identifierConfig}
-          identifiers={identifiers}
-        />
-      </div>
+      <GrillaCards
+        posts={enrichedPosts}
+        orgId={orgId}
+        pillarOptions={pillarNames}
+        hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
+        identifierConfig={identifierConfig}
+        identifiers={identifiers}
+      />
     </div>
   );
 }
