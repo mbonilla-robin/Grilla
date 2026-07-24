@@ -10,6 +10,16 @@ function shouldShowInitialLoading(): boolean {
   if (typeof window === "undefined") return false;
   if (initialLoadConsumed) return false;
 
+  const path = window.location.pathname;
+  if (
+    path === "/login" ||
+    path === "/register" ||
+    path.startsWith("/auth")
+  ) {
+    initialLoadConsumed = true;
+    return false;
+  }
+
   const nav = performance.getEntriesByType("navigation")[0] as
     | PerformanceNavigationTiming
     | undefined;

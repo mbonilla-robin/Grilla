@@ -8,6 +8,7 @@ import { AddToGrillaButton } from "@/components/grilla/add-to-grilla-button";
 import { GrillaBrandButton } from "@/components/grilla/grilla-brand-button";
 import { GrillaCards } from "@/components/grilla/grilla-cards";
 import { GrillaMonthFilter } from "@/components/grilla/grilla-month-filter";
+import { GrillaOrgSwipe } from "@/components/grilla/grilla-org-swipe";
 import { getAvailableMonths, sortPostAssets } from "@/lib/utils";
 import { getPostAssignmentOptions } from "@/lib/team-assignments";
 import { enrichPostsWithTeam } from "@/lib/post-team";
@@ -136,50 +137,56 @@ export default async function GrillaPage({
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 pt-2 pb-4 sm:px-6 sm:pt-3 sm:pb-6">
-      <div className="mb-4 flex items-start justify-between gap-4 md:mb-6">
-        <div className="min-w-0">
-          <h1 className="text-title-sub">Grilla</h1>
-          <p className="text-xs text-muted mt-0.5">
-            Tarjetas editoriales · conectadas al Feed
-          </p>
+      <GrillaOrgSwipe
+        organizations={organizations}
+        currentOrgId={orgId}
+        month={month}
+      >
+        <div className="mb-4 flex items-start justify-between gap-4 md:mb-6">
+          <div className="min-w-0">
+            <h1 className="text-title-sub">Grilla</h1>
+            <p className="text-xs text-muted mt-0.5">
+              Tarjetas editoriales · conectadas al Feed
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <GrillaBrandButton
+              organizations={organizations}
+              currentOrgId={orgId}
+              month={month}
+            />
+            <AddToGrillaButton
+              orgId={orgId}
+              assignmentOptions={assignmentOptions}
+              currentUserId={user.id}
+              pillarOptions={pillarNames}
+              pillars={pillars}
+              hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
+              identifierConfig={identifierConfig}
+              identifiers={identifiers}
+              allowedFormats={allowedFormats}
+              catalogEvents={catalogEvents}
+            />
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <GrillaBrandButton
-            organizations={organizations}
-            currentOrgId={orgId}
-            month={month}
-          />
-          <AddToGrillaButton
-            orgId={orgId}
-            assignmentOptions={assignmentOptions}
-            currentUserId={user.id}
-            pillarOptions={pillarNames}
-            pillars={pillars}
-            hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
-            identifierConfig={identifierConfig}
-            identifiers={identifiers}
-            allowedFormats={allowedFormats}
-            catalogEvents={catalogEvents}
-          />
-        </div>
-      </div>
 
-      {availableMonths.length > 0 && (
-        <div className="mb-4 w-full min-w-0 md:mb-6">
-          <Suspense fallback={null}>
-            <GrillaMonthFilter months={availableMonths} />
-          </Suspense>
-        </div>
-      )}
+        {availableMonths.length > 0 && (
+          <div className="mb-4 w-full min-w-0 md:mb-6">
+            <Suspense fallback={null}>
+              <GrillaMonthFilter months={availableMonths} />
+            </Suspense>
+          </div>
+        )}
 
-      <GrillaCards
-        posts={enrichedPosts}
-        orgId={orgId}
-        pillarOptions={pillarNames}
-        hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
-        identifierConfig={identifierConfig}
-        identifiers={identifiers}
-      />
+        <GrillaCards
+          posts={enrichedPosts}
+          orgId={orgId}
+          pillarOptions={pillarNames}
+          hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
+          identifierConfig={identifierConfig}
+          identifiers={identifiers}
+        />
+      </GrillaOrgSwipe>
     </div>
   );
 }
