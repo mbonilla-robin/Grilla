@@ -1706,11 +1706,21 @@ export async function reorderPostAssets(
         .update({ sort_order: index })
         .eq("id", id)
         .eq("post_id", postId)
+        .select("id")
     )
   );
 
   const failed = results.find((r) => r.error);
   if (failed?.error) return { error: failed.error.message };
+
+  // RLS can "succeed" with 0 rows updated when UPDATE is not allowed
+  const updatedCount = results.reduce(
+    (sum, r) => sum + (r.data?.length ?? 0),
+    0
+  );
+  if (updatedCount !== orderedIds.length) {
+    return { error: "No se pudo guardar el orden de los archivos" };
+  }
 
   revalidatePath(`/org/${orgId}/grilla/${postId}`);
   revalidatePath(`/org/${orgId}/grilla`);
