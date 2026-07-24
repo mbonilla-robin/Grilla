@@ -198,6 +198,7 @@ function slideColorRefs(
         slide.image_treatment,
         slide.layout,
         slide.visual_concept,
+        slide.video_prompt,
       ]
         .filter(Boolean)
         .join(" ")
@@ -210,22 +211,31 @@ function slideColorRefs(
 function isStructuredSlide(slide: DesignBriefSlide) {
   return Boolean(
     slide.visual_concept ||
+      slide.video_prompt ||
       slide.text_instructions ||
       slide.image_treatment ||
       slide.layout
   );
 }
 
+function isReelLikeFormat(format: DesignBrief["format"]) {
+  return format === "reel" || format === "video_carousel";
+}
+
 function StructuredSlide({
   slide,
+  format,
   showSlideNumber,
 }: {
   slide: DesignBriefSlide;
+  format: DesignBrief["format"];
   showSlideNumber?: boolean;
 }) {
   const formatLine =
     slide.format_label ||
     (slide.focus ? `Diseño de Post (Focus: ${slide.focus})` : null);
+  const reelLike = isReelLikeFormat(format);
+  const imageLabel = reelLike ? "Prompt imagen IA:" : "Concepto Visual:";
 
   return (
     <div className="brief-print-avoid-break rounded-lg border border-border px-4 py-4 space-y-4 bg-neutral-50/50">
@@ -248,7 +258,13 @@ function StructuredSlide({
       )}
 
       {slide.visual_concept && (
-        <VisualConceptDisplay text={slide.visual_concept} />
+        <VisualConceptDisplay text={slide.visual_concept} label={imageLabel} />
+      )}
+      {slide.video_prompt && (
+        <VisualConceptDisplay
+          text={slide.video_prompt}
+          label="Prompt video IA:"
+        />
       )}
       {slide.text_instructions && (
         <BriefSection label="Instrucciones de Texto:">
@@ -357,6 +373,7 @@ export function BriefDisplay({ brief }: { brief: DesignBrief }) {
           <StructuredSlide
             key={slide.slide}
             slide={slide}
+            format={brief.format}
             showSlideNumber={slides.length > 1}
           />
         ) : (

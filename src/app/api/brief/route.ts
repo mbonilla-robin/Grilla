@@ -55,18 +55,22 @@ export async function POST(request: Request) {
     post.format as PostFormat,
     configuredBrandKit,
     instructions,
-    {
-      label: org?.identifier_label || null,
-      values: identifierRefs
-        .map((ref) => ref.value)
-        .filter((value): value is string => !!value),
-      items: identifierRefs
+    (() => {
+      const items = identifierRefs
         .filter((ref) => ref.value)
         .map((ref) => ({
           value: ref.value as string,
           photoUrl: ref.photoUrl,
-        })),
-    }
+        }));
+      return {
+        label: org?.identifier_label || null,
+        values: identifierRefs
+          .map((ref) => ref.value)
+          .filter((value): value is string => !!value),
+        items,
+        has_reference_photos: items.some((item) => !!item.photoUrl),
+      };
+    })()
   );
 
   const existingHistory = (post.brief_history as unknown[]) || [];
@@ -119,7 +123,7 @@ const BRIEF_SYSTEM_PROMPT = `Eres un director creativo senior de social media pa
 IDIOMA (crítico — respeta siempre esta separación):
 - El copy del post (campo "copy") está en INGLÉS. Preserva ese texto tal cual en text_instructions — nunca lo traduzcas.
 - Las instrucciones del usuario (campo "instructions") llegan en ESPAÑOL. Léelas, interprétalas y aplícalas.
-- CONTENIDO DE DISEÑO → INGLÉS (lo que va en la pieza gráfica): execution_title, focus, format_label, visual_concept, text_instructions (copy + specs tipográficas), image_treatment, layout, nombres y roles de colores en colors_used.
+- CONTENIDO DE DISEÑO → INGLÉS (lo que va en la pieza gráfica): execution_title, focus, format_label, visual_concept, video_prompt (si aplica), text_instructions (copy + specs tipográficas), image_treatment, layout, nombres y roles de colores en colors_used.
 - COMUNICACIÓN INTERNA → ESPAÑOL (hablas al equipo creativo, no al post): strategic_note. Es contexto estratégico para quien produce el brief en la plataforma — siempre en español, tono directo y profesional.
 - Usa etiquetas en inglés dentro de text_instructions: Title, Subtitle, Body, Paragraph, CTA.
 
@@ -131,8 +135,9 @@ SIEMPRE responde en JSON con esta estructura exacta:
     {
       "slide": 1,
       "focus": "Creative focus in a few words (e.g. Professional Utility)",
-      "format_label": "Single Post Design (Focus: ...) — or 'Carousel Slide 1 (Focus: ...)' when applicable",
-      "visual_concept": "Detailed photography/art direction: shot type, environment, lighting, attitude, materials. Be specific and cinematic. Always in English.",
+      "format_label": "Single Post Design (Focus: ...) — or 'Carousel Slide 1 (Focus: ...)' / 'Reel (Focus: ...)' when applicable",
+      "visual_concept": "Ready-to-paste IMAGE generation prompt (English): shot type, environment, lighting, attitude, materials. Be specific and cinematic. If identifier reference photos exist, lock identity to those refs (see IDENTIFICADORES).",
+      "video_prompt": "ONLY when format is reel or video_carousel: ready-to-paste VIDEO generation prompt (English): vertical 9:16, motion, camera move, duration feel, pacing. If identifier refs exist, lock identity the same way. Omit this field for other formats.",
       "text_instructions": "Typographic specs preserving the creator's copy STRUCTURE for this slide (see format rules below). Copy in English.",
       "image_treatment": "...",
       "layout": "...",
@@ -216,9 +221,24 @@ ESTRUCTURA DEL COPY (crítico — no forzar siempre Título/Subtítulo):
   - Deja colors_used como array vacío en cada slide.
   - En strategic_note (en ESPAÑOL), indica que la marca no tiene Brand Kit y debe configurarse o coordinarse con el equipo.
 - El tono es "Industrial-Premium": minimalista pero contundente, documental, operacional.
-- Si el input incluye "identifier" con label, values y/o items (cada uno con value y photoUrl): úsalos como referencia de los sujetos del post (ej. placas de carros con foto). Si hay varios identificadores, menciónalos por separado en visual_concept cuando sea relevante.
-- Para carousels: un slide por tarjeta, cada uno con su propio focus y variación visual coherente.
-- Para reels/stories: adapta format_label y layout al formato vertical.
+IDENTIFICADORES / FOTOS DE REFERENCIA (crítico cuando el input trae "identifier"):
+- Si identifier tiene label, values y/o items (cada uno con value y photoUrl): son los sujetos reales del post (ej. placa de carro + foto del vehículo).
+- Cuando UN O MÁS items tienen photoUrl (no null): visual_concept (y video_prompt si aplica) DEBEN ser prompts listos para pegar en generadores de imagen/video con imagen de referencia adjunta.
+- En esos prompts, incluye de forma explícita e inequívoca (en inglés) instrucciones como:
+  · "Use the attached reference image as the exact identity of the subject; do not alter, reinvent, or stylize away its distinctive features."
+  · "Keep plate / markings / vehicle / subject appearance faithful to the reference — do not change identity, proportions, or key details."
+  · Nombra el identificador (value) cuando ayude (ej. plate ABC-123).
+- Si hay varios identificadores con foto, menciónalos por separado y pide usar cada referencia correspondiente sin mezclar identidades.
+- Si hay values pero SIN photoUrl: menciona el identificador en el prompt, pero no inventes una foto de referencia.
+- NUNCA digas "generate a similar vehicle/plate" cuando hay foto de referencia: el sujeto debe ser el de la referencia, no una variación.
+
+REELS Y VIDEO (obligatorio según format):
+- Si format es "reel" o "video_carousel": SIEMPRE incluye AMBOS campos en cada slide:
+  · visual_concept = prompt para generar IMAGEN con IA (frame/still vertical 9:16, listo para Midjourney/Flux/etc.).
+  · video_prompt = prompt para generar VIDEO con IA (motion, cámara, ritmo, duración implícita ~5–15s, vertical 9:16, listo para Runway/Kling/etc.).
+- Ambos prompts deben ser autocontenidos, en inglés, y respetar IDENTIFICADORES si hay fotos de referencia.
+- Si format es story (no reel): solo visual_concept; omite video_prompt. Adapta format_label y layout al formato vertical.
+- Para carousels (no video): un slide por tarjeta, cada uno con su propio focus y variación visual coherente; omite video_prompt.
 
 EJEMPLO DE REFERENCIA (sigue este nivel de detalle y tono):
 
@@ -264,6 +284,7 @@ async function generateBrief(
     label: string | null;
     values: string[];
     items: Array<{ value: string; photoUrl: string | null }>;
+    has_reference_photos?: boolean;
   }
 ): Promise<DesignBrief> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
@@ -320,6 +341,7 @@ async function callGemini(
       label: string | null;
       values: string[];
       items: Array<{ value: string; photoUrl: string | null }>;
+      has_reference_photos?: boolean;
     };
   }
 ): Promise<DesignBrief | null> {
@@ -424,11 +446,15 @@ function normalizeBrief(
   const configured = isBrandKitConfigured(brandKit);
   let slides = raw.slides as DesignBriefSlide[];
   const hasStructured = slides.some(
-    (s) => s.visual_concept || s.text_instructions
+    (s) => s.visual_concept || s.video_prompt || s.text_instructions
   );
   const hasLegacy = slides.some((s) => s.title || s.image_prompt);
 
   if (!hasStructured && !hasLegacy) return null;
+
+  const resolvedFormat = (raw.format as PostFormat) || fallbackFormat;
+  const wantsVideoPrompt =
+    resolvedFormat === "reel" || resolvedFormat === "video_carousel";
 
   if (!configured) {
     slides = slides.map((s) => ({
@@ -437,12 +463,20 @@ function normalizeBrief(
     }));
   }
 
-  slides = slides.map((s) => ({
-    ...s,
-    text_instructions: s.text_instructions
-      ? postProcessTextInstructions(s.text_instructions)
-      : s.text_instructions,
-  }));
+  slides = slides.map((s) => {
+    const videoPrompt =
+      wantsVideoPrompt && typeof s.video_prompt === "string" && s.video_prompt.trim()
+        ? s.video_prompt.trim()
+        : undefined;
+
+    return {
+      ...s,
+      video_prompt: videoPrompt,
+      text_instructions: s.text_instructions
+        ? postProcessTextInstructions(s.text_instructions)
+        : s.text_instructions,
+    };
+  });
 
   const rawExecutionTitle =
     typeof raw.execution_title === "string" ? raw.execution_title : undefined;
@@ -453,7 +487,7 @@ function normalizeBrief(
     : undefined;
 
   return {
-    format: (raw.format as PostFormat) || fallbackFormat,
+    format: resolvedFormat,
     execution_title: rawExecutionTitle
       ? truncateExecutionTitle(rawExecutionTitle)
       : undefined,
@@ -503,10 +537,16 @@ function generateMockBrief(
       ])
     : undefined;
 
+  const wantsVideoPrompt = format === "reel" || format === "video_carousel";
+
   const slides: DesignBriefSlide[] = Array.from({ length: slideCount }, (_, i) => {
     const source = slideSources[i];
     const slideContent = source?.content || `[contenido slide ${i + 1}]`;
     const slideLabel = source?.label;
+    const visualConcept =
+      i === 0
+        ? `Wide-angle documentary photography related to "${title}". Real work environment, natural lighting, ready-for-action attitude. No plastic retouching.${wantsVideoPrompt ? " Vertical 9:16 still frame." : ""}`
+        : `Complementary visual for slide ${i + 1}, consistent with the Industrial-Premium aesthetic of "${title}".${wantsVideoPrompt ? " Vertical 9:16 still frame." : ""}`;
 
     return {
       slide: i + 1,
@@ -514,11 +554,15 @@ function generateMockBrief(
       format_label:
         slideCount > 1
           ? `Carousel Slide ${i + 1}${slideLabel ? ` (${slideLabel})` : ""} (Focus: ${slideLabel || `Content ${i + 1}`})`
-          : "Single Post Design (Focus: Primary focus)",
-      visual_concept:
-        i === 0
-          ? `Wide-angle documentary photography related to "${title}". Real work environment, natural lighting, ready-for-action attitude. No plastic retouching.`
-          : `Complementary visual for slide ${i + 1}, consistent with the Industrial-Premium aesthetic of "${title}".`,
+          : wantsVideoPrompt
+            ? "Reel Design (Focus: Primary focus)"
+            : "Single Post Design (Focus: Primary focus)",
+      visual_concept: visualConcept,
+      ...(wantsVideoPrompt
+        ? {
+            video_prompt: `Vertical 9:16 cinematic clip related to "${title}". Slow documentary push-in, natural lighting, ready-for-action attitude, subtle ambient motion, no plastic retouching. Keep subject identity locked if a reference image is attached.`,
+          }
+        : {}),
       text_instructions: postProcessTextInstructions(
         formatSlideCopyAsTextInstructions(
           slideContent,

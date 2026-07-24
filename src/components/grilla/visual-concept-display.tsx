@@ -35,9 +35,13 @@ function ColorRichText({ text }: { text: string }) {
 
 interface VisualConceptDisplayProps {
   text: string;
+  label?: string;
 }
 
-export function VisualConceptDisplay({ text }: VisualConceptDisplayProps) {
+export function VisualConceptDisplay({
+  text,
+  label = "Concepto Visual:",
+}: VisualConceptDisplayProps) {
   const [lang, setLang] = useState<"en" | "es">("en");
   const [spanish, setSpanish] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -76,7 +80,7 @@ export function VisualConceptDisplay({ text }: VisualConceptDisplayProps) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-1.5">
-        <p className="text-xs font-semibold text-foreground">Concepto Visual:</p>
+        <p className="text-xs font-semibold text-foreground">{label}</p>
         <button
           type="button"
           onClick={toggleLanguage}

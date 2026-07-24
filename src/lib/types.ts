@@ -158,7 +158,10 @@ export interface DesignBriefSlide {
   slide: number;
   focus?: string;
   format_label?: string;
+  /** Prompt listo para generar imagen con IA (siempre en inglés). */
   visual_concept?: string;
+  /** Prompt listo para generar video con IA — solo reels / video_carousel. */
+  video_prompt?: string;
   text_instructions?: string;
   image_treatment?: string;
   layout?: string;
