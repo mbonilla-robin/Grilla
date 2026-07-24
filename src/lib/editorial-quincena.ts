@@ -27,6 +27,15 @@ const REVIEW_READY_STATUSES: PostStatus[] = [
   "published",
 ];
 
+/** Posts activos en el flujo editorial (excluye suspendidos) */
+export function isActiveCadencePost(post: Pick<CadencePost, "status">): boolean {
+  return post.status !== "suspendido";
+}
+
+export function activeCadencePosts(posts: CadencePost[]): CadencePost[] {
+  return posts.filter(isActiveCadencePost);
+}
+
 export function postQuincena(scheduledAt: string): QuincenaId | null {
   const date = new Date(scheduledAt);
   if (Number.isNaN(date.getTime())) return null;
@@ -63,17 +72,19 @@ export function filterPostsForQuincena(
 }
 
 export function creatorHasUploadedGrids(posts: CadencePost[]): boolean {
-  return posts.length > 0;
+  return activeCadencePosts(posts).length > 0;
 }
 
 export function allPostsInReview(posts: CadencePost[]): boolean {
-  if (posts.length === 0) return false;
-  return posts.every((post) => post.status === "review");
+  const active = activeCadencePosts(posts);
+  if (active.length === 0) return false;
+  return active.every((post) => post.status === "review");
 }
 
 export function allPostsHandedToCm(posts: CadencePost[]): boolean {
-  if (posts.length === 0) return false;
-  return posts.every((post) => REVIEW_READY_STATUSES.includes(post.status));
+  const active = activeCadencePosts(posts);
+  if (active.length === 0) return false;
+  return active.every((post) => REVIEW_READY_STATUSES.includes(post.status));
 }
 
 export function getCadencePublishRange(now: Date): { start: string; end: string } {

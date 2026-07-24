@@ -8,11 +8,21 @@ export const PRE_REVIEW_ASSET_STATUSES: PostStatus[] = [
   "ajustes",
 ];
 
+/** Post fuera del flujo de publicación / diseño */
+export const SUSPENDED_STATUS = "suspendido" as const;
+
+export function isSuspendedStatus(
+  status: string | undefined | null
+): boolean {
+  return status === SUSPENDED_STATUS;
+}
+
 /** Estado visible/efectivo: con archivos en pre-revisión → en revisión */
 export function effectivePostStatus(
   status: PostStatus,
   assetCount: number
 ): PostStatus {
+  if (isSuspendedStatus(status)) return SUSPENDED_STATUS;
   if (assetCount > 0 && PRE_REVIEW_ASSET_STATUSES.includes(status)) {
     return "review";
   }
@@ -64,16 +74,26 @@ export const WORKFLOW_PHASES = [
 
 export type WorkflowPhaseKey = (typeof WORKFLOW_PHASES)[number]["key"];
 
+/** Valor del select de estado: fase del flujo o suspendido */
+export type StatusSelectValue = WorkflowPhaseKey | typeof SUSPENDED_STATUS;
+
 export function workflowPhaseFromStatus(
   status: string | undefined | null
 ): WorkflowPhaseKey {
-  if (!status) return "contenido";
+  if (!status || isSuspendedStatus(status)) return "contenido";
   for (const phase of WORKFLOW_PHASES) {
     if (phase.statuses.includes(status as PostStatus)) {
       return phase.key;
     }
   }
   return "contenido";
+}
+
+export function statusSelectValueFromStatus(
+  status: string | undefined | null
+): StatusSelectValue {
+  if (isSuspendedStatus(status)) return SUSPENDED_STATUS;
+  return workflowPhaseFromStatus(status);
 }
 
 export function representativeStatusForPhase(phase: WorkflowPhaseKey): PostStatus {
@@ -94,6 +114,7 @@ export function workflowPhaseProgress(phase: WorkflowPhaseKey): number {
 }
 
 export function currentPhaseIndex(status: PostStatus): number {
+  if (isSuspendedStatus(status)) return -1;
   const phase = workflowPhaseFromStatus(status);
   const idx = WORKFLOW_PHASES.findIndex((p) => p.key === phase);
   return idx === -1 ? 0 : idx;

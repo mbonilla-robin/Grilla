@@ -15,6 +15,7 @@ const POST_CLOSED_STATUSES = new Set([
   "approved",
   "scheduled",
   "published",
+  "suspendido",
 ]);
 
 export function normalizeTaskStatus(status: string): TaskStatus {
@@ -63,6 +64,9 @@ export function taskStatusFromPost(
   postStatus: string,
   hasAssets: boolean
 ): TaskStatus {
+  if (postStatus === "suspendido") {
+    return "aprobado";
+  }
   if (["approved", "scheduled", "published"].includes(postStatus)) {
     return "aprobado";
   }
@@ -216,7 +220,11 @@ export async function syncTasksForPost(
   await setTasksStatusForPost(supabase, postId, newStatus);
 
   const assignee = task?.[0]?.assigned_to;
-  if (assignee && prevEffective !== newStatus) {
+  if (
+    assignee &&
+    prevEffective !== newStatus &&
+    post.status !== "suspendido"
+  ) {
     const { notifyTaskStatusChange } = await import("@/lib/notifications");
     await notifyTaskStatusChange(
       post.organization_id,

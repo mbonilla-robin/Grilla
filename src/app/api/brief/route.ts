@@ -92,9 +92,11 @@ export async function POST(request: Request) {
     .eq("post_id", postId);
 
   if ((assetCount ?? 0) > 0) {
-    const { syncPostStatusFromAssets } = await import("@/lib/post-status-sync");
-    await syncPostStatusFromAssets(supabase, postId, orgId);
-  } else {
+    if (post.status !== "suspendido") {
+      const { syncPostStatusFromAssets } = await import("@/lib/post-status-sync");
+      await syncPostStatusFromAssets(supabase, postId, orgId);
+    }
+  } else if (post.status !== "suspendido") {
     await supabase
       .from("posts")
       .update({ status: "brief_ready" })

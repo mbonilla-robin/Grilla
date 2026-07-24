@@ -21,6 +21,13 @@ export function parseIdentifierValues(raw: string): string[] {
     .filter(Boolean);
 }
 
+export function formatIdentifierValues(values: string[]): string {
+  return values
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .join(" / ");
+}
+
 function resolveIdentifierInCatalog(
   value: string,
   catalog: OrgIdentifier[]
@@ -61,10 +68,65 @@ function resolveIdentifierInCatalog(
   return { value, photoUrl: null, catalogId: null };
 }
 
+/**
+ * Resolve all identifiers for a post.
+ * Multi-value `plate` ("A / B") expands to multiple refs; single FK / photo
+ * override still works for one-identifier posts.
+ */
 export function resolvePostIdentifierReferences(
   post: Pick<Post, "plate" | "org_identifier_id" | "identifier_photo_url">,
   catalog: OrgIdentifier[]
 ): ResolvedPostIdentifier[] {
+  const plateValues = post.plate?.trim()
+    ? parseIdentifierValues(post.plate)
+    : [];
+
+  if (plateValues.length > 1) {
+    return plateValues.map((value) =>
+      resolveIdentifierInCatalog(value, catalog)
+    );
+  }
+
+  if (plateValues.length === 1) {
+    if (post.org_identifier_id) {
+      const byId = catalog.find((item) => item.id === post.org_identifier_id);
+      if (byId) {
+        return [
+          {
+            value: byId.value,
+            photoUrl: post.identifier_photo_url || byId.photo_url,
+            catalogId: byId.id,
+          },
+        ];
+      }
+    }
+
+    const resolved = resolveIdentifierInCatalog(plateValues[0], catalog);
+    if (post.identifier_photo_url) {
+      return [
+        {
+          ...resolved,
+          photoUrl: post.identifier_photo_url,
+          catalogId: post.org_identifier_id ?? resolved.catalogId,
+        },
+      ];
+    }
+    return [resolved];
+  }
+
+  if (post.org_identifier_id) {
+    const byId = catalog.find((item) => item.id === post.org_identifier_id);
+    if (byId) {
+      return [
+        {
+          value: byId.value,
+          photoUrl: post.identifier_photo_url || byId.photo_url,
+          catalogId: byId.id,
+        },
+      ];
+    }
+  }
+
   if (post.identifier_photo_url) {
     return [
       {
@@ -75,25 +137,7 @@ export function resolvePostIdentifierReferences(
     ];
   }
 
-  if (post.org_identifier_id) {
-    const byId = catalog.find((item) => item.id === post.org_identifier_id);
-    if (byId) {
-      return [
-        {
-          value: byId.value,
-          photoUrl: byId.photo_url,
-          catalogId: byId.id,
-        },
-      ];
-    }
-  }
-
-  if (!post.plate?.trim()) return [];
-
-  const values = parseIdentifierValues(post.plate);
-  if (values.length === 0) return [];
-
-  return values.map((value) => resolveIdentifierInCatalog(value, catalog));
+  return [];
 }
 
 /** First resolved identifier with a photo, or the first entry overall. */
@@ -107,4 +151,43 @@ export function resolvePostIdentifierReference(
   }
 
   return refs.find((ref) => ref.photoUrl) ?? refs[0];
+}
+
+/** Catalog IDs currently selected for a post (from plate + FK). */
+export function selectedIdentifierIdsFromPost(
+  post: Pick<Post, "plate" | "org_identifier_id" | "identifier_photo_url">,
+  catalog: OrgIdentifier[]
+): string[] {
+  const refs = resolvePostIdentifierReferences(post, catalog);
+  const ids = refs
+    .map((ref) => ref.catalogId)
+    .filter((id): id is string => Boolean(id));
+
+  if (ids.length > 0) return [...new Set(ids)];
+  if (post.org_identifier_id) return [post.org_identifier_id];
+  return [];
+}
+
+/** Build plate / primary FK / photo fields from a multi-select of catalog IDs. */
+export function selectionFromIdentifierIds(
+  ids: string[],
+  catalog: OrgIdentifier[]
+): {
+  id: string | null;
+  value: string;
+  photoUrl: string | null;
+} {
+  const selected = ids
+    .map((id) => catalog.find((item) => item.id === id))
+    .filter((item): item is OrgIdentifier => Boolean(item));
+
+  if (selected.length === 0) {
+    return { id: null, value: "", photoUrl: null };
+  }
+
+  return {
+    id: selected[0].id,
+    value: formatIdentifierValues(selected.map((item) => item.value)),
+    photoUrl: selected.length === 1 ? selected[0].photo_url : null,
+  };
 }

@@ -3,12 +3,14 @@ import {
   type QuincenaId,
 } from "@/lib/editorial-cadence";
 import {
+  activeCadencePosts,
   allPostsHandedToCm,
   creatorHasUploadedGrids,
   type QuincenaBoardSnapshot,
 } from "@/lib/editorial-quincena";
 import {
   WORKFLOW_PHASES,
+  isSuspendedStatus,
   workflowPhaseProgress,
   type WorkflowPhaseKey,
 } from "@/lib/post-progress";
@@ -91,18 +93,20 @@ function analyzeQuincenaPosts(posts: QuincenaBoardSnapshot["posts"]) {
     aprobado: 0,
   };
 
+  const active = activeCadencePosts(posts);
   let progressSum = 0;
 
-  for (const post of posts) {
+  for (const post of active) {
+    if (isSuspendedStatus(post.status)) continue;
     const phase = postWorkflowPhase(post.status);
     phases[phase] += 1;
     progressSum += workflowPhaseProgress(phase);
   }
 
   const averageProgressPct =
-    posts.length === 0 ? 0 : Math.round(progressSum / posts.length);
+    active.length === 0 ? 0 : Math.round(progressSum / active.length);
 
-  return { phases, averageProgressPct };
+  return { phases, averageProgressPct, activeCount: active.length };
 }
 
 function formatProgressSummary(phases: QuincenaPhaseBreakdown): string {
@@ -185,7 +189,7 @@ function getMilestone(
   );
 
   if (!ctx) return "";
-  if (board.posts.length === 0) return "Sin posts programados";
+  if (activeCadencePosts(board.posts).length === 0) return "Sin posts programados";
   if (allPostsHandedToCm(board.posts)) {
     return "Entregado al community manager";
   }
@@ -265,7 +269,11 @@ function pickBoardsForDisplay(
   options: { maxPerOrg?: number; max?: number }
 ): QuincenaBoardSnapshot[] {
   const active = boards
-    .filter((board) => isActiveQuincenaBoard(board, now) && board.posts.length > 0)
+    .filter(
+      (board) =>
+        isActiveQuincenaBoard(board, now) &&
+        activeCadencePosts(board.posts).length > 0
+    )
     .sort((a, b) => {
       const orgCmp = a.orgName.localeCompare(b.orgName, "es");
       if (orgCmp !== 0) return orgCmp;
@@ -293,14 +301,16 @@ function boardToCard(
   roles: MemberRole[],
   now: Date
 ): QuincenaProgressCard {
-  const { phases, averageProgressPct } = analyzeQuincenaPosts(board.posts);
+  const { phases, averageProgressPct, activeCount } = analyzeQuincenaPosts(
+    board.posts
+  );
 
   return {
     id: `${board.orgId}-${board.quincena}-${board.publishYear}-${board.publishMonth}`,
     orgId: board.orgId,
     orgName: board.orgName,
     title: formatBoardTitle(board),
-    totalCount: board.posts.length,
+    totalCount: activeCount,
     phases,
     averageProgressPct,
     summaryText: formatProgressSummary(phases),

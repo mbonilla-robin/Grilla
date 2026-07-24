@@ -42,6 +42,7 @@ export const statusBadgeStyles: Record<PostStatus, string> = {
   approved: "bg-brand-dark text-brand-foreground",
   scheduled: "bg-brand-dark text-brand-foreground",
   published: "bg-brand-dark text-brand-foreground",
+  suspendido: "bg-neutral-100 text-muted border border-border",
 };
 
 export const statusDotStyles: Record<PostStatus, string> = {
@@ -53,6 +54,7 @@ export const statusDotStyles: Record<PostStatus, string> = {
   approved: "bg-brand-dark",
   scheduled: "bg-brand-dark",
   published: "bg-brand-dark",
+  suspendido: "bg-neutral-300 border border-border",
 };
 
 export const statusCalendarStyles: Record<string, string> = {
@@ -64,4 +66,5 @@ export const statusCalendarStyles: Record<string, string> = {
   approved: "bg-brand-dark text-brand-foreground",
   scheduled: "bg-brand-dark text-brand-foreground",
   published: "bg-brand-dark text-brand-foreground",
+  suspendido: "bg-neutral-100 text-muted border border-border line-through",
 };

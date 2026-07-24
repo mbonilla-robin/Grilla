@@ -54,10 +54,11 @@ import { cn } from "@/lib/utils";
 import { PostPhaseTimeline } from "@/components/grilla/post-phase-timeline";
 import {
   WORKFLOW_PHASES,
+  SUSPENDED_STATUS,
   effectivePostStatus,
   representativeStatusForPhase,
-  workflowPhaseFromStatus,
-  type WorkflowPhaseKey,
+  statusSelectValueFromStatus,
+  type StatusSelectValue,
 } from "@/lib/post-progress";
 
 const formatIcons: Record<PostFormat, typeof ImageIcon> = {
@@ -166,8 +167,11 @@ export function PostDetail({
     };
   }, [designPanelOpen]);
 
-  async function handlePhaseChange(phase: WorkflowPhaseKey) {
-    const newStatus = representativeStatusForPhase(phase);
+  async function handleStatusSelectChange(value: StatusSelectValue) {
+    const newStatus =
+      value === SUSPENDED_STATUS
+        ? SUSPENDED_STATUS
+        : representativeStatusForPhase(value);
     setStatus(newStatus);
     await updatePostStatus(post.id, newStatus, orgId);
   }
@@ -204,9 +208,9 @@ export function PostDetail({
     <div className="space-y-1 border-b border-border pb-6">
       <PropertyRow label="Estado">
         <select
-          value={workflowPhaseFromStatus(status)}
+          value={statusSelectValueFromStatus(status)}
           onChange={(e) =>
-            handlePhaseChange(e.target.value as WorkflowPhaseKey)
+            handleStatusSelectChange(e.target.value as StatusSelectValue)
           }
           className="h-7 rounded-md border border-border bg-surface px-2 text-xs focus:outline-none focus:ring-1 focus:ring-foreground/10"
         >
@@ -215,6 +219,7 @@ export function PostDetail({
               {phase.label}
             </option>
           ))}
+          <option value={SUSPENDED_STATUS}>Suspendido</option>
         </select>
       </PropertyRow>
 
@@ -236,7 +241,7 @@ export function PostDetail({
         <PropertyRow label="Pilar">
           <span className="inline-flex items-center gap-1.5 text-sm">
             <Tag size={13} className="text-muted opacity-60" />
-            {post.pillar}
+            {post.pillar.replace(/\s*\/\s*/g, " · ")}
           </span>
         </PropertyRow>
       )}
@@ -409,9 +414,12 @@ export function PostDetail({
       <BriefPanel
         postId={post.id}
         orgId={orgId}
+        postTitle={post.title}
         initialBrief={post.brief}
         initialHistory={briefHistory}
-        onStatusChange={setStatus}
+        onStatusChange={(next) =>
+          setStatus((prev) => (prev === "suspendido" ? prev : next))
+        }
       />
     </>
   );

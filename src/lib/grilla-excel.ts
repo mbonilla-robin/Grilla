@@ -1,5 +1,6 @@
 import type { PostFormat } from "@/lib/types";
 import { FORMAT_LABELS } from "@/lib/types";
+import { formatPillars, resolvePillarsFromRaw } from "@/lib/pillars";
 
 export interface ExcelGrillaRow {
   id: string;
@@ -156,18 +157,12 @@ export async function parseGrillaExcelFile(
     if (!date) errors.push("Fecha inválida o vacía");
 
     const pillarRaw = String(values.pillar ?? "").trim();
-    const pillar =
-      pillarRaw &&
-      options.pillarOptions.some(
-        (p) => p.toLowerCase() === pillarRaw.toLowerCase()
-      )
-        ? options.pillarOptions.find(
-            (p) => p.toLowerCase() === pillarRaw.toLowerCase()
-          )!
-        : pillarRaw || options.pillarOptions[0] || "";
-    if (pillarRaw && !options.pillarOptions.some((p) => p === pillar)) {
-      errors.push(`Pilar desconocido: ${pillarRaw}`);
-    }
+    const { pillars, errors: pillarErrors } = resolvePillarsFromRaw(
+      pillarRaw,
+      options.pillarOptions
+    );
+    errors.push(...pillarErrors);
+    const pillar = formatPillars(pillars);
 
     const format = parseFormat(values.format, options.allowedFormats);
     if (!format) errors.push("Formato inválido");
@@ -211,12 +206,12 @@ export async function downloadGrillaTemplate() {
   ];
   const example = [
     "2026-08-01",
-    "Valor",
+    "Valor / Ventas",
     "reel",
     "Ejemplo de título",
     "Slide 1: Intro\nSlide 2: CTA",
     "Caption de la publicación",
-    "",
+    "A72DR7V / A75DR7V",
     "no",
     "https://ejemplo.com",
   ];

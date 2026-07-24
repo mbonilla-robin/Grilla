@@ -11,6 +11,7 @@ export interface GrillaSlot {
   caption: string;
   plate: string;
   orgIdentifierId: string | null;
+  orgIdentifierIds: string[];
   identifierPhotoUrl: string | null;
   inDrive: boolean;
   references: string;
@@ -59,6 +60,7 @@ export function createSlot(
     caption: "",
     plate: "",
     orgIdentifierId: null,
+    orgIdentifierIds: [],
     identifierPhotoUrl: null,
     inDrive: false,
     references: "",
@@ -243,7 +245,7 @@ export function rebuildSlotsForDates(
 
   return dates.flatMap((date) =>
     byDate[date]?.length
-      ? byDate[date]
+      ? byDate[date].map((slot) => normalizeGrillaSlot(slot))
       : [createSlot(date, defaults)]
   );
 }
@@ -309,10 +311,36 @@ export function slotHasContent(
   if (slot.caption.trim()) return true;
   if (slot.plate.trim()) return true;
   if (slot.orgIdentifierId) return true;
+  if (slot.orgIdentifierIds?.length) return true;
   if (slot.references.trim()) return true;
   if (slot.pillar !== defaults.pillar) return true;
   if (slot.format !== defaults.format) return true;
   return false;
+}
+
+export function normalizeGrillaSlot(slot: Partial<GrillaSlot> & Pick<GrillaSlot, "id" | "date">): GrillaSlot {
+  const base = createSlot(slot.date, {
+    pillar: slot.pillar || "Valor",
+    format: (slot.format as PostFormat) || "image",
+  });
+  const ids =
+    slot.orgIdentifierIds?.length
+      ? slot.orgIdentifierIds
+      : slot.orgIdentifierId
+        ? [slot.orgIdentifierId]
+        : [];
+
+  return {
+    ...base,
+    ...slot,
+    format: (slot.format as PostFormat) || base.format,
+    pillar: slot.pillar ?? base.pillar,
+    orgIdentifierIds: ids,
+    orgIdentifierId: slot.orgIdentifierId ?? ids[0] ?? null,
+    identifierPhotoUrl: slot.identifierPhotoUrl ?? null,
+    autoTitle: slot.autoTitle ?? true,
+    inDrive: slot.inDrive ?? false,
+  };
 }
 
 export function slotToBulkInput(slot: GrillaSlot) {
@@ -329,7 +357,8 @@ export function slotToBulkInput(slot: GrillaSlot) {
     copy: slot.copy || undefined,
     caption: slot.caption || undefined,
     plate: slot.plate || undefined,
-    org_identifier_id: slot.orgIdentifierId || undefined,
+    org_identifier_id:
+      slot.orgIdentifierId || slot.orgIdentifierIds[0] || undefined,
     identifier_photo_url: slot.identifierPhotoUrl || undefined,
     in_drive: slot.inDrive,
     references_text: slot.references || undefined,

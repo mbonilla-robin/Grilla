@@ -17,7 +17,8 @@ export type PostStatus =
   | "review"
   | "approved"
   | "scheduled"
-  | "published";
+  | "published"
+  | "suspendido";
 export type InvitationStatus = "pending" | "accepted" | "expired";
 export type TaskStatus =
   | "contenido"
@@ -333,6 +334,7 @@ export const STATUS_LABELS: Record<PostStatus, string> = {
   approved: "Aprobado",
   scheduled: "Aprobado",
   published: "Aprobado",
+  suspendido: "Suspendido",
 };
 
 export const FORMAT_LABELS: Record<PostFormat, string> = {

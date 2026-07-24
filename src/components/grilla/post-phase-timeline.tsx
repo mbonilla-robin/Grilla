@@ -2,7 +2,11 @@
 
 import { cn } from "@/lib/utils";
 import type { PostStatus } from "@/lib/types";
-import { currentPhaseIndex, WORKFLOW_PHASES } from "@/lib/post-progress";
+import {
+  currentPhaseIndex,
+  isSuspendedStatus,
+  WORKFLOW_PHASES,
+} from "@/lib/post-progress";
 
 interface PostPhaseTimelineProps {
   status: PostStatus;
@@ -18,6 +22,22 @@ const PHASE_BAR_STYLES = [
 ] as const;
 
 export function PostPhaseTimeline({ status, className }: PostPhaseTimelineProps) {
+  if (isSuspendedStatus(status)) {
+    return (
+      <div className={cn("space-y-2", className)}>
+        <p className="text-[10px] text-muted uppercase tracking-wide">
+          Progreso del post
+        </p>
+        <div className="rounded-md border border-border bg-neutral-50 px-3 py-2">
+          <p className="text-xs font-medium text-muted">Suspendido</p>
+          <p className="text-[11px] text-muted mt-0.5">
+            No se publicará y no requiere diseño
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const activeIdx = currentPhaseIndex(status);
 
   return (

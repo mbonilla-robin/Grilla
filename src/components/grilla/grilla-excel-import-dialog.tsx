@@ -15,6 +15,12 @@ import {
 import { PillarDistributionBar, type PillarTarget } from "@/components/grilla/pillar-distribution-bar";
 import { PostAssignmentFields } from "@/components/grilla/post-assignment-fields";
 import { GrillaModal } from "@/components/grilla/grilla-modal";
+import { PostPillarField } from "@/components/grilla/post-pillar-field";
+import {
+  formatPillars,
+  parsePillars,
+  resolvePillarsFromRaw,
+} from "@/lib/pillars";
 import {
   FORMAT_LABELS,
   PILLAR_OPTIONS,
@@ -71,7 +77,14 @@ export function GrillaExcelImportDialog({
   const pillarCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const row of validRows) {
-      counts[row.pillar] = (counts[row.pillar] || 0) + 1;
+      const names = parsePillars(row.pillar);
+      if (names.length === 0) {
+        counts[row.pillar] = (counts[row.pillar] || 0) + 1;
+        continue;
+      }
+      for (const name of names) {
+        counts[name] = (counts[name] || 0) + 1;
+      }
     }
     return counts;
   }, [validRows]);
@@ -97,11 +110,12 @@ export function GrillaExcelImportDialog({
         const next = { ...row, ...patch };
         const errors: string[] = [];
         if (!next.date) errors.push("Fecha inválida o vacía");
-        if (
-          next.pillar &&
-          !pillarOptions.some((p) => p.toLowerCase() === next.pillar.toLowerCase())
-        ) {
-          errors.push(`Pilar desconocido: ${next.pillar}`);
+        if (next.pillar) {
+          const { errors: pillarErrors } = resolvePillarsFromRaw(
+            next.pillar,
+            pillarOptions
+          );
+          errors.push(...pillarErrors);
         }
         if (!next.title && !next.copy && !next.caption) {
           errors.push("Falta título, copy o caption");
@@ -283,20 +297,24 @@ export function GrillaExcelImportDialog({
                             className="w-28 h-7 rounded border border-border bg-surface px-2 text-xs"
                           />
                         </td>
-                        <td className="px-3 py-2">
-                          <select
-                            value={row.pillar}
-                            onChange={(e) =>
-                              updateRow(row.id, { pillar: e.target.value })
+                        <td className="px-3 py-2 min-w-[160px]">
+                          <PostPillarField
+                            options={pillarOptions}
+                            selected={
+                              parsePillars(row.pillar).length > 0
+                                ? parsePillars(row.pillar)
+                                : row.pillar
+                                  ? [row.pillar]
+                                  : []
                             }
-                            className="h-7 rounded border border-border bg-surface px-2 text-xs"
-                          >
-                            {pillarOptions.map((p) => (
-                              <option key={p} value={p}>
-                                {p}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(pillars) =>
+                              updateRow(row.id, {
+                                pillar: formatPillars(pillars),
+                              })
+                            }
+                            compact
+                            label=""
+                          />
                         </td>
                         <td className="px-3 py-2">
                           <select

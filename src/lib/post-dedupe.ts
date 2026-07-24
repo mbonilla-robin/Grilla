@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PostStatus } from "@/lib/types";
 
 const STATUS_RANK: Record<PostStatus, number> = {
+  suspendido: 0,
   draft: 1,
   brief_ready: 2,
   ajustes: 3,

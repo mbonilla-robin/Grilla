@@ -8,6 +8,9 @@ import { updatePost } from "@/lib/actions";
 import { CaptionEditor } from "@/components/grilla/caption-editor";
 import { toDateInputValue } from "@/lib/utils";
 import { PostIdentifierField } from "@/components/grilla/post-identifier-field";
+import { PostPillarField } from "@/components/grilla/post-pillar-field";
+import { formatPillars, parsePillars } from "@/lib/pillars";
+import { selectedIdentifierIdsFromPost } from "@/lib/resolve-post-identifier";
 import {
   PILLAR_OPTIONS,
   FORMAT_LABELS,
@@ -30,6 +33,15 @@ interface EditPostDialogProps {
 
 const formats = Object.entries(FORMAT_LABELS) as [PostFormat, string][];
 
+function initialPillars(
+  pillar: string | null,
+  options: string[]
+): string[] {
+  const parsed = parsePillars(pillar);
+  if (parsed.length > 0) return parsed;
+  return options[0] ? [options[0]] : PILLAR_OPTIONS[0] ? [PILLAR_OPTIONS[0]] : [];
+}
+
 export function EditPostDialog({
   post,
   orgId,
@@ -43,13 +55,18 @@ export function EditPostDialog({
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState(post.title);
   const [format, setFormat] = useState<PostFormat>(post.format);
-  const [pillar, setPillar] = useState(post.pillar || pillarOptions[0] || PILLAR_OPTIONS[0]);
+  const [pillars, setPillars] = useState(() =>
+    initialPillars(post.pillar, pillarOptions)
+  );
   const [scheduledAt, setScheduledAt] = useState(
     toDateInputValue(post.scheduled_at)
   );
   const [copy, setCopy] = useState(post.copy || "");
   const [caption, setCaption] = useState(post.caption || "");
   const [plate, setPlate] = useState(post.plate || "");
+  const [orgIdentifierIds, setOrgIdentifierIds] = useState<string[]>(() =>
+    selectedIdentifierIdsFromPost(post, identifiers)
+  );
   const [orgIdentifierId, setOrgIdentifierId] = useState<string | null>(
     post.org_identifier_id
   );
@@ -60,11 +77,12 @@ export function EditPostDialog({
   function handleOpen() {
     setTitle(post.title);
     setFormat(post.format);
-    setPillar(post.pillar || pillarOptions[0] || PILLAR_OPTIONS[0]);
+    setPillars(initialPillars(post.pillar, pillarOptions));
     setScheduledAt(toDateInputValue(post.scheduled_at));
     setCopy(post.copy || "");
     setCaption(post.caption || "");
     setPlate(post.plate || "");
+    setOrgIdentifierIds(selectedIdentifierIdsFromPost(post, identifiers));
     setOrgIdentifierId(post.org_identifier_id);
     setIdentifierPhotoUrl(post.identifier_photo_url);
     setOpen(true);
@@ -74,10 +92,12 @@ export function EditPostDialog({
     e.preventDefault();
     setLoading(true);
 
+    const pillarValue = formatPillars(pillars) || null;
+
     const result = await updatePost(orgId, post.id, {
       title: title.trim() || post.title,
       format,
-      pillar: pillar || null,
+      pillar: pillarValue,
       scheduled_at: scheduledAt || null,
       copy: copy || null,
       caption: caption || null,
@@ -90,7 +110,7 @@ export function EditPostDialog({
       onSaved?.({
         title: title.trim() || post.title,
         format,
-        pillar: pillar || null,
+        pillar: pillarValue,
         scheduled_at: scheduledAt || null,
         copy: copy || null,
         caption: caption || null,
@@ -134,28 +154,19 @@ export function EditPostDialog({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Fecha"
-                  type="date"
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
-                />
-                <div className="space-y-1">
-                  <label className="text-xs text-muted">Pilar</label>
-                  <select
-                    value={pillar}
-                    onChange={(e) => setPillar(e.target.value)}
-                    className="flex h-8 w-full rounded-md border border-border bg-surface px-2 text-xs focus:outline-none focus:ring-1 focus:ring-foreground/10"
-                  >
-                    {pillarOptions.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              <Input
+                label="Fecha"
+                type="date"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+              />
+
+              <PostPillarField
+                options={pillarOptions}
+                selected={pillars}
+                onChange={setPillars}
+                compact
+              />
 
               <Input
                 label="Título"
@@ -191,8 +202,9 @@ export function EditPostDialog({
                 orgId={orgId}
                 config={identifierConfig}
                 identifiers={identifiers}
-                selectedId={orgIdentifierId}
-                onChange={({ id, value, photoUrl }) => {
+                selectedIds={orgIdentifierIds}
+                onChange={({ ids, id, value, photoUrl }) => {
+                  setOrgIdentifierIds(ids);
                   setOrgIdentifierId(id);
                   setPlate(value);
                   setIdentifierPhotoUrl(photoUrl);

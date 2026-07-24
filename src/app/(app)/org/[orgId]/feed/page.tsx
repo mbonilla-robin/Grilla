@@ -48,6 +48,7 @@ export default async function FeedPage({
       .from("posts")
       .select("*, post_assets(*)")
       .eq("organization_id", orgId)
+      .neq("status", "suspendido")
       .order("scheduled_at", { ascending: false, nullsFirst: false }),
     supabase.from("organizations").select("name").eq("id", orgId).single(),
     supabase.from("brand_kits").select("objective, tone_of_voice").eq("organization_id", orgId).single(),

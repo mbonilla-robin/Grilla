@@ -111,6 +111,18 @@ export async function notifyPostStatusChange(
     });
   }
 
+  if (newStatus === "suspendido" && post.assigned_to) {
+    await createNotification({
+      userId: post.assigned_to,
+      orgId,
+      type: "status_change",
+      title: "Post suspendido",
+      body: `"${postTitle}" ya no se publicará — no requiere diseño`,
+      link,
+      relatedPostId: postId,
+    });
+  }
+
   if (newStatus === "approved") {
     await notifyUsers(
       [post.community_manager_id, post.created_by].filter(Boolean) as string[],

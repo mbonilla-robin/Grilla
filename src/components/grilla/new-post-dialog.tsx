@@ -10,6 +10,8 @@ import { CaptionEditor } from "@/components/grilla/caption-editor";
 import { PostAssignmentFields } from "@/components/grilla/post-assignment-fields";
 import { GrillaModal } from "@/components/grilla/grilla-modal";
 import { PostIdentifierField } from "@/components/grilla/post-identifier-field";
+import { PostPillarField } from "@/components/grilla/post-pillar-field";
+import { formatPillars } from "@/lib/pillars";
 import { PILLAR_OPTIONS, FORMAT_LABELS, type PostFormat, type OrgHashtagGroup, type OrgIdentifier } from "@/lib/types";
 import type { OrgIdentifierConfig } from "@/lib/org-identifier";
 import type { PostAssignmentOptions } from "@/lib/team-assignments";
@@ -70,11 +72,14 @@ export function NewPostDialog({
   const [title, setTitle] = useState("");
   const [autoTitle, setAutoTitle] = useState(true);
   const [format, setFormat] = useState<PostFormat>(formats[0]?.value ?? "image");
-  const [pillar, setPillar] = useState<string>(pillarOptions[0] || PILLAR_OPTIONS[0]);
+  const [pillar, setPillar] = useState<string[]>(
+    pillarOptions[0] ? [pillarOptions[0]] : PILLAR_OPTIONS[0] ? [PILLAR_OPTIONS[0]] : []
+  );
   const [scheduledAt, setScheduledAt] = useState("");
   const [copy, setCopy] = useState("");
   const [caption, setCaption] = useState("");
   const [plate, setPlate] = useState("");
+  const [orgIdentifierIds, setOrgIdentifierIds] = useState<string[]>([]);
   const [orgIdentifierId, setOrgIdentifierId] = useState<string | null>(null);
   const [identifierPhotoUrl, setIdentifierPhotoUrl] = useState<string | null>(null);
   const [references, setReferences] = useState("");
@@ -108,11 +113,14 @@ export function NewPostDialog({
     setTitle("");
     setAutoTitle(true);
     setFormat("image");
-    setPillar(pillarOptions[0] || PILLAR_OPTIONS[0]);
+    setPillar(
+      pillarOptions[0] ? [pillarOptions[0]] : PILLAR_OPTIONS[0] ? [PILLAR_OPTIONS[0]] : []
+    );
     setScheduledAt("");
     setCopy("");
     setCaption("");
     setPlate("");
+    setOrgIdentifierIds([]);
     setOrgIdentifierId(null);
     setIdentifierPhotoUrl(null);
     setReferences("");
@@ -129,7 +137,7 @@ export function NewPostDialog({
     const result = await createPost(orgId, {
       title: finalTitle,
       format,
-      pillar: pillar || undefined,
+      pillar: formatPillars(pillar) || undefined,
       scheduled_at: scheduledAt || undefined,
       copy: copy || undefined,
       caption: caption || undefined,
@@ -180,29 +188,19 @@ export function NewPostDialog({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Fecha"
-              type="date"
-              value={scheduledAt}
-              onChange={(e) => setScheduledAt(e.target.value)}
-              required
-            />
-            <div className="space-y-1.5">
-              <label className="text-sm text-muted">Pilar</label>
-              <select
-                value={pillar}
-                onChange={(e) => setPillar(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-border bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-              >
-                {pillarOptions.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <Input
+            label="Fecha"
+            type="date"
+            value={scheduledAt}
+            onChange={(e) => setScheduledAt(e.target.value)}
+            required
+          />
+
+          <PostPillarField
+            options={pillarOptions}
+            selected={pillar}
+            onChange={setPillar}
+          />
 
           <div className="space-y-1.5">
             <label className="text-sm text-muted">Formato</label>
@@ -272,8 +270,9 @@ export function NewPostDialog({
             orgId={orgId}
             config={identifierConfig}
             identifiers={identifiers}
-            selectedId={orgIdentifierId}
-            onChange={({ id, value, photoUrl }) => {
+            selectedIds={orgIdentifierIds}
+            onChange={({ ids, id, value, photoUrl }) => {
+              setOrgIdentifierIds(ids);
               setOrgIdentifierId(id);
               setPlate(value);
               setIdentifierPhotoUrl(photoUrl);

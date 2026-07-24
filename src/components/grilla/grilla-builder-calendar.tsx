@@ -6,6 +6,7 @@ import {
   slotHasContent,
   type GrillaSlot,
 } from "@/lib/grilla-slot-utils";
+import { parsePillars } from "@/lib/pillars";
 import { resolvePillarDisplayColor } from "@/lib/pillar-colors";
 import type { PostFormat } from "@/lib/types";
 
@@ -44,7 +45,9 @@ function DayCell({
   const primarySlot =
     daySlots.find((s) => slotHasContent(s, slotDefaults)) ?? daySlots[0];
   const pillarIndex = primarySlot
-    ? pillarOptions.indexOf(primarySlot.pillar)
+    ? pillarOptions.indexOf(
+        parsePillars(primarySlot.pillar)[0] ?? primarySlot.pillar
+      )
     : -1;
   const postCount = daySlots.filter((s) => slotHasContent(s, slotDefaults)).length;
 

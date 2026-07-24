@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { ContentPillar, PostMetrics, PostStatus } from "@/lib/types";
+import { parsePillars } from "@/lib/pillars";
 
 export interface PillarDistribution {
   name: string;
@@ -143,8 +144,14 @@ export async function getOrgStatsData(orgId: string): Promise<OrgStatsData> {
 
   const countByPillar = new Map<string, number>();
   for (const p of posts) {
-    const key = p.pillar || "Sin pilar";
-    countByPillar.set(key, (countByPillar.get(key) || 0) + 1);
+    const names = parsePillars(p.pillar);
+    if (names.length === 0) {
+      countByPillar.set("Sin pilar", (countByPillar.get("Sin pilar") || 0) + 1);
+      continue;
+    }
+    for (const name of names) {
+      countByPillar.set(name, (countByPillar.get(name) || 0) + 1);
+    }
   }
 
   const distribution: PillarDistribution[] = pillarList.map((pillar) => {
@@ -345,8 +352,14 @@ export async function getBrandsPillarProgress(
 
     const countByPillar = new Map<string, number>();
     for (const p of posts) {
-      const key = p.pillar || "Sin pilar";
-      countByPillar.set(key, (countByPillar.get(key) || 0) + 1);
+      const names = parsePillars(p.pillar);
+      if (names.length === 0) {
+        countByPillar.set("Sin pilar", (countByPillar.get("Sin pilar") || 0) + 1);
+        continue;
+      }
+      for (const name of names) {
+        countByPillar.set(name, (countByPillar.get(name) || 0) + 1);
+      }
     }
 
     const distribution: PillarDistribution[] = pillarList.map((pillar) => {

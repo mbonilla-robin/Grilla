@@ -43,6 +43,8 @@ import { GrillaModal } from "@/components/grilla/grilla-modal";
 import { PillarDistributionBar, type PillarTarget } from "@/components/grilla/pillar-distribution-bar";
 import { PostAssignmentFields } from "@/components/grilla/post-assignment-fields";
 import { PostIdentifierField } from "@/components/grilla/post-identifier-field";
+import { PostPillarField } from "@/components/grilla/post-pillar-field";
+import { formatPillars, parsePillars } from "@/lib/pillars";
 import {
   PILLAR_OPTIONS,
   type ContentPillar,
@@ -424,7 +426,14 @@ export function GrillaBuilderDialog({
   const pillarCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const slot of activeSlots) {
-      counts[slot.pillar] = (counts[slot.pillar] || 0) + 1;
+      const names = parsePillars(slot.pillar);
+      if (names.length === 0) {
+        counts[slot.pillar] = (counts[slot.pillar] || 0) + 1;
+        continue;
+      }
+      for (const name of names) {
+        counts[name] = (counts[name] || 0) + 1;
+      }
     }
     return counts;
   }, [activeSlots]);
@@ -711,23 +720,20 @@ export function GrillaBuilderDialog({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-sm text-muted">Pilar</label>
-                    <select
-                      value={selectedSlot.pillar}
-                      onChange={(e) =>
-                        updateSlot(selectedSlot.id, { pillar: e.target.value })
-                      }
-                      className="flex h-9 w-full rounded-md border border-border bg-surface px-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                    >
-                      {pillarOptions.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="space-y-4">
+                  <PostPillarField
+                    options={pillarOptions}
+                    selected={
+                      parsePillars(selectedSlot.pillar).length > 0
+                        ? parsePillars(selectedSlot.pillar)
+                        : [selectedSlot.pillar].filter(Boolean)
+                    }
+                    onChange={(pillars) =>
+                      updateSlot(selectedSlot.id, {
+                        pillar: formatPillars(pillars),
+                      })
+                    }
+                  />
                   <div className="space-y-1.5">
                     <label className="text-sm text-muted">Formato</label>
                     <select
@@ -806,9 +812,16 @@ export function GrillaBuilderDialog({
                   orgId={orgId}
                   config={identifierConfig}
                   identifiers={identifiers}
-                  selectedId={selectedSlot.orgIdentifierId}
-                  onChange={({ id, value, photoUrl }) =>
+                  selectedIds={
+                    selectedSlot.orgIdentifierIds?.length
+                      ? selectedSlot.orgIdentifierIds
+                      : selectedSlot.orgIdentifierId
+                        ? [selectedSlot.orgIdentifierId]
+                        : []
+                  }
+                  onChange={({ ids, id, value, photoUrl }) =>
                     updateSlot(selectedSlot.id, {
+                      orgIdentifierIds: ids,
                       orgIdentifierId: id,
                       plate: value,
                       identifierPhotoUrl: photoUrl,

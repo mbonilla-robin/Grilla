@@ -898,6 +898,7 @@ export async function updatePostStatus(postId: string, status: string, orgId: st
   revalidatePath(`/org/${orgId}/marca`);
   revalidatePath(`/org/${orgId}/revision`);
   revalidatePath(`/org/${orgId}/grilla`);
+  revalidatePath(`/org/${orgId}/feed`);
   revalidatePath(`/org/${orgId}/home`);
   revalidatePath("/home");
   revalidatePath("/home/calendario");
