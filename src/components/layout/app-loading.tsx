@@ -15,7 +15,7 @@ const OVERLAY_ID = "grilla-loading-overlay";
 function LoadingContent() {
   return (
     <div className="absolute inset-0 flex items-center justify-center px-6">
-      <GrillaLogoAssembly className="w-[11.5rem] sm:w-[13rem]" />
+      <GrillaLogoAssembly className="w-[11.5rem] sm:w-[13.5rem]" />
     </div>
   );
 }
@@ -55,7 +55,7 @@ function buildPersistHtml() {
 
   return `
     <div class="absolute inset-0 flex items-center justify-center px-6">
-      <div class="logo-assembly logo-assembly-playing w-[11.5rem] sm:w-[13rem]" style="aspect-ratio:${cw}/${ch}" role="img" aria-label="Grilla">
+      <div class="logo-assembly logo-assembly-playing w-[11.5rem] sm:w-[13.5rem]" style="aspect-ratio:${cw}/${ch}" role="img" aria-label="Grilla">
         ${letters}
       </div>
     </div>

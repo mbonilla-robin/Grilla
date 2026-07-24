@@ -3,22 +3,22 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
-/** Stacked square wordmark parts (black on transparent). */
-export const LOGO_ASSEMBLY_SIZE = { width: 397, height: 457 } as const;
+/** Horizontal wordmark parts (black on transparent), from grilla-logo@2x. */
+export const LOGO_ASSEMBLY_SIZE = { width: 356, height: 181 } as const;
 
 export const LOGO_ASSEMBLY_PARTS = [
-  { name: "g", src: "/logo-assembly/g.png", left: 20, top: 53, w: 103, h: 204 },
-  { name: "i", src: "/logo-assembly/i.png", left: 287, top: 53, w: 36, h: 126 },
-  { name: "r", src: "/logo-assembly/r.png", left: 157, top: 33, w: 99, h: 141 },
-  { name: "idot", src: "/logo-assembly/idot.png", left: 303, top: 20, w: 19, h: 18 },
-  { name: "l1", src: "/logo-assembly/l1.png", left: 99, top: 211, w: 55, h: 226 },
-  { name: "l2", src: "/logo-assembly/l2.png", left: 184, top: 211, w: 54, h: 226 },
-  { name: "a", src: "/logo-assembly/a.png", left: 266, top: 229, w: 111, h: 147 },
+  { name: "g", src: "/logo-assembly/g.png", left: 8, top: 60, w: 57, h: 113 },
+  { name: "r", src: "/logo-assembly/r.png", left: 82, top: 48, w: 54, h: 78 },
+  { name: "i", src: "/logo-assembly/i.png", left: 154, top: 60, w: 20, h: 69 },
+  { name: "idot", src: "/logo-assembly/idot.png", left: 164, top: 41, w: 9, h: 9 },
+  { name: "l1", src: "/logo-assembly/l1.png", left: 191, top: 8, w: 30, h: 125 },
+  { name: "l2", src: "/logo-assembly/l2.png", left: 238, top: 8, w: 30, h: 125 },
+  { name: "a", src: "/logo-assembly/a.png", left: 287, top: 54, w: 61, h: 82 },
 ] as const;
 
 export type LogoAssemblyPartName = (typeof LOGO_ASSEMBLY_PARTS)[number]["name"];
 
-/** Full sting length including the bottom-row settle. */
+/** Full sting length including the final settle. */
 export const LOGO_ASSEMBLY_DURATION_MS = 2500;
 
 const MOTION: Record<

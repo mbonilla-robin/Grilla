@@ -2023,11 +2023,11 @@
     page-break-inside: avoid;
   }
 
-  /* Grilla logo assembly sting (black letters on light surfaces) */
+  /* Grilla logo assembly sting — horizontal wordmark, black on light */
   .logo-assembly {
     position: relative;
     width: 100%;
-    max-width: 14rem;
+    max-width: 16rem;
     overflow: visible;
   }
 
@@ -2078,7 +2078,7 @@
   @keyframes logo-pop-g {
     0% {
       opacity: 0;
-      transform: translate(-42%, 6%) rotate(-42deg);
+      transform: translate(-120%, 8%) rotate(-28deg);
     }
     100% {
       opacity: 1;
@@ -2089,7 +2089,7 @@
   @keyframes logo-pop-r {
     0% {
       opacity: 0;
-      transform: translate(0, -95%) rotate(-8deg);
+      transform: translate(0, -110%) rotate(-8deg);
     }
     38% {
       opacity: 1;
@@ -2097,15 +2097,15 @@
     }
     52% {
       opacity: 1;
-      transform: rotate(-14deg) translate(-3%, 0);
+      transform: rotate(-12deg) translate(-4%, 0);
     }
     68% {
       opacity: 1;
-      transform: rotate(22deg) translate(8%, -2%);
+      transform: rotate(18deg) translate(10%, -2%);
     }
     84% {
       opacity: 1;
-      transform: rotate(-4deg);
+      transform: rotate(-3deg);
     }
     100% {
       opacity: 1;
@@ -2116,7 +2116,7 @@
   @keyframes logo-pop-i {
     0% {
       opacity: 0;
-      transform: translateY(-120%);
+      transform: translateY(-130%);
     }
     100% {
       opacity: 1;
@@ -2124,22 +2124,23 @@
     }
   }
 
+  /* Starts near the r, gets flicked onto the i */
   @keyframes logo-pop-idot {
     0% {
       opacity: 0;
-      transform: translate(-620%, 150%) scale(0.85) rotate(-20deg);
+      transform: translate(-380%, 80%) scale(0.85) rotate(-20deg);
     }
     12% {
       opacity: 1;
-      transform: translate(-620%, 150%) scale(0.85) rotate(-20deg);
+      transform: translate(-380%, 80%) scale(0.85) rotate(-20deg);
     }
     55% {
       opacity: 1;
-      transform: translate(-210%, -200%) rotate(18deg) scale(1.05);
+      transform: translate(-140%, -220%) rotate(18deg) scale(1.08);
     }
     82% {
       opacity: 1;
-      transform: translate(10%, 20%) rotate(-4deg);
+      transform: translate(12%, 25%) rotate(-4deg);
     }
     100% {
       opacity: 1;
@@ -2150,7 +2151,7 @@
   @keyframes logo-pop-l1 {
     0% {
       opacity: 0;
-      transform: translateY(75%);
+      transform: translateY(70%);
     }
     100% {
       opacity: 1;
@@ -2161,7 +2162,7 @@
   @keyframes logo-pop-l2 {
     0% {
       opacity: 0;
-      transform: translateY(-75%);
+      transform: translateY(-70%);
     }
     100% {
       opacity: 1;
@@ -2172,7 +2173,7 @@
   @keyframes logo-pop-a {
     0% {
       opacity: 0;
-      transform: translate(120%, 18%) rotate(24deg);
+      transform: translate(110%, 10%) rotate(20deg);
     }
     100% {
       opacity: 1;
