@@ -135,9 +135,9 @@ export default async function GrillaPage({
   const identifierConfig = org ? getOrgIdentifierConfig(org) : { label: null, allowPhoto: false, placeholder: null };
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 pt-2 pb-4 sm:px-6 sm:pt-3 sm:pb-6">
-      <div className="mb-6 space-y-4">
-        <div className="flex flex-col items-center gap-4 md:flex-row md:items-start md:justify-between">
+    <div className="w-full pt-2 pb-4 sm:pt-3 sm:pb-6">
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
+        <div className="mb-4 flex flex-col items-center gap-4 md:mb-6 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 text-center md:text-left">
             <ProductionOrgContext
               organizations={organizations}
@@ -166,22 +166,26 @@ export default async function GrillaPage({
             />
           </div>
         </div>
-        {availableMonths.length > 0 && (
-          <Suspense fallback={null}>
-            <div className="w-full min-w-0">
-              <GrillaMonthFilter months={availableMonths} />
-            </div>
-          </Suspense>
-        )}
       </div>
-      <GrillaCards
-        posts={enrichedPosts}
-        orgId={orgId}
-        pillarOptions={pillarNames}
-        hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
-        identifierConfig={identifierConfig}
-        identifiers={identifiers}
-      />
+
+      {availableMonths.length > 0 && (
+        <div className="mb-4 w-full px-4 sm:px-6 md:mb-6">
+          <Suspense fallback={null}>
+            <GrillaMonthFilter months={availableMonths} />
+          </Suspense>
+        </div>
+      )}
+
+      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
+        <GrillaCards
+          posts={enrichedPosts}
+          orgId={orgId}
+          pillarOptions={pillarNames}
+          hashtagGroups={hashtagGroups as OrgHashtagGroup[]}
+          identifierConfig={identifierConfig}
+          identifiers={identifiers}
+        />
+      </div>
     </div>
   );
 }
