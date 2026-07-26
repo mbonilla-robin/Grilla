@@ -233,7 +233,9 @@ export interface Post {
   format: PostFormat;
   pillar: string | null;
   copy: string | null;
+  copy_en: string | null;
   caption: string | null;
+  caption_en: string | null;
   plate: string | null;
   org_identifier_id: string | null;
   identifier_photo_url: string | null;
@@ -362,7 +364,9 @@ export interface BulkPostInput {
   format: string;
   pillar?: string;
   copy?: string;
+  copy_en?: string;
   caption?: string;
+  caption_en?: string;
   plate?: string;
   org_identifier_id?: string;
   identifier_photo_url?: string;

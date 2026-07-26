@@ -12,6 +12,7 @@ import {
   parseGrillaExcelFile,
   type ExcelGrillaRow,
 } from "@/lib/grilla-excel";
+import { invalidateGrillaPostsCache } from "@/lib/grilla-posts-client";
 import { PillarDistributionBar, type PillarTarget } from "@/components/grilla/pillar-distribution-bar";
 import { PostAssignmentFields } from "@/components/grilla/post-assignment-fields";
 import { GrillaModal } from "@/components/grilla/grilla-modal";
@@ -174,7 +175,28 @@ export function GrillaExcelImportDialog({
       return;
     }
 
+    if ((result.count ?? 0) === 0) {
+      setError(
+        "No se crearon posts nuevos — ya existían con el mismo título y fecha"
+      );
+      setLoading(false);
+      return;
+    }
+
+    const publishedMonths = [
+      ...new Set(validRows.map((row) => row.date.slice(0, 7)).filter(Boolean)),
+    ];
+    for (const publishedMonth of publishedMonths) {
+      invalidateGrillaPostsCache(orgId, publishedMonth);
+    }
+
+    const targetMonth = publishedMonths[0];
     onOpenChange(false);
+    if (targetMonth) {
+      router.push(
+        `/org/${orgId}/grilla?month=${encodeURIComponent(targetMonth)}`
+      );
+    }
     router.refresh();
     setLoading(false);
   }

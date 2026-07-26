@@ -153,6 +153,7 @@ export default async function GrillaPage({
             orgId={orgId}
             assignmentOptions={assignmentOptions}
             currentUserId={user.id}
+            month={month}
             pillarOptions={pillarNames}
             pillars={pillars}
             hashtagGroups={hashtagGroups as OrgHashtagGroup[]}

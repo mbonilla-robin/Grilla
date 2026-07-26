@@ -17,6 +17,7 @@ interface AddToGrillaButtonProps {
   orgId: string;
   assignmentOptions: PostAssignmentOptions;
   currentUserId: string;
+  month?: string;
   pillarOptions?: string[];
   pillars?: ContentPillar[];
   hashtagGroups?: OrgHashtagGroup[];
@@ -31,6 +32,7 @@ export function AddToGrillaButton({
   orgId,
   assignmentOptions,
   currentUserId,
+  month,
   pillarOptions,
   pillars,
   hashtagGroups,
@@ -135,6 +137,7 @@ export function AddToGrillaButton({
         orgId={orgId}
         assignmentOptions={assignmentOptions}
         currentUserId={currentUserId}
+        initialMonth={month}
         pillarOptions={pillarOptions}
         pillars={pillars}
         hashtagGroups={hashtagGroups}

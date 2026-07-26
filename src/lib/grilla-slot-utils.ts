@@ -8,7 +8,9 @@ export interface GrillaSlot {
   title: string;
   autoTitle: boolean;
   copy: string;
+  copyEn: string;
   caption: string;
+  captionEn: string;
   plate: string;
   orgIdentifierId: string | null;
   orgIdentifierIds: string[];
@@ -57,7 +59,9 @@ export function createSlot(
     title: "",
     autoTitle: true,
     copy: "",
+    copyEn: "",
     caption: "",
+    captionEn: "",
     plate: "",
     orgIdentifierId: null,
     orgIdentifierIds: [],
@@ -308,7 +312,9 @@ export function slotHasContent(
 ): boolean {
   if (slot.title.trim()) return true;
   if (slot.copy.trim()) return true;
+  if (slot.copyEn?.trim()) return true;
   if (slot.caption.trim()) return true;
+  if (slot.captionEn?.trim()) return true;
   if (slot.plate.trim()) return true;
   if (slot.orgIdentifierId) return true;
   if (slot.orgIdentifierIds?.length) return true;
@@ -335,6 +341,8 @@ export function normalizeGrillaSlot(slot: Partial<GrillaSlot> & Pick<GrillaSlot,
     ...slot,
     format: (slot.format as PostFormat) || base.format,
     pillar: slot.pillar ?? base.pillar,
+    copyEn: slot.copyEn ?? "",
+    captionEn: slot.captionEn ?? "",
     orgIdentifierIds: ids,
     orgIdentifierId: slot.orgIdentifierId ?? ids[0] ?? null,
     identifierPhotoUrl: slot.identifierPhotoUrl ?? null,
@@ -347,6 +355,7 @@ export function slotToBulkInput(slot: GrillaSlot) {
   const finalTitle =
     slot.title.trim() ||
     titleFromCopy(slot.copy) ||
+    titleFromCopy(slot.copyEn) ||
     `Post — ${slot.date}`;
 
   return {
@@ -355,7 +364,9 @@ export function slotToBulkInput(slot: GrillaSlot) {
     format: slot.format,
     pillar: slot.pillar || undefined,
     copy: slot.copy || undefined,
+    copy_en: slot.copyEn || undefined,
     caption: slot.caption || undefined,
+    caption_en: slot.captionEn || undefined,
     plate: slot.plate || undefined,
     org_identifier_id:
       slot.orgIdentifierId || slot.orgIdentifierIds[0] || undefined,

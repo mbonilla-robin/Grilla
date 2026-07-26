@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, RotateCcw, ChevronLeft, ChevronRight, X } from "lucide-react";
+import {
+  Plus,
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Trash2,
+  CheckCircle2,
+  Languages,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +21,7 @@ import {
   saveGrillaDraft,
 } from "@/lib/actions";
 import { buildGrillaPeriodKey, type GrillaDraftPayload } from "@/lib/grilla-draft";
+import { invalidateGrillaPostsCache } from "@/lib/grilla-posts-client";
 import {
   createSlot,
   currentMonthValue,
@@ -93,6 +103,8 @@ interface GrillaBuilderDialogProps {
   onOpenChange: (open: boolean) => void;
   assignmentOptions: PostAssignmentOptions;
   currentUserId: string;
+  /** Month currently shown on the Grilla page (`YYYY-MM`). */
+  initialMonth?: string;
   pillarOptions?: string[];
   pillars?: ContentPillar[];
   hashtagGroups?: OrgHashtagGroup[];
@@ -102,12 +114,17 @@ interface GrillaBuilderDialogProps {
   catalogEvents?: CatalogEvent[];
 }
 
+function isValidMonthParam(value: string | undefined): value is string {
+  return !!value && /^\d{4}-\d{2}$/.test(value);
+}
+
 export function GrillaBuilderDialog({
   orgId,
   open,
   onOpenChange,
   assignmentOptions,
   currentUserId,
+  initialMonth,
   pillarOptions = [...PILLAR_OPTIONS],
   pillars = [],
   hashtagGroups = [],
@@ -145,6 +162,13 @@ export function GrillaBuilderDialog({
     updatedByName: string | null;
   } | null>(null);
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
+  const [publishSuccess, setPublishSuccess] = useState<{
+    count: number;
+    month: string;
+  } | null>(null);
+  const [bilingualSlotIds, setBilingualSlotIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const skipAutoSave = useRef(true);
   const router = useRouter();
 
@@ -214,6 +238,13 @@ export function GrillaBuilderDialog({
     (payload: GrillaDraftPayload, dates: string[]) => {
       const restored = rebuildSlotsForDates(dates, payload.slots, slotDefaults);
       setSlots(restored);
+      setBilingualSlotIds(
+        new Set(
+          restored
+            .filter((s) => s.copyEn?.trim() || s.captionEn?.trim())
+            .map((s) => s.id)
+        )
+      );
       setSelectedId(
         payload.selectedId && restored.some((s) => s.id === payload.selectedId)
           ? payload.selectedId
@@ -259,9 +290,13 @@ export function GrillaBuilderDialog({
       setDraftLoading(true);
       setError(null);
       setDraftMessage(null);
+      setPublishSuccess(null);
+      setBilingualSlotIds(new Set());
       skipAutoSave.current = true;
 
-      const m = currentMonthValue();
+      const m = isValidMonthParam(initialMonth)
+        ? initialMonth
+        : currentMonthValue();
       const ws = getMondayOfDate();
       const q = currentQuincena();
       const p: GrillaPeriod = "month";
@@ -289,7 +324,7 @@ export function GrillaBuilderDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, resetAssignments, loadDraftFor]);
+  }, [open, initialMonth, resetAssignments, loadDraftFor]);
 
   async function changePeriod(next: GrillaPeriod) {
     const dates =
@@ -383,7 +418,7 @@ export function GrillaBuilderDialog({
   );
 
   useEffect(() => {
-    if (!open || draftLoading) return;
+    if (!open || draftLoading || publishSuccess) return;
     const timer = setTimeout(() => {
       void persistDraft({ silent: true });
     }, 4000);
@@ -400,6 +435,7 @@ export function GrillaBuilderDialog({
     communityManagerId,
     open,
     draftLoading,
+    publishSuccess,
     persistDraft,
   ]);
 
@@ -416,6 +452,19 @@ export function GrillaBuilderDialog({
   const slotsForSelectedDate = selectedSlot
     ? slots.filter((s) => s.date === selectedSlot.date)
     : [];
+  const selectedBilingual = selectedSlot
+    ? bilingualSlotIds.has(selectedSlot.id)
+    : false;
+
+  function toggleBilingualForSelected() {
+    if (!selectedSlot) return;
+    setBilingualSlotIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(selectedSlot.id)) next.delete(selectedSlot.id);
+      else next.add(selectedSlot.id);
+      return next;
+    });
+  }
 
   const selectedDateEfemerides = useMemo(() => {
     if (!selectedSlot || catalogEvents.length === 0) return [];
@@ -460,6 +509,23 @@ export function GrillaBuilderDialog({
     );
   }
 
+  function removeSlot(id: string) {
+    setSlots((prev) => {
+      const target = prev.find((s) => s.id === id);
+      if (!target) return prev;
+      const sameDay = prev.filter((s) => s.date === target.date);
+      if (sameDay.length <= 1) return prev;
+
+      const next = prev.filter((s) => s.id !== id);
+      setSelectedId((current) => {
+        if (current !== id) return current;
+        const remaining = next.filter((s) => s.date === target.date);
+        return remaining[remaining.length - 1]?.id ?? remaining[0]?.id ?? null;
+      });
+      return next;
+    });
+  }
+
   function addSlotForDate(date: string) {
     const newSlot = createSlot(date, slotDefaults);
     setSlots((prev) => {
@@ -469,6 +535,20 @@ export function GrillaBuilderDialog({
       return next;
     });
     setSelectedId(newSlot.id);
+  }
+
+  function finishPublishAndViewGrid() {
+    if (!publishSuccess) {
+      onOpenChange(false);
+      return;
+    }
+    const targetMonth = publishSuccess.month;
+    setPublishSuccess(null);
+    onOpenChange(false);
+    router.push(
+      `/org/${orgId}/grilla?month=${encodeURIComponent(targetMonth)}`
+    );
+    router.refresh();
   }
 
   function selectDate(date: string) {
@@ -504,15 +584,60 @@ export function GrillaBuilderDialog({
       return;
     }
 
+    if ((result.count ?? 0) === 0) {
+      setError(
+        "No se crearon posts nuevos — ya existían con el mismo título y fecha"
+      );
+      setLoading(false);
+      return;
+    }
+
+    const publishedMonths = [
+      ...new Set(activeSlots.map((slot) => slot.date.slice(0, 7))),
+    ];
+    for (const publishedMonth of publishedMonths) {
+      invalidateGrillaPostsCache(orgId, publishedMonth);
+    }
+
+    const targetMonth =
+      publishedMonths[0] ||
+      (isValidMonthParam(month) ? month : currentMonthValue());
+
     await deleteGrillaDraft(orgId, period, periodKey);
-    onOpenChange(false);
-    router.refresh();
+    setPublishSuccess({
+      count: result.count ?? activeSlots.length,
+      month: targetMonth,
+    });
     setLoading(false);
   }
 
   return (
     <GrillaModal open={open}>
       <div className="flex h-[95vh] w-full max-w-7xl flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
+        {publishSuccess ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-10 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <CheckCircle2 size={36} strokeWidth={1.75} />
+            </div>
+            <div className="max-w-sm space-y-2">
+              <h2 className="text-lg font-semibold tracking-tight">
+                Grilla publicada
+              </h2>
+              <p className="text-sm leading-relaxed text-muted">
+                Se publicaron {publishSuccess.count} post
+                {publishSuccess.count !== 1 ? "s" : ""} para{" "}
+                <span className="font-medium capitalize text-foreground">
+                  {monthLabel(publishSuccess.month)}
+                </span>
+                . Ya están en la grilla del mes.
+              </p>
+            </div>
+            <Button type="button" size="sm" onClick={finishPublishAndViewGrid}>
+              OK
+            </Button>
+          </div>
+        ) : (
+          <>
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 sm:px-6">
           <div>
             <h2 className="text-sm font-semibold">Crear grilla</h2>
@@ -677,26 +802,61 @@ export function GrillaBuilderDialog({
                       {period === "month" && ` de ${monthLabel(month)}`}
                     </h3>
                     {slotsForSelectedDate.length > 1 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
+                      <div className="mt-2 flex flex-wrap gap-1">
                         {slotsForSelectedDate.map((slot, index) => (
-                          <button
+                          <div
                             key={slot.id}
-                            type="button"
-                            onClick={() => setSelectedId(slot.id)}
-                            className={`rounded-md px-2 py-0.5 text-[11px] transition-colors ${
+                            className={`inline-flex items-center overflow-hidden rounded-md border text-[11px] transition-colors ${
                               slot.id === selectedId
-                                ? "bg-accent text-accent-foreground"
-                                : "bg-background text-muted hover:text-foreground border border-border"
+                                ? "border-accent bg-accent text-accent-foreground"
+                                : "border-border bg-background text-muted"
                             }`}
                           >
-                            Post {index + 1}
-                            {slotHasContent(slot, slotDefaults) ? "" : " (vacío)"}
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedId(slot.id)}
+                              className={`px-2 py-0.5 ${
+                                slot.id === selectedId
+                                  ? ""
+                                  : "hover:text-foreground"
+                              }`}
+                            >
+                              Post {index + 1}
+                              {slotHasContent(slot, slotDefaults)
+                                ? ""
+                                : " (vacío)"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeSlot(slot.id)}
+                              className={`border-l px-1.5 py-0.5 ${
+                                slot.id === selectedId
+                                  ? "border-accent-foreground/20 hover:bg-accent-foreground/10"
+                                  : "border-border hover:bg-destructive/10 hover:text-destructive"
+                              }`}
+                              aria-label={`Eliminar post ${index + 1}`}
+                              title="Eliminar este post"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
                         ))}
                       </div>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
+                    {slotsForSelectedDate.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeSlot(selectedSlot.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 size={12} />
+                        Eliminar
+                      </Button>
+                    )}
                     {slotHasContent(selectedSlot, slotDefaults) && (
                       <Button
                         type="button"
@@ -784,8 +944,21 @@ export function GrillaBuilderDialog({
                   />
                 </div>
 
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-muted">Copy y caption</p>
+                  <Button
+                    type="button"
+                    variant={selectedBilingual ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={toggleBilingualForSelected}
+                  >
+                    <Languages size={12} />
+                    {selectedBilingual ? "Un idioma" : "Otro idioma"}
+                  </Button>
+                </div>
+
                 <GrillaCopyEditor
-                  key={`${selectedSlot.id}-${selectedSlot.format}`}
+                  key={`${selectedSlot.id}-${selectedSlot.format}-${selectedBilingual ? "bi" : "mono"}`}
                   format={selectedSlot.format}
                   value={selectedSlot.copy}
                   onChange={(value) =>
@@ -795,17 +968,51 @@ export function GrillaBuilderDialog({
                       selectedSlot.autoTitle
                     )
                   }
+                  bilingual={selectedBilingual}
+                  valueEn={selectedSlot.copyEn}
+                  onChangeEn={(value) =>
+                    updateSlot(selectedSlot.id, { copyEn: value })
+                  }
                 />
 
                 <div className="space-y-1.5">
                   <label className="text-sm text-muted">Caption</label>
-                  <CaptionEditor
-                    value={selectedSlot.caption}
-                    onChange={(value) =>
-                      updateSlot(selectedSlot.id, { caption: value })
-                    }
-                    hashtagGroups={hashtagGroups}
-                  />
+                  {selectedBilingual ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <span className="text-[11px] font-medium text-muted">
+                          Español
+                        </span>
+                        <CaptionEditor
+                          value={selectedSlot.caption}
+                          onChange={(value) =>
+                            updateSlot(selectedSlot.id, { caption: value })
+                          }
+                          hashtagGroups={hashtagGroups}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[11px] font-medium text-muted">
+                          English
+                        </span>
+                        <CaptionEditor
+                          value={selectedSlot.captionEn}
+                          onChange={(value) =>
+                            updateSlot(selectedSlot.id, { captionEn: value })
+                          }
+                          hashtagGroups={hashtagGroups}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <CaptionEditor
+                      value={selectedSlot.caption}
+                      onChange={(value) =>
+                        updateSlot(selectedSlot.id, { caption: value })
+                      }
+                      hashtagGroups={hashtagGroups}
+                    />
+                  )}
                 </div>
 
                 <PostIdentifierField
@@ -903,6 +1110,8 @@ export function GrillaBuilderDialog({
             </Button>
           </div>
         </div>
+          </>
+        )}
       </div>
     </GrillaModal>
   );

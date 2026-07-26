@@ -529,7 +529,9 @@ export async function createPost(
     format: string;
     pillar?: string;
     copy?: string;
+    copy_en?: string;
     caption?: string;
+    caption_en?: string;
     plate?: string;
     org_identifier_id?: string;
     identifier_photo_url?: string;
@@ -570,7 +572,9 @@ export async function createPost(
       format: data.format,
       pillar: data.pillar || null,
       copy: data.copy || null,
+      copy_en: data.copy_en || null,
       caption: data.caption || null,
+      caption_en: data.caption_en || null,
       plate: data.plate || null,
       org_identifier_id: data.org_identifier_id || null,
       identifier_photo_url: data.identifier_photo_url || null,
@@ -669,7 +673,9 @@ export async function bulkCreatePosts(
     format: post.format,
     pillar: post.pillar || null,
     copy: post.copy || null,
+    copy_en: post.copy_en || null,
     caption: post.caption || null,
+    caption_en: post.caption_en || null,
     plate: post.plate || null,
     org_identifier_id: post.org_identifier_id || null,
     identifier_photo_url: post.identifier_photo_url || null,
@@ -823,7 +829,9 @@ export async function updatePost(
     format?: string;
     pillar?: string | null;
     copy?: string | null;
+    copy_en?: string | null;
     caption?: string | null;
+    caption_en?: string | null;
     plate?: string | null;
     org_identifier_id?: string | null;
     identifier_photo_url?: string | null;
@@ -846,7 +854,9 @@ export async function updatePost(
   if (data.format !== undefined) updates.format = data.format;
   if (data.pillar !== undefined) updates.pillar = data.pillar;
   if (data.copy !== undefined) updates.copy = data.copy;
+  if (data.copy_en !== undefined) updates.copy_en = data.copy_en;
   if (data.caption !== undefined) updates.caption = data.caption;
+  if (data.caption_en !== undefined) updates.caption_en = data.caption_en;
   if (data.plate !== undefined) updates.plate = data.plate;
   if (data.org_identifier_id !== undefined)
     updates.org_identifier_id = data.org_identifier_id;

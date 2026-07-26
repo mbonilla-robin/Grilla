@@ -28,6 +28,21 @@ export function getCachedGrillaPosts(orgId: string, month: string) {
   return cache.get(cacheKey(orgId, month));
 }
 
+export function invalidateGrillaPostsCache(orgId?: string, month?: string) {
+  if (!orgId) {
+    cache.clear();
+    return;
+  }
+  if (!month) {
+    const prefix = `${orgId}:`;
+    for (const key of cache.keys()) {
+      if (key.startsWith(prefix)) cache.delete(key);
+    }
+    return;
+  }
+  cache.delete(cacheKey(orgId, month));
+}
+
 export async function fetchGrillaPostsClient(
   orgId: string,
   month: string

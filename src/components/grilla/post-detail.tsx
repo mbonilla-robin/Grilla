@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Trash2,
   Palette,
+  Languages,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,11 @@ import {
   sortPostAssets,
 } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import {
+  detectContentLanguage,
+  languageLabel,
+  type ContentLang,
+} from "@/lib/bilingual-copy";
 import { PostPhaseTimeline } from "@/components/grilla/post-phase-timeline";
 import {
   WORKFLOW_PHASES,
@@ -136,16 +142,45 @@ export function PostDetail({
   const [driveLoading, setDriveLoading] = useState(false);
   const [assets, setAssets] = useState(initialAssets);
   const [caption, setCaption] = useState(post.caption || "");
+  const [captionEn, setCaptionEn] = useState(post.caption_en || "");
+  // Caption dual UI only when EN caption exists or the user opts in — not because copy is bilingual.
+  const [bilingualCaption, setBilingualCaption] = useState(
+    () => !!(post.caption_en?.trim())
+  );
   const [captionSaving, setCaptionSaving] = useState(false);
   const [captionSaved, setCaptionSaved] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const FormatIcon = formatIcons[post.format] || ImageIcon;
-  const designer = parseDesignerCopy(post.copy);
-  const hasDesignerContent =
-    designer.slides.length > 0 ||
-    designer.title ||
-    designer.subtitle ||
-    designer.body;
+
+  const hasCopyEsField = !!post.copy?.trim();
+  const hasCopyEnField = !!post.copy_en?.trim();
+  // English-only orgs (e.g. Petroequip) store EN in `copy` with no `copy_en`.
+  const monoPrimaryIsEnglish =
+    hasCopyEsField &&
+    !hasCopyEnField &&
+    detectContentLanguage(post.copy!) === "en";
+  const copyEsSource = monoPrimaryIsEnglish ? null : post.copy;
+  const copyEnSource = monoPrimaryIsEnglish
+    ? post.copy
+    : post.copy_en;
+  const designer = parseDesignerCopy(copyEsSource);
+  const designerEn = parseDesignerCopy(copyEnSource);
+  const hasDesignerEs =
+    !!(
+      designer.slides.length > 0 ||
+      designer.title ||
+      designer.subtitle ||
+      designer.body
+    );
+  const hasDesignerEn =
+    !!(
+      designerEn.slides.length > 0 ||
+      designerEn.title ||
+      designerEn.subtitle ||
+      designerEn.body
+    );
+  const hasDesignerContent = hasDesignerEs || hasDesignerEn;
+  const isBilingualCopy = hasDesignerEs && hasDesignerEn;
 
   const displayPlates =
     identifierReferences.length > 0
@@ -189,7 +224,10 @@ export function PostDetail({
   async function handleCaptionSave() {
     setCaptionSaving(true);
     setCaptionSaved(false);
-    const result = await updatePost(orgId, post.id, { caption: caption || null });
+    const result = await updatePost(orgId, post.id, {
+      caption: caption || null,
+      caption_en: bilingualCaption ? captionEn || null : post.caption_en,
+    });
     setCaptionSaving(false);
     if (!result.error) setCaptionSaved(true);
   }
@@ -284,13 +322,27 @@ export function PostDetail({
     </div>
   );
 
+  const captionHasEs = !!caption.trim();
+  const captionHasEn = !!captionEn.trim();
+  const captionMonoLang: ContentLang | null =
+    captionHasEs && !captionHasEn
+      ? detectContentLanguage(caption)
+      : !captionHasEs && captionHasEn
+        ? "en"
+        : null;
   const captionSection = (
     <section>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-label">
-          Caption
-        </h2>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <h2 className="text-label">Caption</h2>
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={bilingualCaption ? "secondary" : "ghost"}
+            onClick={() => setBilingualCaption((v) => !v)}
+          >
+            <Languages size={12} />
+            {bilingualCaption ? "Un idioma" : "Otro idioma"}
+          </Button>
           {captionSaved && (
             <span className="text-xs text-emerald-600">Guardado</span>
           )}
@@ -304,11 +356,48 @@ export function PostDetail({
           </Button>
         </div>
       </div>
-      <CaptionEditor
-        value={caption}
-        onChange={setCaption}
-        accountName={orgName}
-      />
+      {bilingualCaption ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1">
+            <span className="text-[11px] font-medium text-muted">Español</span>
+            <CaptionEditor
+              value={caption}
+              onChange={setCaption}
+              accountName={orgName}
+            />
+          </div>
+          <div className="space-y-1">
+            <span className="text-[11px] font-medium text-muted">English</span>
+            <CaptionEditor
+              value={captionEn}
+              onChange={setCaptionEn}
+              accountName={orgName}
+            />
+          </div>
+        </div>
+      ) : captionHasEn && !captionHasEs ? (
+        <div className="space-y-1">
+          <span className="text-[11px] font-medium text-muted">English</span>
+          <CaptionEditor
+            value={captionEn}
+            onChange={setCaptionEn}
+            accountName={orgName}
+          />
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {(captionHasEs || captionHasEn) && (
+            <span className="text-[11px] font-medium text-muted">
+              {languageLabel(captionMonoLang || "es")}
+            </span>
+          )}
+          <CaptionEditor
+            value={caption}
+            onChange={setCaption}
+            accountName={orgName}
+          />
+        </div>
+      )}
     </section>
   );
 
@@ -345,66 +434,119 @@ export function PostDetail({
     </section>
   );
 
+  function LangPair({
+    es,
+    en,
+    className,
+  }: {
+    es?: string | null;
+    en?: string | null;
+    className?: string;
+  }) {
+    const hasEs = !!es?.trim();
+    const hasEn = !!en?.trim();
+    if (!hasEs && !hasEn) return null;
+    if (hasEs && hasEn) {
+      return (
+        <div className={cn("grid gap-3 sm:grid-cols-2", className)}>
+          <div className="space-y-1">
+            <span className="text-[11px] font-medium text-muted">Español</span>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{es}</p>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[11px] font-medium text-muted">English</span>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{en}</p>
+          </div>
+        </div>
+      );
+    }
+    const lang: ContentLang = hasEn ? "en" : "es";
+    const text = hasEn ? en : es;
+    return (
+      <div className={cn("space-y-1", className)}>
+        <span className="text-[11px] font-medium text-muted">
+          {languageLabel(lang)}
+        </span>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">{text}</p>
+      </div>
+    );
+  }
+
+  const designerSlideNumbers = Array.from(
+    new Set([
+      ...designer.slides.map((s) => s.slide),
+      ...designerEn.slides.map((s) => s.slide),
+    ])
+  ).sort((a, b) => a - b);
+
   const designerContentSection = hasDesignerContent ? (
     <section className="space-y-4">
       <p className="text-xs text-muted leading-relaxed">
         Contenido que dejó el creador para producir el post
+        {isBilingualCopy
+          ? " · bilingüe (ES / EN)"
+          : hasDesignerEn && !hasDesignerEs
+            ? " · English"
+            : hasDesignerEs && !hasDesignerEn
+              ? ` · ${languageLabel(monoPrimaryIsEnglish ? "en" : "es")}`
+              : ""}
       </p>
 
-      {(designer.title || designer.subtitle || designer.body) && (
+      {(designer.title ||
+        designer.subtitle ||
+        designer.body ||
+        designerEn.title ||
+        designerEn.subtitle ||
+        designerEn.body) && (
         <div className="rounded-lg border border-border divide-y divide-border">
-          {designer.title && (
-            <div className="px-4 py-3">
-              <p className="text-[10px] font-medium text-muted uppercase tracking-wide mb-1">
+          {(designer.title || designerEn.title) && (
+            <div className="px-4 py-3 space-y-2">
+              <p className="text-[10px] font-medium text-muted uppercase tracking-wide">
                 Título
               </p>
-              <p className="text-sm font-semibold leading-snug">
-                {designer.title}
-              </p>
+              <LangPair es={designer.title} en={designerEn.title} />
             </div>
           )}
-          {designer.subtitle && (
-            <div className="px-4 py-3">
-              <p className="text-[10px] font-medium text-muted uppercase tracking-wide mb-1">
+          {(designer.subtitle || designerEn.subtitle) && (
+            <div className="px-4 py-3 space-y-2">
+              <p className="text-[10px] font-medium text-muted uppercase tracking-wide">
                 Subtítulo
               </p>
-              <p className="text-sm text-muted leading-relaxed">
-                {designer.subtitle}
-              </p>
+              <LangPair es={designer.subtitle} en={designerEn.subtitle} />
             </div>
           )}
-          {designer.body && (
-            <div className="px-4 py-3">
-              <p className="text-[10px] font-medium text-muted uppercase tracking-wide mb-1">
+          {(designer.body || designerEn.body) && (
+            <div className="px-4 py-3 space-y-2">
+              <p className="text-[10px] font-medium text-muted uppercase tracking-wide">
                 Cuerpo
               </p>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                {designer.body}
-              </p>
+              <LangPair es={designer.body} en={designerEn.body} />
             </div>
           )}
         </div>
       )}
 
-      {designer.slides.map((slide) => (
-        <div
-          key={slide.slide}
-          className="rounded-lg border border-border px-4 py-3 space-y-2"
-        >
-          <p className="text-[10px] font-medium text-muted uppercase tracking-wide">
-            Slide {slide.slide}
-            {slide.label && (
-              <span className="normal-case font-normal">
-                {" "}
-                · {slide.label}
-              </span>
-            )}
-          </p>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">
-            {slide.content}
-          </p>
-        </div>
-      ))}
+      {designerSlideNumbers.map((slideNum) => {
+        const slideEs = designer.slides.find((s) => s.slide === slideNum);
+        const slideEn = designerEn.slides.find((s) => s.slide === slideNum);
+        return (
+          <div
+            key={slideNum}
+            className="rounded-lg border border-border px-4 py-3 space-y-2"
+          >
+            <p className="text-[10px] font-medium text-muted uppercase tracking-wide">
+              Slide {slideNum}
+              {(slideEs?.label || slideEn?.label) && (
+                <span className="normal-case font-normal">
+                  {" "}
+                  · {slideEs?.label || slideEn?.label}
+                </span>
+              )}
+            </p>
+            <LangPair es={slideEs?.content} en={slideEn?.content} />
+          </div>
+        );
+      })}
     </section>
   ) : null;
 
