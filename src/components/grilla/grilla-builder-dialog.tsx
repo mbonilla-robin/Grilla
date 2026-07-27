@@ -47,6 +47,7 @@ import {
   shiftQuincena,
   shiftWeek,
   slotHasContent,
+  slotsLookLikeSamePost,
   slotToBulkInput,
   titleFromCopy,
   weekRangeLabel,
@@ -499,8 +500,17 @@ export function GrillaBuilderDialog({
     [slots, slotDefaults]
   );
   const newSlotsToPublish = useMemo(
-    () => activeSlots.filter((s) => !isPublishedSlot(s)),
-    [activeSlots]
+    () =>
+      activeSlots.filter((s) => {
+        if (isPublishedSlot(s)) return false;
+        const publishedSameDay = slots.filter(
+          (p) => p.date === s.date && isPublishedSlot(p)
+        );
+        if (publishedSameDay.length === 0) return true;
+        // Never re-publish draft echoes of posts already on the grilla.
+        return !publishedSameDay.some((p) => slotsLookLikeSamePost(s, p));
+      }),
+    [activeSlots, slots]
   );
   const publishedSlotCount = useMemo(
     () => slots.filter((s) => isPublishedSlot(s)).length,

@@ -62,7 +62,65 @@ export function postToSlot(post: Post): GrillaSlot {
   };
 }
 
-/** Merge existing grilla posts with draft WIP. Published posts win; draft only fills empty days / extra slots. */
+/** Resolve a stable title for comparing draft echoes vs published posts. */
+export function slotCompareTitle(slot: GrillaSlot): string {
+  return (
+    slot.title.trim() ||
+    titleFromCopy(slot.copy) ||
+    titleFromCopy(slot.copyEn || "") ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+}
+
+/** True when a draft slot is clearly the same post as an already-published one. */
+export function slotsLookLikeSamePost(a: GrillaSlot, b: GrillaSlot): boolean {
+  const titleA = slotCompareTitle(a);
+  const titleB = slotCompareTitle(b);
+  if (titleA && titleB && titleA === titleB) return true;
+
+  const copyA = (a.copy || a.copyEn || "").trim().toLowerCase();
+  const copyB = (b.copy || b.copyEn || "").trim().toLowerCase();
+  if (copyA && copyB && copyA === copyB) return true;
+
+  const captionA = (a.caption || a.captionEn || "").trim().toLowerCase();
+  const captionB = (b.caption || b.captionEn || "").trim().toLowerCase();
+  if (captionA && captionB && captionA === captionB) return true;
+
+  return false;
+}
+
+/**
+ * Keep only intentional same-day extras ("Otro post").
+ * Draft slots that echo already-published posts must not be re-added.
+ */
+export function draftExtrasForPublishedDay(
+  published: GrillaSlot[],
+  draft: GrillaSlot[],
+  defaults: { pillar: string; format: PostFormat }
+): GrillaSlot[] {
+  if (published.length === 0) {
+    return draft.filter((slot) => slotHasContent(slot, defaults));
+  }
+
+  return draft.filter((slot) => {
+    // Ignore pillar/format-only draft noise — extras need real content.
+    const hasRealContent = !!(
+      slot.title.trim() ||
+      slot.copy.trim() ||
+      slot.copyEn?.trim() ||
+      slot.caption.trim() ||
+      slot.captionEn?.trim()
+    );
+    if (!hasRealContent) return false;
+
+    // Same title/copy as an existing post for this day → echo, not "Otro post".
+    return !published.some((p) => slotsLookLikeSamePost(slot, p));
+  });
+}
+
+/** Merge existing grilla posts with draft WIP. Published posts win; draft only fills empty days / intentional extras. */
 export function mergePublishedAndDraftSlots(
   dates: string[],
   posts: Post[],
@@ -95,7 +153,7 @@ export function mergePublishedAndDraftSlots(
     const draft = draftByDate[date] || [];
 
     if (published.length > 0) {
-      const extras = draft.filter((slot) => slotHasContent(slot, defaults));
+      const extras = draftExtrasForPublishedDay(published, draft, defaults);
       return extras.length > 0 ? [...published, ...extras] : published;
     }
 
