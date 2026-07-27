@@ -1,4 +1,8 @@
-import { FORMAT_LABELS, type PostFormat } from "@/lib/types";
+import {
+  FORMAT_LABELS,
+  type Post,
+  type PostFormat,
+} from "@/lib/types";
 
 export interface GrillaSlot {
   id: string;
@@ -17,6 +21,90 @@ export interface GrillaSlot {
   identifierPhotoUrl: string | null;
   inDrive: boolean;
   references: string;
+  /** Linked existing post — already on the grilla; read-only in the builder. */
+  postId?: string;
+  published?: boolean;
+}
+
+export function isPublishedSlot(slot: GrillaSlot): boolean {
+  return !!slot.postId || !!slot.published;
+}
+
+export function scheduledAtToDate(scheduledAt: string): string {
+  return scheduledAt.slice(0, 10);
+}
+
+export function postToSlot(post: Post): GrillaSlot {
+  const date = post.scheduled_at
+    ? scheduledAtToDate(post.scheduled_at)
+    : currentMonthValue() + "-01";
+  const identifierId = post.org_identifier_id;
+
+  return {
+    id: `post-${post.id}`,
+    date,
+    pillar: post.pillar || "Valor",
+    format: post.format,
+    title: post.title || "",
+    autoTitle: false,
+    copy: post.copy || "",
+    copyEn: post.copy_en || "",
+    caption: post.caption || "",
+    captionEn: post.caption_en || "",
+    plate: post.plate || "",
+    orgIdentifierId: identifierId,
+    orgIdentifierIds: identifierId ? [identifierId] : [],
+    identifierPhotoUrl: post.identifier_photo_url,
+    inDrive: post.in_drive ?? false,
+    references: post.references_text || "",
+    postId: post.id,
+    published: true,
+  };
+}
+
+/** Merge existing grilla posts with draft WIP. Published posts win; draft only fills empty days / extra slots. */
+export function mergePublishedAndDraftSlots(
+  dates: string[],
+  posts: Post[],
+  draftSlots: GrillaSlot[] | null | undefined,
+  defaults: { pillar: string; format: PostFormat }
+): GrillaSlot[] {
+  const dateSet = new Set(dates);
+  const publishedByDate = posts.reduce<Record<string, GrillaSlot[]>>(
+    (acc, post) => {
+      if (!post.scheduled_at) return acc;
+      const date = scheduledAtToDate(post.scheduled_at);
+      if (!dateSet.has(date)) return acc;
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(postToSlot(post));
+      return acc;
+    },
+    {}
+  );
+
+  const draftByDate = (draftSlots || [])
+    .filter((slot) => !isPublishedSlot(slot) && dateSet.has(slot.date))
+    .reduce<Record<string, GrillaSlot[]>>((acc, slot) => {
+      if (!acc[slot.date]) acc[slot.date] = [];
+      acc[slot.date].push(normalizeGrillaSlot(slot));
+      return acc;
+    }, {});
+
+  return dates.flatMap((date) => {
+    const published = publishedByDate[date] || [];
+    const draft = draftByDate[date] || [];
+
+    if (published.length > 0) {
+      const extras = draft.filter((slot) => slotHasContent(slot, defaults));
+      return extras.length > 0 ? [...published, ...extras] : published;
+    }
+
+    if (draft.length > 0) {
+      return draft;
+    }
+
+    return [createSlot(date, defaults)];
+  });
 }
 
 export function titleFromCopy(copy: string): string {
@@ -336,6 +424,9 @@ export function normalizeGrillaSlot(slot: Partial<GrillaSlot> & Pick<GrillaSlot,
         ? [slot.orgIdentifierId]
         : [];
 
+  const postId = slot.postId || undefined;
+  const published = slot.published ?? !!postId;
+
   return {
     ...base,
     ...slot,
@@ -348,6 +439,8 @@ export function normalizeGrillaSlot(slot: Partial<GrillaSlot> & Pick<GrillaSlot,
     identifierPhotoUrl: slot.identifierPhotoUrl ?? null,
     autoTitle: slot.autoTitle ?? true,
     inDrive: slot.inDrive ?? false,
+    postId,
+    published: published || undefined,
   };
 }
 

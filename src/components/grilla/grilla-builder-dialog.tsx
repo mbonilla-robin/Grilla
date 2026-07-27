@@ -25,7 +25,10 @@ import {
   resolveDraftContentCreatorId,
   type GrillaDraftPayload,
 } from "@/lib/grilla-draft";
-import { invalidateGrillaPostsCache } from "@/lib/grilla-posts-client";
+import {
+  invalidateGrillaPostsCache,
+  fetchGrillaPostsClient,
+} from "@/lib/grilla-posts-client";
 import {
   createSlot,
   currentMonthValue,
@@ -36,9 +39,10 @@ import {
   formatDayLabel,
   formatShortLabel,
   getMondayOfDate,
+  isPublishedSlot,
+  mergePublishedAndDraftSlots,
   monthLabel,
   quincenaLabel,
-  rebuildSlotsForDates,
   shiftMonth,
   shiftQuincena,
   shiftWeek,
@@ -221,54 +225,62 @@ export function GrillaBuilderDialog({
     setCommunityManagerId(assignmentOptions.defaultCommunityManagerId || "");
   }, [assignmentOptions, currentUserId]);
 
-  const applyDates = useCallback(
-    (dates: string[]) => {
-      setSlots((prev) => {
-        const next = rebuildSlotsForDates(dates, prev, slotDefaults);
-        setSelectedId((current) => {
-          if (current && next.some((s) => s.id === current)) return current;
-          return next[0]?.id ?? null;
-        });
-        return next;
-      });
-    },
-    [slotDefaults]
-  );
-
   const periodKey = useMemo(
     () => buildGrillaPeriodKey(period, { month, weekStart, quincena }),
     [period, month, weekStart, quincena]
   );
 
-  const restoreFromPayload = useCallback(
-    (payload: GrillaDraftPayload, dates: string[]) => {
-      const restored = rebuildSlotsForDates(dates, payload.slots, slotDefaults);
-      setSlots(restored);
+  const applyMergedState = useCallback(
+    (
+      dates: string[],
+      posts: Awaited<ReturnType<typeof fetchGrillaPostsClient>>,
+      payload: GrillaDraftPayload | null
+    ) => {
+      const merged = mergePublishedAndDraftSlots(
+        dates,
+        posts,
+        payload?.slots,
+        slotDefaults
+      );
+      setSlots(merged);
       setBilingualSlotIds(
         new Set(
-          restored
+          merged
             .filter((s) => s.copyEn?.trim() || s.captionEn?.trim())
             .map((s) => s.id)
         )
       );
-      setSelectedId(
-        payload.selectedId && restored.some((s) => s.id === payload.selectedId)
+
+      const draftSelected =
+        payload?.selectedId &&
+        merged.some(
+          (s) => s.id === payload.selectedId && !isPublishedSlot(s)
+        )
           ? payload.selectedId
-          : restored[0]?.id ?? null
+          : null;
+      const firstEmpty = merged.find(
+        (s) => !isPublishedSlot(s) && !slotHasContent(s, slotDefaults)
       );
-      const restoredCreator =
-        payload.creatorId ||
-        payload.authorId ||
-        assignmentOptions.defaultCreatorId ||
-        "";
-      if (restoredCreator) setCreatorId(restoredCreator);
-      if (payload.designerId) setDesignerId(payload.designerId);
-      if (payload.communityManagerId) setCommunityManagerId(payload.communityManagerId);
+      const firstDraft = merged.find((s) => !isPublishedSlot(s));
+      setSelectedId(draftSelected ?? firstEmpty?.id ?? firstDraft?.id ?? merged[0]?.id ?? null);
+
+      if (payload) {
+        const restoredCreator =
+          payload.creatorId ||
+          payload.authorId ||
+          assignmentOptions.defaultCreatorId ||
+          "";
+        if (restoredCreator) setCreatorId(restoredCreator);
+        if (payload.designerId) setDesignerId(payload.designerId);
+        if (payload.communityManagerId) {
+          setCommunityManagerId(payload.communityManagerId);
+        }
+      }
     },
     [slotDefaults, assignmentOptions.defaultCreatorId]
   );
 
-  const loadDraftFor = useCallback(
+  const loadPeriod = useCallback(
     async (
       p: GrillaPeriod,
       m: string,
@@ -277,26 +289,38 @@ export function GrillaBuilderDialog({
       dates: string[]
     ) => {
       const key = buildGrillaPeriodKey(p, { month: m, weekStart: ws, quincena: q });
-      const result = await getGrillaDraft(orgId, p, key);
-      if (result.data?.payload) {
-        restoreFromPayload(result.data.payload, dates);
+      const months = [...new Set(dates.map((d) => d.slice(0, 7)))];
+      for (const monthKey of months) {
+        invalidateGrillaPostsCache(orgId, monthKey);
+      }
+
+      const [draftResult, postBatches] = await Promise.all([
+        getGrillaDraft(orgId, p, key),
+        Promise.all(months.map((monthKey) => fetchGrillaPostsClient(orgId, monthKey))),
+      ]);
+      const posts = postBatches.flat();
+      const payload = draftResult.data?.payload ?? null;
+
+      applyMergedState(dates, posts, payload);
+
+      if (draftResult.data) {
         setDraftMeta({
-          updatedAt: result.data.updated_at,
-          updatedByName: result.data.updated_by_name,
+          updatedAt: draftResult.data.updated_at,
+          updatedByName: draftResult.data.updated_by_name,
           authorId:
-            result.data.payload.authorId ||
-            result.data.payload.creatorId ||
-            result.data.updated_by ||
+            draftResult.data.payload.authorId ||
+            draftResult.data.payload.creatorId ||
+            draftResult.data.updated_by ||
             null,
-          updatedBy: result.data.updated_by || null,
+          updatedBy: draftResult.data.updated_by || null,
         });
         return true;
       }
-      applyDates(dates);
+
       setDraftMeta(null);
       return false;
     },
-    [orgId, restoreFromPayload, applyDates]
+    [orgId, applyMergedState]
   );
 
   useEffect(() => {
@@ -326,7 +350,7 @@ export function GrillaBuilderDialog({
       setQuincena(q);
 
       if (!cancelled) {
-        await loadDraftFor(p, m, ws, q, dates);
+        await loadPeriod(p, m, ws, q, dates);
       }
 
       if (!cancelled) {
@@ -341,7 +365,7 @@ export function GrillaBuilderDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, initialMonth, resetAssignments, loadDraftFor]);
+  }, [open, initialMonth, resetAssignments, loadPeriod]);
 
   async function changePeriod(next: GrillaPeriod) {
     const dates =
@@ -354,7 +378,7 @@ export function GrillaBuilderDialog({
     setPeriod(next);
     setDraftLoading(true);
     skipAutoSave.current = true;
-    await loadDraftFor(next, month, weekStart, quincena, dates);
+    await loadPeriod(next, month, weekStart, quincena, dates);
     setDraftLoading(false);
     skipAutoSave.current = false;
   }
@@ -368,18 +392,18 @@ export function GrillaBuilderDialog({
       const dates = daysInWeek(nextStart);
       setWeekStart(nextStart);
       setPeriod("week");
-      await loadDraftFor("week", month, nextStart, quincena, dates);
+      await loadPeriod("week", month, nextStart, quincena, dates);
     } else if (period === "quincena") {
       const next = shiftQuincena(month, quincena, delta);
       const dates = daysInQuincena(next.month, next.quincena);
       setMonth(next.month);
       setQuincena(next.quincena);
-      await loadDraftFor("quincena", next.month, weekStart, next.quincena, dates);
+      await loadPeriod("quincena", next.month, weekStart, next.quincena, dates);
     } else {
       const nextMonth = shiftMonth(month, delta);
       const dates = daysInMonth(nextMonth);
       setMonth(nextMonth);
-      await loadDraftFor("month", nextMonth, weekStart, quincena, dates);
+      await loadPeriod("month", nextMonth, weekStart, quincena, dates);
     }
 
     setDraftLoading(false);
@@ -391,8 +415,12 @@ export function GrillaBuilderDialog({
       if (!open || draftLoading || skipAutoSave.current) return;
 
       const payload: GrillaDraftPayload = {
-        slots,
-        selectedId,
+        slots: slots.filter((s) => !isPublishedSlot(s)),
+        selectedId:
+          selectedId &&
+          slots.some((s) => s.id === selectedId && !isPublishedSlot(s))
+            ? selectedId
+            : null,
         month,
         weekStart,
         quincena,
@@ -470,7 +498,18 @@ export function GrillaBuilderDialog({
     () => slots.filter((s) => slotHasContent(s, slotDefaults)),
     [slots, slotDefaults]
   );
+  const newSlotsToPublish = useMemo(
+    () => activeSlots.filter((s) => !isPublishedSlot(s)),
+    [activeSlots]
+  );
+  const publishedSlotCount = useMemo(
+    () => slots.filter((s) => isPublishedSlot(s)).length,
+    [slots]
+  );
   const selectedSlot = slots.find((s) => s.id === selectedId) ?? null;
+  const selectedIsPublished = selectedSlot
+    ? isPublishedSlot(selectedSlot)
+    : false;
   const slotsForSelectedDate = selectedSlot
     ? slots.filter((s) => s.date === selectedSlot.date)
     : [];
@@ -479,7 +518,7 @@ export function GrillaBuilderDialog({
     : false;
 
   function toggleBilingualForSelected() {
-    if (!selectedSlot) return;
+    if (!selectedSlot || isPublishedSlot(selectedSlot)) return;
     setBilingualSlotIds((prev) => {
       const next = new Set(prev);
       if (next.has(selectedSlot.id)) next.delete(selectedSlot.id);
@@ -510,7 +549,13 @@ export function GrillaBuilderDialog({
   }, [activeSlots]);
 
   function updateSlot(id: string, patch: Partial<GrillaSlot>) {
-    setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    setSlots((prev) =>
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        if (isPublishedSlot(s)) return s;
+        return { ...s, ...patch };
+      })
+    );
   }
 
   function handleCopyChange(id: string, value: string, autoTitle: boolean) {
@@ -526,6 +571,7 @@ export function GrillaBuilderDialog({
     setSlots((prev) =>
       prev.map((s) => {
         if (s.id !== id) return s;
+        if (isPublishedSlot(s)) return s;
         return { ...createSlot(s.date, slotDefaults), id: s.id };
       })
     );
@@ -534,7 +580,7 @@ export function GrillaBuilderDialog({
   function removeSlot(id: string) {
     setSlots((prev) => {
       const target = prev.find((s) => s.id === id);
-      if (!target) return prev;
+      if (!target || isPublishedSlot(target)) return prev;
       const sameDay = prev.filter((s) => s.date === target.date);
       if (sameDay.length <= 1) return prev;
 
@@ -577,13 +623,23 @@ export function GrillaBuilderDialog({
     if (!activeDates.has(date)) return;
     const daySlots = slots.filter((s) => s.date === date);
     if (daySlots.length === 0) return;
-    const withContent = daySlots.find((s) => slotHasContent(s, slotDefaults));
-    setSelectedId((withContent ?? daySlots[0]).id);
+    const next =
+      daySlots.find(
+        (s) => !isPublishedSlot(s) && !slotHasContent(s, slotDefaults)
+      ) ??
+      daySlots.find((s) => !isPublishedSlot(s)) ??
+      daySlots.find((s) => slotHasContent(s, slotDefaults)) ??
+      daySlots[0];
+    setSelectedId(next.id);
   }
 
   async function handleSave() {
-    if (activeSlots.length === 0) {
-      setError("Agrega contenido en al menos un día");
+    if (newSlotsToPublish.length === 0) {
+      setError(
+        publishedSlotCount > 0
+          ? "No hay posts nuevos para publicar — completa más días o agrega Otro post"
+          : "Agrega contenido en al menos un día"
+      );
       return;
     }
 
@@ -600,7 +656,7 @@ export function GrillaBuilderDialog({
 
     const result = await bulkCreatePosts(
       orgId,
-      activeSlots.map(slotToBulkInput),
+      newSlotsToPublish.map(slotToBulkInput),
       {
         content_creator_id: contentCreatorId,
         assigned_to: designerId || undefined,
@@ -623,7 +679,7 @@ export function GrillaBuilderDialog({
     }
 
     const publishedMonths = [
-      ...new Set(activeSlots.map((slot) => slot.date.slice(0, 7))),
+      ...new Set(newSlotsToPublish.map((slot) => slot.date.slice(0, 7))),
     ];
     for (const publishedMonth of publishedMonths) {
       invalidateGrillaPostsCache(orgId, publishedMonth);
@@ -635,7 +691,7 @@ export function GrillaBuilderDialog({
 
     await deleteGrillaDraft(orgId, period, periodKey);
     setPublishSuccess({
-      count: result.count ?? activeSlots.length,
+      count: result.count ?? newSlotsToPublish.length,
       month: targetMonth,
     });
     setLoading(false);
@@ -655,11 +711,12 @@ export function GrillaBuilderDialog({
               </h2>
               <p className="text-sm leading-relaxed text-muted">
                 Se publicaron {publishSuccess.count} post
+                {publishSuccess.count !== 1 ? "s" : ""} nuevo
                 {publishSuccess.count !== 1 ? "s" : ""} para{" "}
                 <span className="font-medium capitalize text-foreground">
                   {monthLabel(publishSuccess.month)}
                 </span>
-                . Ya están en la grilla del mes.
+                . Los posts que ya estaban en la grilla no se modificaron.
               </p>
             </div>
             <Button type="button" size="sm" onClick={finishPublishAndViewGrid}>
@@ -730,7 +787,7 @@ export function GrillaBuilderDialog({
                             setMonth(nextMonth);
                             skipAutoSave.current = true;
                             setDraftLoading(true);
-                            await loadDraftFor(period, nextMonth, weekStart, quincena, dates);
+                            await loadPeriod(period, nextMonth, weekStart, quincena, dates);
                             setDraftLoading(false);
                             skipAutoSave.current = false;
                           }}
@@ -769,7 +826,7 @@ export function GrillaBuilderDialog({
 
               <div>
                 <p className="text-xs text-muted mb-2">
-                  Los días con contenido muestran un punto de color
+                  Check = ya en la grilla · punto = borrador por publicar
                 </p>
                 <GrillaBuilderCalendar
                   month={month}
@@ -852,30 +909,35 @@ export function GrillaBuilderDialog({
                               }`}
                             >
                               Post {index + 1}
-                              {slotHasContent(slot, slotDefaults)
-                                ? ""
-                                : " (vacío)"}
+                              {isPublishedSlot(slot)
+                                ? " ✓"
+                                : slotHasContent(slot, slotDefaults)
+                                  ? ""
+                                  : " (vacío)"}
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => removeSlot(slot.id)}
-                              className={`border-l px-1.5 py-0.5 ${
-                                slot.id === selectedId
-                                  ? "border-accent-foreground/20 hover:bg-accent-foreground/10"
-                                  : "border-border hover:bg-destructive/10 hover:text-destructive"
-                              }`}
-                              aria-label={`Eliminar post ${index + 1}`}
-                              title="Eliminar este post"
-                            >
-                              <Trash2 size={11} />
-                            </button>
+                            {!isPublishedSlot(slot) && (
+                              <button
+                                type="button"
+                                onClick={() => removeSlot(slot.id)}
+                                className={`border-l px-1.5 py-0.5 ${
+                                  slot.id === selectedId
+                                    ? "border-accent-foreground/20 hover:bg-accent-foreground/10"
+                                    : "border-border hover:bg-destructive/10 hover:text-destructive"
+                                }`}
+                                aria-label={`Eliminar post ${index + 1}`}
+                                title="Eliminar este post"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    {slotsForSelectedDate.length > 1 && (
+                    {!selectedIsPublished &&
+                      slotsForSelectedDate.length > 1 && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -887,7 +949,8 @@ export function GrillaBuilderDialog({
                         Eliminar
                       </Button>
                     )}
-                    {slotHasContent(selectedSlot, slotDefaults) && (
+                    {!selectedIsPublished &&
+                      slotHasContent(selectedSlot, slotDefaults) && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -910,6 +973,17 @@ export function GrillaBuilderDialog({
                   </div>
                 </div>
 
+                {selectedIsPublished && (
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                    Ya en la grilla — solo lectura. Usa “Otro post” para agregar
+                    más contenido ese día.
+                  </div>
+                )}
+
+                <fieldset
+                  disabled={selectedIsPublished}
+                  className={`space-y-4 ${selectedIsPublished ? "opacity-70" : ""}`}
+                >
                 <div className="space-y-4">
                   <PostPillarField
                     options={pillarOptions}
@@ -981,6 +1055,7 @@ export function GrillaBuilderDialog({
                     variant={selectedBilingual ? "secondary" : "ghost"}
                     size="sm"
                     onClick={toggleBilingualForSelected}
+                    disabled={selectedIsPublished}
                   >
                     <Languages size={12} />
                     {selectedBilingual ? "Un idioma" : "Otro idioma"}
@@ -1080,6 +1155,7 @@ export function GrillaBuilderDialog({
                     className="flex w-full rounded-md border border-border bg-surface px-3 py-2 text-sm placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
                   />
                 </div>
+                </fieldset>
               </div>
             ) : (
               <p className="text-sm text-muted py-8 text-center">
@@ -1098,10 +1174,24 @@ export function GrillaBuilderDialog({
             {!error && !draftMessage && draftSaving && (
               <p className="text-xs text-muted">Guardando borrador…</p>
             )}
-            {!error && !draftMessage && !draftSaving && activeSlots.length > 0 && (
+            {!error && !draftMessage && !draftSaving && (
               <p className="text-xs text-muted">
-                {activeSlots.length} post{activeSlots.length !== 1 ? "s" : ""}{" "}
-                con contenido
+                {publishedSlotCount > 0 && (
+                  <>
+                    {publishedSlotCount} ya en la grilla
+                    {newSlotsToPublish.length > 0 ? " · " : ""}
+                  </>
+                )}
+                {newSlotsToPublish.length > 0 && (
+                  <>
+                    {newSlotsToPublish.length} nuevo
+                    {newSlotsToPublish.length !== 1 ? "s" : ""} por publicar
+                  </>
+                )}
+                {publishedSlotCount === 0 &&
+                  newSlotsToPublish.length === 0 &&
+                  activeSlots.length === 0 &&
+                  "Sin contenido aún"}
               </p>
             )}
             {!error && !draftMessage && !draftSaving && draftMeta && (
@@ -1133,10 +1223,10 @@ export function GrillaBuilderDialog({
               type="button"
               size="sm"
               loading={loading}
-              disabled={activeSlots.length === 0 || draftLoading}
+              disabled={newSlotsToPublish.length === 0 || draftLoading}
               onClick={handleSave}
             >
-              Publicar grilla ({activeSlots.length})
+              Publicar grilla ({newSlotsToPublish.length})
             </Button>
           </div>
         </div>

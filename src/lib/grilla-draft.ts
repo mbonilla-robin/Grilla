@@ -13,7 +13,7 @@ export interface GrillaDraftPayload {
   communityManagerId: string;
 }
 
-/** Prefer explicit creator pick, then sticky draft author, then sole-creator default. */
+/** Prefer explicit creator pick, then sole-creator default, then sticky draft author. */
 export function resolveDraftContentCreatorId(opts: {
   creatorId?: string | null;
   authorId?: string | null;
@@ -23,9 +23,9 @@ export function resolveDraftContentCreatorId(opts: {
 }): string {
   return (
     opts.creatorId ||
+    opts.defaultCreatorId ||
     opts.authorId ||
     opts.draftUpdatedBy ||
-    opts.defaultCreatorId ||
     opts.fallbackUserId
   );
 }

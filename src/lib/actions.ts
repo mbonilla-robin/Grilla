@@ -549,7 +549,12 @@ export async function createPost(
 
   if (!user) return { error: "No autenticado" };
 
-  const contentCreatorId = data.content_creator_id || user.id;
+  const { getPostAssignmentOptions } = await import("@/lib/team-assignments");
+  const assignmentOptions = await getPostAssignmentOptions(orgId);
+  const contentCreatorId =
+    data.content_creator_id ||
+    assignmentOptions.defaultCreatorId ||
+    user.id;
 
   const { findExistingPost } = await import("@/lib/post-dedupe");
   const existing = await findExistingPost(
@@ -639,7 +644,12 @@ export async function bulkCreatePosts(
   if (!user) return { error: "No autenticado" };
   if (posts.length === 0) return { error: "No hay posts para crear" };
 
-  const contentCreatorId = team.content_creator_id || user.id;
+  const { getPostAssignmentOptions } = await import("@/lib/team-assignments");
+  const assignmentOptions = await getPostAssignmentOptions(orgId);
+  const contentCreatorId =
+    team.content_creator_id ||
+    assignmentOptions.defaultCreatorId ||
+    user.id;
   const assignee = team.assigned_to || contentCreatorId;
 
   const { findExistingPost } = await import("@/lib/post-dedupe");

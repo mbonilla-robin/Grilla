@@ -1,8 +1,10 @@
 "use client";
 
+import { Check } from "lucide-react";
 import {
   WEEKDAYS_MONDAY_START,
   buildMonthCalendar,
+  isPublishedSlot,
   slotHasContent,
   type GrillaSlot,
 } from "@/lib/grilla-slot-utils";
@@ -41,6 +43,10 @@ function DayCell({
   slotDefaults: { pillar: string; format: PostFormat };
   onSelectDate: (date: string) => void;
 }) {
+  const hasPublished = daySlots.some((s) => isPublishedSlot(s));
+  const hasDraftContent = daySlots.some(
+    (s) => !isPublishedSlot(s) && slotHasContent(s, slotDefaults)
+  );
   const hasContent = daySlots.some((s) => slotHasContent(s, slotDefaults));
   const primarySlot =
     daySlots.find((s) => slotHasContent(s, slotDefaults)) ?? daySlots[0];
@@ -70,18 +76,45 @@ function DayCell({
             ? "border-border bg-background hover:border-accent/40"
             : "border-border/60 bg-background/40 text-muted hover:border-border hover:bg-background/70"
       }`}
+      title={
+        hasPublished
+          ? hasDraftContent
+            ? "Ya en la grilla · hay posts nuevos en borrador"
+            : "Ya en la grilla"
+          : undefined
+      }
     >
       <span className="tabular-nums">{day}</span>
-      {hasContent && (
-        <span
-          className="h-1.5 w-1.5 rounded-full"
-          style={{
-            backgroundColor: resolvePillarDisplayColor(
-              pillarIndex >= 0 ? pillarIndex : 0
-            ),
-          }}
-        />
-      )}
+      <span className="flex items-center gap-0.5 min-h-[6px]">
+        {hasPublished && (
+          <Check
+            size={10}
+            strokeWidth={2.5}
+            className="text-emerald-600"
+            aria-label="Ya en la grilla"
+          />
+        )}
+        {hasDraftContent && (
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{
+              backgroundColor: resolvePillarDisplayColor(
+                pillarIndex >= 0 ? pillarIndex : 0
+              ),
+            }}
+          />
+        )}
+        {!hasPublished && !hasDraftContent && hasContent && (
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{
+              backgroundColor: resolvePillarDisplayColor(
+                pillarIndex >= 0 ? pillarIndex : 0
+              ),
+            }}
+          />
+        )}
+      </span>
       {postCount > 1 && (
         <span className="absolute top-1 right-1 min-w-[14px] h-[14px] rounded-full bg-foreground text-background text-[9px] font-medium flex items-center justify-center px-0.5">
           {postCount}
