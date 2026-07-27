@@ -6,9 +6,28 @@ export interface GrillaDraftPayload {
   month: string;
   weekStart: string;
   quincena: QuincenaId;
+  /** Sticky content author — set on first draft save, never overwritten by later editors/publishers. */
+  authorId?: string;
   creatorId: string;
   designerId: string;
   communityManagerId: string;
+}
+
+/** Prefer explicit creator pick, then sticky draft author, then sole-creator default. */
+export function resolveDraftContentCreatorId(opts: {
+  creatorId?: string | null;
+  authorId?: string | null;
+  draftUpdatedBy?: string | null;
+  defaultCreatorId?: string | null;
+  fallbackUserId: string;
+}): string {
+  return (
+    opts.creatorId ||
+    opts.authorId ||
+    opts.draftUpdatedBy ||
+    opts.defaultCreatorId ||
+    opts.fallbackUserId
+  );
 }
 
 export function buildGrillaPeriodKey(

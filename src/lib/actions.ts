@@ -771,6 +771,28 @@ export async function saveGrillaDraft(
 
   if (!user) return { error: "No autenticado" };
 
+  // Keep the original content author sticky across editors/publishers.
+  const { data: existing } = await supabase
+    .from("grilla_drafts")
+    .select("payload")
+    .eq("organization_id", orgId)
+    .eq("period", period)
+    .eq("period_key", periodKey)
+    .maybeSingle();
+
+  const existingPayload = existing?.payload as GrillaDraftPayload | null;
+  const stickyAuthorId =
+    existingPayload?.authorId ||
+    payload.authorId ||
+    payload.creatorId ||
+    user.id;
+
+  const nextPayload: GrillaDraftPayload = {
+    ...payload,
+    authorId: stickyAuthorId,
+    creatorId: payload.creatorId || stickyAuthorId,
+  };
+
   const { data, error } = await supabase
     .from("grilla_drafts")
     .upsert(
@@ -778,7 +800,7 @@ export async function saveGrillaDraft(
         organization_id: orgId,
         period,
         period_key: periodKey,
-        payload,
+        payload: nextPayload,
         updated_by: user.id,
         updated_at: new Date().toISOString(),
       },

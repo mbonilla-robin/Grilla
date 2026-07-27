@@ -20,7 +20,11 @@ import {
   getGrillaDraft,
   saveGrillaDraft,
 } from "@/lib/actions";
-import { buildGrillaPeriodKey, type GrillaDraftPayload } from "@/lib/grilla-draft";
+import {
+  buildGrillaPeriodKey,
+  resolveDraftContentCreatorId,
+  type GrillaDraftPayload,
+} from "@/lib/grilla-draft";
 import { invalidateGrillaPostsCache } from "@/lib/grilla-posts-client";
 import {
   createSlot,
@@ -160,6 +164,8 @@ export function GrillaBuilderDialog({
   const [draftMeta, setDraftMeta] = useState<{
     updatedAt: string;
     updatedByName: string | null;
+    authorId: string | null;
+    updatedBy: string | null;
   } | null>(null);
   const [draftMessage, setDraftMessage] = useState<string | null>(null);
   const [publishSuccess, setPublishSuccess] = useState<{
@@ -250,11 +256,16 @@ export function GrillaBuilderDialog({
           ? payload.selectedId
           : restored[0]?.id ?? null
       );
-      if (payload.creatorId) setCreatorId(payload.creatorId);
+      const restoredCreator =
+        payload.creatorId ||
+        payload.authorId ||
+        assignmentOptions.defaultCreatorId ||
+        "";
+      if (restoredCreator) setCreatorId(restoredCreator);
       if (payload.designerId) setDesignerId(payload.designerId);
       if (payload.communityManagerId) setCommunityManagerId(payload.communityManagerId);
     },
-    [slotDefaults]
+    [slotDefaults, assignmentOptions.defaultCreatorId]
   );
 
   const loadDraftFor = useCallback(
@@ -272,6 +283,12 @@ export function GrillaBuilderDialog({
         setDraftMeta({
           updatedAt: result.data.updated_at,
           updatedByName: result.data.updated_by_name,
+          authorId:
+            result.data.payload.authorId ||
+            result.data.payload.creatorId ||
+            result.data.updated_by ||
+            null,
+          updatedBy: result.data.updated_by || null,
         });
         return true;
       }
@@ -379,6 +396,7 @@ export function GrillaBuilderDialog({
         month,
         weekStart,
         quincena,
+        authorId: draftMeta?.authorId || creatorId || currentUserId,
         creatorId,
         designerId,
         communityManagerId,
@@ -391,6 +409,8 @@ export function GrillaBuilderDialog({
         setDraftMeta({
           updatedAt: result.data.updated_at,
           updatedByName: "Tú",
+          authorId: payload.authorId || draftMeta?.authorId || currentUserId,
+          updatedBy: currentUserId,
         });
         if (!options?.silent) {
           setDraftMessage("Borrador guardado para todo el equipo");
@@ -411,6 +431,8 @@ export function GrillaBuilderDialog({
       creatorId,
       designerId,
       communityManagerId,
+      draftMeta?.authorId,
+      currentUserId,
       orgId,
       period,
       periodKey,
@@ -568,11 +590,19 @@ export function GrillaBuilderDialog({
     setLoading(true);
     setError(null);
 
+    const contentCreatorId = resolveDraftContentCreatorId({
+      creatorId,
+      authorId: draftMeta?.authorId,
+      draftUpdatedBy: draftMeta?.updatedBy,
+      defaultCreatorId: assignmentOptions.defaultCreatorId,
+      fallbackUserId: currentUserId,
+    });
+
     const result = await bulkCreatePosts(
       orgId,
       activeSlots.map(slotToBulkInput),
       {
-        content_creator_id: creatorId || currentUserId,
+        content_creator_id: contentCreatorId,
         assigned_to: designerId || undefined,
         community_manager_id: communityManagerId || undefined,
       }
