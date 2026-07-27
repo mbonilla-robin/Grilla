@@ -26,7 +26,9 @@ export function ReelPreviewModal({
   onClose,
 }: ReelPreviewModalProps) {
   const assets = sortPostAssets(post.assets || []);
-  const cover = assets[0];
+  const coverImage = assets.find((a) => a.file_type === "image");
+  const video = assets.find((a) => a.file_type === "video");
+  const media = video || assets[0];
   const captionText = post.caption || post.copy || post.title || "";
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -52,10 +54,11 @@ export function ReelPreviewModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative aspect-[9/16] max-h-[85vh] w-full overflow-hidden rounded-xl bg-black shadow-2xl">
-          {cover ? (
-            cover.file_type === "video" ? (
+          {media ? (
+            media.file_type === "video" ? (
               <video
-                src={cover.file_url}
+                src={media.file_url}
+                poster={coverImage?.file_url}
                 className="absolute inset-0 h-full w-full object-cover"
                 controls
                 autoPlay
@@ -65,7 +68,7 @@ export function ReelPreviewModal({
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={cover.file_url}
+                src={media.file_url}
                 alt={post.title}
                 className="absolute inset-0 h-full w-full object-cover"
               />

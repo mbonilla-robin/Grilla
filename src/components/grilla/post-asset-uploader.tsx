@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, X, Loader2, Download } from "lucide-react";
+import { Upload, X, Loader2, Download, ImagePlay } from "lucide-react";
 import {
   registerPostAsset,
   deletePostAsset,
@@ -11,6 +11,10 @@ import { downloadFile } from "@/lib/download-file";
 import { createClient } from "@/lib/supabase/client";
 import { cn, sortPostAssets } from "@/lib/utils";
 import type { PostAsset, PostStatus } from "@/lib/types";
+import {
+  VideoCoverPicker,
+  isGeneratedVideoCover,
+} from "@/components/grilla/video-cover-picker";
 
 const ASSET_DRAG_TYPE = "text/post-asset-id";
 
@@ -43,6 +47,7 @@ export function PostAssetUploader({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [coverVideo, setCoverVideo] = useState<PostAsset | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -288,7 +293,80 @@ export function PostAssetUploader({
     setDropTargetId(null);
   }
 
+  async function handleCoverFromFrame(file: File) {
+    if (!coverVideo) return;
+
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("No autenticado");
+
+    const previous = sortPostAssets(localAssets);
+    const oldCovers = previous.filter(
+      (a) =>
+        a.file_type === "image" &&
+        isGeneratedVideoCover(a.file_name) &&
+        !a.id.startsWith("temp-")
+    );
+
+    const path = `${orgId}/${postId}/cover-0-${Date.now()}.jpg`;
+    const { error: uploadError } = await supabase.storage
+      .from("post-assets")
+      .upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: "image/jpeg",
+      });
+    if (uploadError) throw new Error(uploadError.message);
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("post-assets").getPublicUrl(path);
+
+    const result = await registerPostAsset(postId, orgId, {
+      file_url: publicUrl,
+      file_name: file.name,
+      file_type: "image",
+      sort_order: 0,
+    });
+
+    if (result.error || !result.asset) {
+      await supabase.storage.from("post-assets").remove([path]);
+      throw new Error(result.error || "Error al registrar portada");
+    }
+
+    const withoutOldCovers = previous.filter(
+      (a) => !oldCovers.some((c) => c.id === a.id)
+    );
+    const ordered = [
+      result.asset,
+      ...withoutOldCovers.filter((a) => a.id !== result.asset!.id),
+    ].map((asset, index) => ({ ...asset, sort_order: index }));
+
+    updateAssets(ordered);
+
+    const reorderResult = await reorderPostAssets(
+      postId,
+      orgId,
+      ordered.map((a) => a.id)
+    );
+    if (reorderResult.error) {
+      updateAssets(previous);
+      throw new Error(reorderResult.error);
+    }
+
+    for (const old of oldCovers) {
+      await deletePostAsset(old.id, postId, orgId);
+    }
+
+    if (result.newStatus) {
+      onStatusChanged?.(result.newStatus as PostStatus);
+    }
+  }
+
   const sorted = sortPostAssets(localAssets);
+  const hasVideo = sorted.some((a) => a.file_type === "video");
   const thumbSize = mini ? "h-7 w-7" : "h-14 w-14";
   const canReorder = !mini && sorted.length > 1;
 
@@ -445,6 +523,20 @@ export function PostAssetUploader({
                     <X size={10} />
                   )}
                 </button>
+                {asset.file_type === "video" && !isTemp && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCoverVideo(asset);
+                    }}
+                    draggable={false}
+                    className="absolute bottom-0.5 left-0.5 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Elegir portada desde un frame"
+                  >
+                    <ImagePlay size={10} />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={(e) => {
@@ -466,6 +558,23 @@ export function PostAssetUploader({
             );
           })}
         </div>
+      )}
+
+      {hasVideo && !compact && (
+        <button
+          type="button"
+          onClick={() => {
+            const video = sorted.find(
+              (a) => a.file_type === "video" && !a.id.startsWith("temp-")
+            );
+            if (video) setCoverVideo(video);
+          }}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 border border-border rounded-md py-2.5 text-xs text-foreground hover:bg-background/80 transition-colors"
+        >
+          <ImagePlay size={14} />
+          Elegir portada del video
+        </button>
       )}
 
       <button
@@ -490,9 +599,20 @@ export function PostAssetUploader({
       {!compact && sorted.length > 0 && (
         <p className="text-[10px] text-muted">
           Archivo 1 = portada del Feed
+          {hasVideo ? " · En videos puedes elegir un frame como portada" : ""}
           {canReorder ? " · Arrastra para reordenar" : ""} · Calidad original
           para publicar
         </p>
+      )}
+
+      {coverVideo && (
+        <VideoCoverPicker
+          open={!!coverVideo}
+          videoUrl={coverVideo.file_url}
+          videoName={coverVideo.file_name}
+          onClose={() => setCoverVideo(null)}
+          onConfirm={handleCoverFromFrame}
+        />
       )}
     </div>
   );
