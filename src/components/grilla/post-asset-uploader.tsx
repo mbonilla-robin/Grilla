@@ -7,6 +7,7 @@ import {
   deletePostAsset,
   reorderPostAssets,
 } from "@/lib/actions";
+import { downloadFile } from "@/lib/download-file";
 import { createClient } from "@/lib/supabase/client";
 import { cn, sortPostAssets } from "@/lib/utils";
 import type { PostAsset, PostStatus } from "@/lib/types";
@@ -41,6 +42,7 @@ export function PostAssetUploader({
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -190,8 +192,20 @@ export function PostAssetUploader({
     } else if (result.newStatus) {
       onStatusChanged?.(result.newStatus as PostStatus);
     }
-
     setDeletingId(null);
+  }
+
+  async function handleDownload(asset: PostAsset) {
+    if (downloadingId || asset.id.startsWith("temp-")) return;
+    setDownloadingId(asset.id);
+    try {
+      await downloadFile(asset.file_url, asset.file_name);
+    } catch (e) {
+      console.error(e);
+      setError(e instanceof Error ? e.message : "Error al descargar");
+    } finally {
+      setDownloadingId(null);
+    }
   }
 
   function handleAssetDragStart(e: React.DragEvent, assetId: string) {
@@ -431,18 +445,23 @@ export function PostAssetUploader({
                     <X size={10} />
                   )}
                 </button>
-                <a
-                  href={asset.file_url}
-                  download={asset.file_name}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownload(asset);
+                  }}
+                  disabled={downloadingId === asset.id || isTemp}
                   draggable={false}
-                  className="absolute bottom-0.5 right-0.5 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute bottom-0.5 right-0.5 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40"
                   title="Descargar original"
                 >
-                  <Download size={10} />
-                </a>
+                  {downloadingId === asset.id ? (
+                    <Loader2 size={10} className="animate-spin" />
+                  ) : (
+                    <Download size={10} />
+                  )}
+                </button>
               </div>
             );
           })}

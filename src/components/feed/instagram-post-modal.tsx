@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { sortPostAssets } from "@/lib/utils";
+import { downloadFile } from "@/lib/download-file";
 import { FORMAT_LABELS, type PostWithAssets } from "@/lib/types";
 
 interface InstagramPostModalProps {
@@ -192,6 +193,17 @@ function PostCaption({
   );
 }
 
+function assetDownloadLabel(
+  asset: ReturnType<typeof sortPostAssets>[number],
+  index: number,
+  total: number
+) {
+  if (asset.file_type === "video") {
+    return total === 1 ? "Video" : `Video ${index + 1}`;
+  }
+  return total === 1 ? "Archivo" : `Slide ${index + 1}`;
+}
+
 function DownloadLinks({
   assets,
   className = "",
@@ -199,23 +211,38 @@ function DownloadLinks({
   assets: ReturnType<typeof sortPostAssets>;
   className?: string;
 }) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+
   if (assets.length === 0) return null;
+
+  async function handleDownload(asset: (typeof assets)[number]) {
+    if (busyId) return;
+    setBusyId(asset.id);
+    try {
+      await downloadFile(asset.file_url, asset.file_name);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <div className={`flex flex-wrap items-center gap-2 ${className}`}>
       <span className="text-[11px] text-muted mr-1">Descargar:</span>
       {assets.map((asset, i) => (
-        <a
+        <button
           key={asset.id}
-          href={asset.file_url}
-          download={asset.file_name}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-[11px] font-medium rounded-full px-3 py-1.5 border border-border bg-neutral-50 text-foreground hover:bg-neutral-100 transition-colors"
+          type="button"
+          disabled={busyId === asset.id}
+          onClick={() => handleDownload(asset)}
+          className="inline-flex items-center gap-1.5 text-[11px] font-medium rounded-full px-3 py-1.5 border border-border bg-neutral-50 text-foreground hover:bg-neutral-100 transition-colors disabled:opacity-60"
         >
           <Download size={12} />
-          Slide {i + 1}
-        </a>
+          {busyId === asset.id
+            ? "…"
+            : assetDownloadLabel(asset, i, assets.length)}
+        </button>
       ))}
     </div>
   );
@@ -334,7 +361,7 @@ export function InstagramPostModal({
 
         <DownloadLinks
           assets={assets}
-          className="justify-center px-2 [&_span]:text-white/70 [&_a]:bg-white/10 [&_a]:hover:bg-white/20 [&_a]:text-white [&_a]:border-white/20"
+          className="justify-center px-2 [&_span]:text-white/70 [&_button]:bg-white/10 [&_button]:hover:bg-white/20 [&_button]:text-white [&_button]:border-white/20"
         />
       </div>
     </div>
