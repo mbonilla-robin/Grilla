@@ -6,6 +6,12 @@
 
 export type ContentLang = "es" | "en";
 
+export type SplitBilingualResult = {
+  es: string;
+  en: string;
+  mode: "interleaved" | "block";
+};
+
 export function languageLabel(lang: ContentLang): string {
   return lang === "en" ? "English" : "Español";
 }
@@ -48,8 +54,6 @@ const EN_LINE =
 
 const ES_INLINE = /^(?:espa[nñ]ol|es)\s*:\s*/i;
 const EN_INLINE = /^(?:ingl[eé]s|english|en)\s*:\s*/i;
-
-const SLIDE_HEADER = /^(?:slide|SLIDE)\s*(\d+)\b[^\n]*/gm;
 
 function normalizeNewlines(text: string): string {
   return text.replace(/\r\n/g, "\n").trim();
