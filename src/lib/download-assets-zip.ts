@@ -1,4 +1,5 @@
 import type { PostAsset } from "@/lib/types";
+import { downloadFile } from "@/lib/download-file";
 import { sortPostAssets } from "@/lib/utils";
 
 function uniqueZipEntryName(fileName: string, index: number, used: Set<string>) {
@@ -31,7 +32,10 @@ function sanitizeZipBaseName(name?: string) {
   );
 }
 
-/** Downloads all ready post assets as a single ZIP file. */
+/**
+ * Downloads ready post assets. A single file downloads as-is;
+ * multiple files are packed into one ZIP.
+ */
 export async function downloadAssetsAsZip(
   assets: PostAsset[],
   zipFileName?: string
@@ -39,6 +43,12 @@ export async function downloadAssetsAsZip(
   const ready = sortPostAssets(assets).filter((a) => !a.id.startsWith("temp-"));
   if (ready.length === 0) {
     throw new Error("No hay archivos para descargar");
+  }
+
+  if (ready.length === 1) {
+    const asset = ready[0];
+    await downloadFile(asset.file_url, asset.file_name);
+    return;
   }
 
   const JSZip = (await import("jszip")).default;

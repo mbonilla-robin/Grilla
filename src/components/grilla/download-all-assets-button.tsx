@@ -20,6 +20,8 @@ export function DownloadAllAssetsButton({
 
   if (readyCount === 0) return null;
 
+  const isSingle = readyCount === 1;
+
   async function handleClick() {
     if (loading) return;
     setLoading(true);
@@ -39,10 +41,14 @@ export function DownloadAllAssetsButton({
       variant="secondary"
       loading={loading}
       onClick={handleClick}
-      title="Descargar todos los archivos en un ZIP"
+      title={
+        isSingle
+          ? "Descargar archivo"
+          : "Descargar todos los archivos en un ZIP"
+      }
     >
       {!loading && <Download size={13} />}
-      {loading ? "Preparando…" : "Descargar ZIP"}
+      {loading ? "Preparando…" : isSingle ? "Descargar" : "Descargar ZIP"}
     </Button>
   );
 }
