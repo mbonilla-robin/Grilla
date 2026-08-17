@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { formatTaskLabel } from "@/lib/post-display";
-import { formatTaskShortDate, type TaskWithPost } from "@/lib/task-due";
+import { formatTaskShortDate, taskDueRaw, type TaskWithPost } from "@/lib/task-due";
 import { effectiveTaskStatus } from "@/lib/task-sync";
 import { taskStatusCardStyles } from "@/lib/status-colors";
 import { TASK_STATUS_LABELS } from "@/lib/types";
@@ -31,7 +31,7 @@ export function TaskCard({
   const progress = taskStatusProgress(status);
   const statusLabel = TASK_STATUS_LABELS[status];
   const statusStyle = taskStatusCardStyles[status];
-  const dueDate = formatTaskShortDate(task.due_at || task.post?.scheduled_at);
+  const dueDate = formatTaskShortDate(taskDueRaw(task));
 
   const isSmall = size === "sm" || compact;
 

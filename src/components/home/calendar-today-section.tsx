@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { formatPostLabel } from "@/lib/post-display";
-import type { TaskWithPost } from "@/lib/task-due";
+import { taskDueRaw, type TaskWithPost } from "@/lib/task-due";
 import type { CalendarPostItem } from "@/lib/home-data";
 import { SectionCard, EmptyState } from "./home-ui";
 import { FeaturedTaskCards } from "./featured-task-cards";
@@ -17,7 +17,7 @@ function isTodayUtc(iso: string): boolean {
 }
 
 function isTaskDueToday(task: TaskWithPost): boolean {
-  const raw = task.due_at || task.post?.scheduled_at;
+  const raw = taskDueRaw(task);
   if (!raw) return false;
   return isTodayUtc(raw);
 }

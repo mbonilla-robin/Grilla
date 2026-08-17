@@ -163,6 +163,14 @@ export async function ensureTaskForPost(
   }
 }
 
+export async function syncTaskDueAtForPost(
+  supabase: SupabaseClient,
+  postId: string,
+  dueAt: string | null
+) {
+  await supabase.from("tasks").update({ due_at: dueAt }).eq("post_id", postId);
+}
+
 export async function setTasksStatusForPost(
   supabase: SupabaseClient,
   postId: string,

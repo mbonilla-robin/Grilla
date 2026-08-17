@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatTaskLabel } from "@/lib/post-display";
 import {
   formatTaskShortDate,
+  taskDueRaw,
   TU_DIA_LOOKAHEAD_DAYS,
   UPCOMING_WINDOW_DAYS,
   type TaskWithPost,
@@ -74,7 +75,7 @@ function DayRailTaskCard({
   const taskStatus = effectiveTaskStatus(task);
   const status = TASK_STATUS_LABELS[taskStatus];
   const statusStyle = taskStatusCardStyles[taskStatus];
-  const dueDate = formatTaskShortDate(task.due_at || task.post?.scheduled_at);
+  const dueDate = formatTaskShortDate(taskDueRaw(task));
 
   const card = (
     <div
@@ -153,7 +154,7 @@ function CompactTaskRow({
 }) {
   const taskStatus = effectiveTaskStatus(task);
   const status = TASK_STATUS_LABELS[taskStatus];
-  const dueDate = formatTaskShortDate(task.due_at || task.post?.scheduled_at);
+  const dueDate = formatTaskShortDate(taskDueRaw(task));
   const orgName = task.organization?.name;
 
   const row = (

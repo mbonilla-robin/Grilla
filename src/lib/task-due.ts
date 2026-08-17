@@ -36,8 +36,13 @@ function todayUtcDay(now = new Date()): number {
   return utcDayNumber(now);
 }
 
+/** Prefer the post date so a reschedule is not stuck on a stale task due_at. */
+export function taskDueRaw(task: TaskWithPost): string | null {
+  return task.post?.scheduled_at || task.due_at || null;
+}
+
 export function taskDueAt(task: TaskWithPost): Date | null {
-  const raw = task.due_at || task.post?.scheduled_at;
+  const raw = taskDueRaw(task);
   if (!raw) return null;
   const due = new Date(raw);
   if (Number.isNaN(due.getTime())) return null;
@@ -70,6 +75,11 @@ export function isDueToday(task: TaskWithPost, now = new Date()): boolean {
 
 export function formatTaskShortDate(date: string | null | undefined): string | null {
   if (!date) return null;
+  const day = date.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+    const [year, month, d] = day.split("-");
+    return `${d}/${month}/${year}`;
+  }
   const parsed = new Date(date);
   if (Number.isNaN(parsed.getTime())) return null;
   return new Intl.DateTimeFormat("es", {

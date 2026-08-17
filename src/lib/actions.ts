@@ -908,6 +908,11 @@ export async function updatePost(
 
   if (error) return { error: error.message };
 
+  if (data.scheduled_at !== undefined) {
+    const { syncTaskDueAtForPost } = await import("@/lib/task-sync");
+    await syncTaskDueAtForPost(supabase, postId, data.scheduled_at);
+  }
+
   return { success: true };
 }
 
@@ -966,9 +971,13 @@ export async function reschedulePost(
 
   if (error) return { error: error.message };
 
+  const { syncTaskDueAtForPost } = await import("@/lib/task-sync");
+  await syncTaskDueAtForPost(supabase, postId, scheduledAt);
+
   revalidatePath(`/org/${orgId}/calendario`);
   revalidatePath(`/org/${orgId}/grilla`);
   revalidatePath("/home/calendario");
+  revalidatePath("/home");
   return { success: true };
 }
 
