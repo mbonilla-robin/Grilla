@@ -23,18 +23,12 @@ interface GlobalHomeViewProps {
   quincenaBoards: QuincenaBoardSnapshot[];
   currentUserId: string;
   tasks: TaskWithPost[];
+  quincenaPendingTasks?: TaskWithPost[];
   urgentTasks: TaskWithPost[];
   brandPillars: BrandPillarProgress[];
   myDay: { urgentes: number; pendientes: number; brands: number };
   orgSnapshots: OrgSnapshot[];
   collaborators?: TeamMemberPreview[];
-}
-
-function taskHref(task: TaskWithPost) {
-  if (task.post_id && task.organization_id) {
-    return `/org/${task.organization_id}/grilla/${task.post_id}`;
-  }
-  return undefined;
 }
 
 export function GlobalHomeView({
@@ -43,6 +37,7 @@ export function GlobalHomeView({
   quincenaBoards,
   currentUserId,
   tasks = [],
+  quincenaPendingTasks = [],
   urgentTasks = [],
   brandPillars = [],
   myDay,
@@ -55,7 +50,10 @@ export function GlobalHomeView({
     maxPerOrg: 2,
   });
   const tuDiaTasks = filterUrgentTasks(tasks);
-  const upcomingTasks = filterUpcomingTasks(tasks);
+  const upcomingTasks = filterUpcomingTasks(
+    quincenaPendingTasks.length > 0 ? quincenaPendingTasks : tasks,
+    tuDiaTasks
+  );
 
   return (
     <HomeDayRailLayout
@@ -63,7 +61,6 @@ export function GlobalHomeView({
         <DayRailSidebar
           tuDiaTasks={tuDiaTasks}
           upcomingTasks={upcomingTasks}
-          getTaskHref={taskHref}
         />
       }
     >
@@ -93,7 +90,6 @@ export function GlobalHomeView({
           <DayRailSidebar
             tuDiaTasks={tuDiaTasks}
             upcomingTasks={upcomingTasks}
-            getTaskHref={taskHref}
             compact
           />
         </SectionCard>

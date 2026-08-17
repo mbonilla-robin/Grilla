@@ -9,7 +9,6 @@ import { EmptyState } from "./home-ui";
 function BrandRow({ brand, index = 0 }: { brand: BrandPillarProgress; index?: number }) {
   const pillars = brand.distribution.filter((d) => d.name !== "Sin pilar");
   const hasPillars = pillars.length > 0;
-  const active = brand.distribution.filter((d) => d.count > 0);
 
   return (
     <div
@@ -35,22 +34,21 @@ function BrandRow({ brand, index = 0 }: { brand: BrandPillarProgress; index?: nu
           ) : (
             <PillarDistributionBar
               barIndex={index}
-              segments={active.map((d) => {
-                const pillarIndex = pillars.findIndex((p) => p.name === d.name);
-                return {
+              segments={pillars
+                .map((d, pillarIndex) => ({
                   name: d.name,
                   actualPct: d.actualPct,
-                  color: resolvePillarDisplayColor(
-                    pillarIndex >= 0 ? pillarIndex : 0
-                  ),
-                };
-              })}
+                  color: resolvePillarDisplayColor(pillarIndex),
+                }))
+                .filter((d) => d.actualPct > 0)}
             />
           )}
 
           <div
-            className="hidden sm:grid w-full"
-            style={{ gridTemplateColumns: `repeat(${pillars.length}, minmax(0, 1fr))` }}
+            className="hidden sm:grid w-full gap-y-1"
+            style={{
+              gridTemplateColumns: `repeat(${Math.min(pillars.length, 4)}, minmax(0, 1fr))`,
+            }}
           >
             {pillars.map((d, i) => {
               const color = resolvePillarDisplayColor(i);

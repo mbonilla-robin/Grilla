@@ -5,11 +5,12 @@ import {
 import { fetchQuincenaBoardSnapshots } from "@/lib/editorial-cadence-data";
 import type { QuincenaBoardSnapshot } from "@/lib/editorial-quincena";
 import {
+  currentQuincenaBounds,
   filterUrgentTasks,
   sortByDueAt,
   type TaskWithPost,
 } from "@/lib/task-due";
-import { filterOpenTasks, pruneDuplicateTasks } from "@/lib/task-sync";
+import { filterOpenTasks, pruneDuplicateTasks, taskStatusFromPost } from "@/lib/task-sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   DEFAULT_GLOBAL_SLOTS,
@@ -172,6 +173,92 @@ async function loadAssignedOpenTasks(
   return filterOpenTasks(mapTaskRows(taskData));
 }
 
+function nextUtcDay(day: string): string {
+  const [year, month, date] = day.split("-").map(Number);
+  const next = new Date(Date.UTC(year, month - 1, date + 1));
+  return next.toISOString().slice(0, 10);
+}
+
+function postToRailTask(row: {
+  id: string;
+  title: string | null;
+  format: PostFormat | null;
+  scheduled_at: string | null;
+  status: string;
+  organization_id: string;
+  organizations?: { name: string } | { name: string }[] | null;
+}): TaskWithPost {
+  const orgRaw = row.organizations as unknown;
+  const org = (Array.isArray(orgRaw) ? orgRaw[0] : orgRaw) as {
+    name: string;
+  } | null;
+
+  return {
+    id: row.id,
+    organization_id: row.organization_id,
+    title: row.title || "Sin título",
+    description: null,
+    assigned_to: null,
+    created_by: "",
+    status: taskStatusFromPost(row.status, false),
+    due_at: row.scheduled_at,
+    post_id: row.id,
+    created_at: row.scheduled_at || "",
+    updated_at: row.scheduled_at || "",
+    organization: { name: org?.name || "", id: row.organization_id },
+    post: {
+      format: (row.format || "image") as PostFormat,
+      title: row.title || undefined,
+      scheduled_at: row.scheduled_at,
+      status: row.status,
+    },
+  };
+}
+
+async function loadPendingQuincenaPosts(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orgIds: string[]
+): Promise<TaskWithPost[]> {
+  if (orgIds.length === 0) return [];
+
+  const { start, end } = currentQuincenaBounds();
+  const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
+  const rangeStart = today > start ? today : start;
+  const skipped = new Set([
+    "review",
+    "approved",
+    "scheduled",
+    "published",
+    "suspendido",
+  ]);
+  const { data } = await supabase
+    .from("posts")
+    .select(
+      "id, title, format, scheduled_at, status, organization_id, organizations(name)"
+    )
+    .in("organization_id", orgIds)
+    .not("scheduled_at", "is", null)
+    .gte("scheduled_at", `${rangeStart}T00:00:00.000Z`)
+    .lt("scheduled_at", `${nextUtcDay(end)}T00:00:00.000Z`)
+    .order("scheduled_at", { ascending: true });
+
+  return (data || [])
+    .filter((row) => !skipped.has(row.status))
+    .map((row) =>
+      postToRailTask(
+        row as {
+          id: string;
+          title: string | null;
+          format: PostFormat | null;
+          scheduled_at: string | null;
+          status: string;
+          organization_id: string;
+          organizations?: { name: string } | { name: string }[] | null;
+        }
+      )
+    );
+}
+
 export async function getGlobalHomeData(userId: string) {
   const supabase = await createClient();
 
@@ -197,10 +284,14 @@ export async function getGlobalHomeData(userId: string) {
   const orgIds = organizations.map((o) => o.id);
 
   let tasks: TaskWithPost[] = [];
+  let quincenaPendingTasks: TaskWithPost[] = [];
   let orgSnapshots: OrgSnapshot[] = [];
 
   if (orgIds.length > 0) {
-    tasks = await loadAssignedOpenTasks(supabase, userId);
+    [tasks, quincenaPendingTasks] = await Promise.all([
+      loadAssignedOpenTasks(supabase, userId),
+      loadPendingQuincenaPosts(supabase, orgIds),
+    ]);
 
     orgSnapshots = await Promise.all(
       organizations.map(async (org) => {
@@ -317,6 +408,7 @@ export async function getGlobalHomeData(userId: string) {
     organizations,
     orgSnapshots,
     tasks: pendingTasks,
+    quincenaPendingTasks,
     urgentTasks,
     myDay,
     collaborators,

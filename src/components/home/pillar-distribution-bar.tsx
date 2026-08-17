@@ -10,12 +10,26 @@ export interface PillarBarSegment {
   color: string;
 }
 
-function segmentCenterPct(segments: PillarBarSegment[], index: number): number {
+function segmentCenterPct(
+  segments: Array<{ widthPct: number }>,
+  index: number
+): number {
   let left = 0;
   for (let i = 0; i < index; i += 1) {
-    left += segments[i].actualPct;
+    left += segments[i].widthPct;
   }
-  return left + segments[index].actualPct / 2;
+  return left + segments[index].widthPct / 2;
+}
+
+function withBarWidths(segments: PillarBarSegment[]) {
+  const total = segments.reduce((sum, segment) => sum + Math.max(segment.actualPct, 0), 0);
+  if (total <= 0) {
+    return segments.map((segment) => ({ ...segment, widthPct: 0 }));
+  }
+  return segments.map((segment) => ({
+    ...segment,
+    widthPct: (Math.max(segment.actualPct, 0) / total) * 100,
+  }));
 }
 
 function PillarBarTooltip({
@@ -49,6 +63,7 @@ function PillarBarTooltip({
 
 function PillarBarSegmentItem({
   segment,
+  widthPct,
   segmentIndex,
   barIndex,
   active,
@@ -56,19 +71,17 @@ function PillarBarSegmentItem({
   onDeactivate,
 }: {
   segment: PillarBarSegment;
+  widthPct: number;
   segmentIndex: number;
   barIndex: number;
   active: boolean;
   onActivate: () => void;
   onDeactivate: () => void;
 }) {
-  const minWidth =
-    segment.actualPct > 0 && segment.actualPct < 8 ? "12px" : undefined;
-
   return (
     <div
-      className="relative h-full shrink-0 cursor-pointer"
-      style={{ width: `${segment.actualPct}%`, minWidth }}
+      className="relative h-full min-w-0 cursor-pointer"
+      style={{ flexGrow: widthPct, flexBasis: 0 }}
       onMouseEnter={onActivate}
       onMouseLeave={onDeactivate}
       onFocus={onActivate}
@@ -91,7 +104,7 @@ function PillarBarSegmentItem({
     >
       <div
         className={cn(
-          "h-full w-full home-animate-bar transition-[filter,opacity] duration-150",
+          "h-full w-full ring-1 ring-inset ring-black/10 home-animate-bar transition-[filter,opacity] duration-150",
           active ? "brightness-110 saturate-125 opacity-100" : "opacity-90 hover:opacity-100"
         )}
         style={{
@@ -117,12 +130,14 @@ export function PillarDistributionBar({
   const barId = useId();
   const [activeSegment, setActiveSegment] = useState<string | null>(null);
 
+  const sizedSegments = useMemo(() => withBarWidths(segments), [segments]);
+
   const activeIndex = useMemo(
-    () => segments.findIndex((segment) => segment.name === activeSegment),
-    [segments, activeSegment]
+    () => sizedSegments.findIndex((segment) => segment.name === activeSegment),
+    [sizedSegments, activeSegment]
   );
 
-  const activeData = activeIndex >= 0 ? segments[activeIndex] : null;
+  const activeData = activeIndex >= 0 ? sizedSegments[activeIndex] : null;
 
   useEffect(() => {
     if (!activeSegment) return;
@@ -149,15 +164,16 @@ export function PillarDistributionBar({
         <PillarBarTooltip
           name={activeData.name}
           pct={activeData.actualPct}
-          leftPct={segmentCenterPct(segments, activeIndex)}
+          leftPct={segmentCenterPct(sizedSegments, activeIndex)}
         />
       ) : null}
 
       <div className="flex h-4 overflow-hidden rounded-full bg-neutral-100">
-        {segments.map((segment, segmentIndex) => (
+        {sizedSegments.map((segment, segmentIndex) => (
           <PillarBarSegmentItem
             key={segment.name}
             segment={segment}
+            widthPct={segment.widthPct}
             segmentIndex={segmentIndex}
             barIndex={barIndex}
             active={activeSegment === segment.name}

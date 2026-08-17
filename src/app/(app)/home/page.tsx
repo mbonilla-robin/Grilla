@@ -24,6 +24,7 @@ export default async function GlobalHomePage() {
       quincenaBoards={data.quincenaBoards}
       currentUserId={data.currentUserId}
       tasks={data.tasks}
+      quincenaPendingTasks={data.quincenaPendingTasks}
       urgentTasks={data.urgentTasks}
       brandPillars={brandPillars}
       myDay={data.myDay}

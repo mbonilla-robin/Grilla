@@ -15,30 +15,52 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Today plus this many following days appear in "Tu día". */
 export const TU_DIA_LOOKAHEAD_DAYS = 3;
-/** Days shown in "Próximas entregas", starting after the Tu día window. */
-export const UPCOMING_WINDOW_DAYS = 7;
 
-/** Calendar day number in UTC so date-only due dates don't shift by timezone. */
-function utcDayNumber(date: Date): number {
-  return Math.floor(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) /
-      MS_PER_DAY
+function calendarDayKey(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const day = raw.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+}
+
+function localDayKey(now = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+function shiftDayKey(day: string, delta: number): string {
+  const [year, month, date] = day.split("-").map(Number);
+  return localDayKey(new Date(year, month - 1, date + delta));
+}
+
+export function currentQuincenaBounds(now = new Date()): { start: string; end: string } {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const date = now.getDate();
+  const monthStr = String(month + 1).padStart(2, "0");
+  if (date <= 15) {
+    return { start: `${year}-${monthStr}-01`, end: `${year}-${monthStr}-15` };
+  }
+  const last = new Date(year, month + 1, 0).getDate();
+  return {
+    start: `${year}-${monthStr}-16`,
+    end: `${year}-${monthStr}-${String(last).padStart(2, "0")}`,
+  };
+}
+
+function daysBetweenKeys(from: string, to: string): number {
+  const [fy, fm, fd] = from.split("-").map(Number);
+  const [ty, tm, td] = to.split("-").map(Number);
+  return Math.round(
+    (Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / MS_PER_DAY
   );
-}
-
-function taskDueDay(task: TaskWithPost): number | null {
-  const due = taskDueAt(task);
-  if (!due) return null;
-  return utcDayNumber(due);
-}
-
-function todayUtcDay(now = new Date()): number {
-  return utcDayNumber(now);
 }
 
 /** Prefer the post date so a reschedule is not stuck on a stale task due_at. */
 export function taskDueRaw(task: TaskWithPost): string | null {
   return task.post?.scheduled_at || task.due_at || null;
+}
+
+function taskCalendarDay(task: TaskWithPost): string | null {
+  return calendarDayKey(taskDueRaw(task));
 }
 
 export function taskDueAt(task: TaskWithPost): Date | null {
@@ -60,17 +82,17 @@ export function isDueWithinDays(
   days: number,
   now = new Date()
 ): boolean {
-  const dueDay = taskDueDay(task);
-  if (dueDay === null) return false;
+  const day = taskCalendarDay(task);
+  if (!day) return false;
 
-  const today = todayUtcDay(now);
-  return dueDay >= today && dueDay <= today + days;
+  const today = localDayKey(now);
+  return day >= today && day <= shiftDayKey(today, days);
 }
 
 export function isDueToday(task: TaskWithPost, now = new Date()): boolean {
-  const dueDay = taskDueDay(task);
-  if (dueDay === null) return false;
-  return dueDay === todayUtcDay(now);
+  const day = taskCalendarDay(task);
+  if (!day) return false;
+  return day === localDayKey(now);
 }
 
 export function formatTaskShortDate(date: string | null | undefined): string | null {
@@ -94,10 +116,10 @@ export function taskPriorityLabel(
   task: TaskWithPost,
   now = new Date()
 ): "Alta" | "Media" | null {
-  const dueDay = taskDueDay(task);
-  if (dueDay === null) return null;
+  const day = taskCalendarDay(task);
+  if (!day) return null;
 
-  const diffDays = dueDay - todayUtcDay(now);
+  const diffDays = daysBetweenKeys(localDayKey(now), day);
 
   if (diffDays <= 2) return "Alta";
   if (diffDays <= 7) return "Media";
@@ -122,18 +144,49 @@ export function filterUrgentTasks(
 
 export function filterUpcomingTasks(
   tasks: TaskWithPost[],
-  afterDays = TU_DIA_LOOKAHEAD_DAYS,
-  windowDays = UPCOMING_WINDOW_DAYS,
+  exclude: TaskWithPost[] = [],
   now = new Date()
 ) {
-  const today = todayUtcDay(now);
-  const startDay = today + afterDays;
-  const endDay = startDay + windowDays;
+  const excludeIds = new Set<string>();
+  for (const task of exclude) {
+    excludeIds.add(task.id);
+    if (task.post_id) excludeIds.add(task.post_id);
+  }
+  const today = localDayKey(now);
+  const { end } = currentQuincenaBounds(now);
+  const closedPost = new Set([
+    "review",
+    "approved",
+    "scheduled",
+    "published",
+    "suspendido",
+  ]);
 
   return sortByDueAt(
     tasks.filter((t) => {
-      const dueDay = taskDueDay(t);
-      return dueDay !== null && dueDay > startDay && dueDay <= endDay;
+      if (excludeIds.has(t.id) || (t.post_id && excludeIds.has(t.post_id))) {
+        return false;
+      }
+      const status = effectiveUpcomingStatus(t);
+      if (status === "en_revision" || status === "aprobado") return false;
+      if (t.post?.status && closedPost.has(t.post.status)) return false;
+
+      const day = taskCalendarDay(t);
+      return day !== null && day >= today && day <= end;
     })
   );
+}
+
+function effectiveUpcomingStatus(task: TaskWithPost): string {
+  const postStatus = task.post?.status;
+  if (postStatus === "review") return "en_revision";
+  if (
+    postStatus === "approved" ||
+    postStatus === "scheduled" ||
+    postStatus === "published" ||
+    postStatus === "suspendido"
+  ) {
+    return "aprobado";
+  }
+  return task.status;
 }

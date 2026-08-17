@@ -1,10 +1,13 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { formatTaskLabel } from "@/lib/post-display";
 import {
   formatTaskShortDate,
   taskDueRaw,
   TU_DIA_LOOKAHEAD_DAYS,
-  UPCOMING_WINDOW_DAYS,
   type TaskWithPost,
 } from "@/lib/task-due";
 import { effectiveTaskStatus } from "@/lib/task-sync";
@@ -14,7 +17,6 @@ import { homeStaggerDelay } from "@/lib/home-motion";
 import { cn } from "@/lib/utils";
 
 const COMPACT_URGENT_LIMIT = 5;
-const COMPACT_UPCOMING_LIMIT = 4;
 
 const statusDotClass: Record<TaskStatus, string> = {
   contenido: "bg-white ring-1 ring-border",
@@ -195,16 +197,21 @@ function CompactTaskRow({
   return row;
 }
 
+function taskHref(task: TaskWithPost) {
+  if (task.post_id && task.organization_id) {
+    return `/org/${task.organization_id}/grilla/${task.post_id}`;
+  }
+  return undefined;
+}
+
 function DayRailTaskList({
   tasks,
   emptyText,
-  getTaskHref,
   startIndex = 0,
   compact = false,
 }: {
   tasks: TaskWithPost[];
   emptyText: string;
-  getTaskHref?: (task: TaskWithPost) => string | undefined;
   startIndex?: number;
   compact?: boolean;
 }) {
@@ -219,7 +226,7 @@ function DayRailTaskList({
           <CompactTaskRow
             key={task.id}
             task={task}
-            href={getTaskHref?.(task)}
+            href={taskHref(task)}
           />
         ))}
       </div>
@@ -232,7 +239,7 @@ function DayRailTaskList({
         <DayRailTaskCard
           key={task.id}
           task={task}
-          href={getTaskHref?.(task)}
+          href={taskHref(task)}
           isLast={i === tasks.length - 1}
           index={startIndex + i}
         />
@@ -241,27 +248,115 @@ function DayRailTaskList({
   );
 }
 
+function taskDayKey(task: TaskWithPost): string | null {
+  const raw = taskDueRaw(task);
+  if (!raw) return null;
+  const day = raw.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+}
+
+function splitUpcomingByNextDate(tasks: TaskWithPost[]) {
+  if (tasks.length === 0) {
+    return { nextDateTasks: [] as TaskWithPost[], rest: [] as TaskWithPost[] };
+  }
+
+  const firstDay = taskDayKey(tasks[0]);
+  if (!firstDay) {
+    return { nextDateTasks: tasks.slice(0, 1), rest: tasks.slice(1) };
+  }
+
+  const nextDateTasks: TaskWithPost[] = [];
+  const rest: TaskWithPost[] = [];
+  for (const task of tasks) {
+    if (taskDayKey(task) === firstDay) nextDateTasks.push(task);
+    else rest.push(task);
+  }
+  return { nextDateTasks, rest };
+}
+
+function CompactUpcomingBlock({
+  nextDateTasks,
+  rest,
+  startIndex,
+}: {
+  nextDateTasks: TaskWithPost[];
+  rest: TaskWithPost[];
+  startIndex: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const didToggle = useRef(false);
+
+  useEffect(() => {
+    if (!didToggle.current) return;
+    buttonRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: open ? "end" : "nearest",
+    });
+  }, [open]);
+
+  return (
+    <div>
+      <DayRailTaskList
+        tasks={nextDateTasks}
+        emptyText=""
+        startIndex={startIndex}
+        compact
+      />
+      {open && rest.length > 0 && (
+        <DayRailTaskList
+          tasks={rest}
+          emptyText=""
+          startIndex={startIndex + nextDateTasks.length}
+          compact
+        />
+      )}
+      {rest.length > 0 && (
+        <div className="relative z-10 mt-2 flex justify-center bg-surface pt-1">
+          <button
+            ref={buttonRef}
+            type="button"
+            aria-expanded={open}
+            onClick={() => {
+              didToggle.current = true;
+              setOpen((value) => !value);
+            }}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border border-border bg-white px-3 py-1",
+              "text-[11px] font-semibold tabular-nums text-muted shadow-sm",
+              "hover:border-brand/40 hover:text-foreground transition-colors"
+            )}
+          >
+            {rest.length}+
+            <ChevronDown
+              size={12}
+              className={cn("transition-transform", open && "rotate-180")}
+            />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface DayRailSidebarProps {
   tuDiaTasks: TaskWithPost[];
   upcomingTasks: TaskWithPost[];
-  getTaskHref?: (task: TaskWithPost) => string | undefined;
   compact?: boolean;
 }
 
 export function DayRailSidebar({
   tuDiaTasks,
   upcomingTasks,
-  getTaskHref,
   compact = false,
 }: DayRailSidebarProps) {
   const urgentShown = compact
     ? tuDiaTasks.slice(0, COMPACT_URGENT_LIMIT)
     : tuDiaTasks;
-  const upcomingShown = compact
-    ? upcomingTasks.slice(0, COMPACT_UPCOMING_LIMIT)
-    : upcomingTasks;
+  const { nextDateTasks, rest: upcomingRest } = splitUpcomingByNextDate(
+    upcomingTasks
+  );
   const urgentOverflow = tuDiaTasks.length - urgentShown.length;
-  const upcomingOverflow = upcomingTasks.length - upcomingShown.length;
 
   if (compact) {
     const hasUrgent = tuDiaTasks.length > 0;
@@ -287,7 +382,6 @@ export function DayRailSidebar({
             <DayRailTaskList
               tasks={urgentShown}
               emptyText=""
-              getTaskHref={getTaskHref}
               compact
             />
             {urgentOverflow > 0 && (
@@ -305,18 +399,11 @@ export function DayRailSidebar({
               count={upcomingTasks.length}
               compact
             />
-            <DayRailTaskList
-              tasks={upcomingShown}
-              emptyText=""
-              getTaskHref={getTaskHref}
+            <CompactUpcomingBlock
+              nextDateTasks={nextDateTasks}
+              rest={upcomingRest}
               startIndex={tuDiaTasks.length}
-              compact
             />
-            {upcomingOverflow > 0 && (
-              <p className="text-[10px] text-muted mt-1.5 tabular-nums">
-                +{upcomingOverflow} más en los {UPCOMING_WINDOW_DAYS} días siguientes
-              </p>
-            )}
           </div>
         )}
       </div>
@@ -331,7 +418,6 @@ export function DayRailSidebar({
         <DayRailTaskList
           tasks={urgentShown}
           emptyText={`Nada urgente en los próximos ${TU_DIA_LOOKAHEAD_DAYS} días.`}
-          getTaskHref={getTaskHref}
         />
       </div>
 
@@ -341,9 +427,8 @@ export function DayRailSidebar({
 
       <div className="px-3 pb-3">
         <DayRailTaskList
-          tasks={upcomingShown}
-          emptyText={`Sin entregas en los ${UPCOMING_WINDOW_DAYS} días siguientes.`}
-          getTaskHref={getTaskHref}
+          tasks={upcomingTasks}
+          emptyText="Sin más entregas en esta quincena."
           startIndex={tuDiaTasks.length}
         />
       </div>
