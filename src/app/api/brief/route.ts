@@ -136,8 +136,8 @@ SIEMPRE responde en JSON con esta estructura exacta:
       "slide": 1,
       "focus": "Creative focus in a few words (e.g. Professional Utility)",
       "format_label": "Single Post Design (Focus: ...) — or 'Carousel Slide 1 (Focus: ...)' / 'Reel (Focus: ...)' when applicable",
-      "visual_concept": "Ready-to-paste IMAGE generation prompt (English): realistic photography only — shot type, environment, lighting, attitude, materials. Be specific and cinematic, as if a real photographer shot it. No collage, no graphic design, no text/typography in the image. If identifiers exist, include them EXACTLY (see IDENTIFICADORES).",
-      "video_prompt": "ONLY when format is reel or video_carousel: ready-to-paste VIDEO generation prompt (English): realistic cinematography — vertical 9:16, motion, camera move, duration feel, pacing. As if a real cinematographer filmed it. No collage, no graphic design overlays, no text in frame. If identifiers exist, include them EXACTLY. Omit this field for other formats.",
+      "visual_concept": "Ready-to-paste IMAGE generation prompt (English): aspect ratio 4:5 for carousel/feed/photo, 9:16 for story (see FORMATO Y ENCUADRE). Realistic photography only — shot type, environment, lighting, attitude, materials. Subject fully visible, not cropped. Be specific and cinematic, as if a real photographer shot it. No collage, no graphic design, no text/typography in the image. If identifiers exist, include them EXACTLY (see IDENTIFICADORES).",
+      "video_prompt": "ONLY when format is reel or video_carousel: ready-to-paste VIDEO generation prompt (English): ALWAYS aspect ratio 9:16. Realistic cinematography — motion, camera move, duration feel, pacing. Subject fully visible, not cropped. As if a real cinematographer filmed it. No collage, no graphic design overlays, no text in frame. If identifiers exist, include them EXACTLY. Omit this field for other formats.",
       "text_instructions": "Typographic specs preserving the creator's copy STRUCTURE for this slide (see format rules below). Copy in English.",
       "image_treatment": "...",
       "layout": "...",
@@ -222,12 +222,24 @@ ESTRUCTURA DEL COPY (crítico — no forzar siempre Título/Subtítulo):
   - En strategic_note (en ESPAÑOL), indica que la marca no tiene Brand Kit y debe configurarse o coordinarse con el equipo.
 - El tono es "Industrial-Premium": minimalista pero contundente, documental, operacional.
 
+FORMATO Y ENCUADRE (crítico — nunca omitir):
+- Aspect ratio de IMAGEN (visual_concept) depende del format del post:
+  · format "carousel", "feed" o "image" (foto) → SIEMPRE 4:5. Incluye "4:5 aspect ratio" de forma explícita.
+  · format "story" → SIEMPRE 9:16. Incluye "9:16 aspect ratio" de forma explícita.
+  · format "reel" o "video_carousel": visual_concept (still) → 9:16, igual que el video.
+- TODO video (video_prompt) DEBE especificar aspect ratio 9:16. Siempre. Incluye "9:16 aspect ratio" de forma explícita en el prompt.
+- NUNCA uses 4:5 en un prompt de story o de video. NUNCA uses 9:16 en un prompt de imagen de carousel/feed/foto. NUNCA pidas 16:9, 1:1 ni square.
+- SUJETO COMPLETO, SIN RECORTAR (crítico si hay foto de referencia o identificador): el vehículo, equipo, placa o sujeto DEBE verse entero dentro del frame. Head-to-toe / full vehicle in frame, generous margin around the subject, nothing cut off at the edges.
+- Incluye en visual_concept (y video_prompt si aplica) instrucciones explícitas como: "full subject visible in frame", "do not crop the vehicle / subject", "entire reference subject must be seen completely", "leave margin so nothing is cut off".
+- PROHIBIDO: tight crops que corten ruedas, techo, placa, brazos de equipo, o cualquier parte del sujeto de referencia. Prefiere plano más abierto (wide / medium-wide) antes que un close-up que recorte.
+- Si hay imagen de referencia adjunta: el sujeto de ESA foto debe aparecer completo en el resultado, no recortado ni zoomed-in de forma que se pierda parte de la referencia.
+
 FOTOGRAFÍA Y VIDEO REALISTAS (crítico — aplica a visual_concept y video_prompt):
 - Toda imagen y video debe verse REALISTA, como si un fotógrafo o filmógrafo profesional la hubiese capturado en el mundo real.
 - Estilo documental / cinematográfico: luz natural o de set creíble, profundidad de campo, grano sutil si aplica, actitud operacional — NUNCA look de IA genérica, stock barato o ilustración.
 - PROHIBIDO: collages, mosaicos, grids de varias fotos, composiciones tipo diseño gráfico, mockups con overlays, escenas "diseñadas", flat lays estilizados de marketing, renders 3D obvios, ilustraciones, infografías visuales.
 - PROHIBIDO en la imagen/video generada: texto, tipografía, letras, números sueltos, watermarks, captions, labels, logos tipográficos, o cualquier escritura dentro del frame.
-- Siempre incluye en visual_concept (y video_prompt si aplica) instrucciones explícitas en inglés como: "photorealistic", "shot by a professional photographer" / "filmed by a cinematographer", "no text, no typography, no letters, no watermarks in the image", "no collage, no graphic design layout".
+- Siempre incluye en visual_concept (y video_prompt si aplica) instrucciones explícitas en inglés como: "photorealistic", "shot by a professional photographer" / "filmed by a cinematographer", el aspect ratio correcto según FORMATO Y ENCUADRE (4:5 carousel/foto; 9:16 story y video), "full subject visible, do not crop", "no text, no typography, no letters, no watermarks in the image", "no collage, no graphic design layout".
 - El copy y la tipografía van SOLO en text_instructions / layout (capa de diseño encima). visual_concept y video_prompt describen la foto/video limpia, sin texto.
 
 IDENTIFICADORES / FOTOS DE REFERENCIA (crítico cuando el input trae "identifier"):
@@ -237,6 +249,7 @@ IDENTIFICADORES / FOTOS DE REFERENCIA (crítico cuando el input trae "identifier
 - En esos prompts, incluye de forma explícita e inequívoca (en inglés) instrucciones como:
   · "Use the attached reference image as the exact identity of the subject; do not alter, reinvent, or stylize away its distinctive features."
   · "Keep plate / markings / vehicle / subject appearance faithful to the reference — do not change identity, proportions, or key details."
+  · "Show the entire reference subject fully in frame; do not crop it. The attached image must be seen completely."
   · Nombra el identificador (value) EXACTO en el prompt (ej. plate ABC-123).
 - Si hay varios identificadores con foto, menciónalos por separado con su value exacto y pide usar cada referencia correspondiente sin mezclar identidades.
 - Si hay values pero SIN photoUrl: menciona el identificador EXACTO en el prompt, pero no inventes una foto de referencia.
@@ -245,23 +258,23 @@ IDENTIFICADORES / FOTOS DE REFERENCIA (crítico cuando el input trae "identifier
 
 REELS Y VIDEO (obligatorio según format):
 - Si format es "reel" o "video_carousel": SIEMPRE incluye AMBOS campos en cada slide:
-  · visual_concept = prompt para generar IMAGEN con IA (frame/still vertical 9:16, fotorealista, sin texto, listo para Midjourney/Flux/etc.).
-  · video_prompt = prompt para generar VIDEO con IA (cinematografía realista, motion, cámara, ritmo, duración implícita ~5–15s, vertical 9:16, sin texto en frame, listo para Runway/Kling/etc.).
-- Ambos prompts deben ser autocontenidos, en inglés, realistas (sin collage/diseño), sin texto en la imagen, y respetar IDENTIFICADORES si hay values o fotos de referencia.
-- Si format es story (no reel): solo visual_concept; omite video_prompt. Adapta format_label y layout al formato vertical.
-- Para carousels (no video): un slide por tarjeta, cada uno con su propio focus y variación visual coherente; omite video_prompt.
+  · visual_concept = prompt para generar IMAGEN con IA (9:16 aspect ratio, fotorealista, sujeto completo sin recortar, sin texto, listo para Midjourney/Flux/etc.).
+  · video_prompt = prompt para generar VIDEO con IA (9:16 aspect ratio, cinematografía realista, motion, cámara, ritmo, duración implícita ~5–15s, sujeto completo sin recortar, sin texto en frame, listo para Runway/Kling/etc.).
+- Ambos prompts deben ser autocontenidos, en inglés, realistas (sin collage/diseño), sin texto en la imagen, con el aspect ratio correcto, y respetar IDENTIFICADORES si hay values o fotos de referencia.
+- Si format es story (no reel): solo visual_concept en 9:16; omite video_prompt. Adapta format_label y layout al formato vertical.
+- Para carousels y fotos (feed/image): un slide por tarjeta si aplica; omite video_prompt. Cada visual_concept en 4:5.
 
 EJEMPLO DE REFERENCIA (sigue este nivel de detalle y tono):
 
 🎨 Ejecución: Adaptability Campaign
 Carousel Slide 1 (Focus: Hook)
-visual_concept: Photorealistic wide-angle documentary photograph of industrial fleet vehicles in a real work environment, shot by a professional photographer. Natural lighting, ready-for-action attitude. No plastic retouching, no collage, no graphic design layout, no text, no typography, no watermarks in the image.
+visual_concept: 4:5 aspect ratio. Photorealistic wide-angle documentary photograph of industrial fleet vehicles in a real work environment, shot by a professional photographer. Full vehicles visible in frame, nothing cropped. Natural lighting, ready-for-action attitude. No plastic retouching, no collage, no graphic design layout, no text, no typography, no watermarks in the image.
 text_instructions:
 Title: ADAPTABILITY IS NOT A FEATURE. (Montserrat Extra Bold, Brand White #E5E5E5, massive size).
 Paragraph: It's how we operate. (Montserrat Regular/Medium, Accent Orange #DA4928, open tracking).
 
 Carousel Slide 2 (Focus: Context)
-visual_concept: Complementary photorealistic operational context shot by a professional photographer, same Industrial-Premium aesthetic. No collage, no graphic design, no text or typography in the image.
+visual_concept: 4:5 aspect ratio. Complementary photorealistic operational context shot by a professional photographer, same Industrial-Premium aesthetic. Full subject visible in frame, do not crop. No collage, no graphic design, no text or typography in the image.
 text_instructions:
 Paragraph: Every project has different terrain, timelines, and technical demands. We don't offer a fixed solution — we build the right one. (Montserrat Regular/Medium, Brand White #E5E5E5; SemiBold on "We don't offer a fixed solution").
 
@@ -549,6 +562,8 @@ function generateMockBrief(
     : undefined;
 
   const wantsVideoPrompt = format === "reel" || format === "video_carousel";
+  const imageAspect =
+    format === "story" || wantsVideoPrompt ? "9:16" : "4:5";
 
   const slides: DesignBriefSlide[] = Array.from({ length: slideCount }, (_, i) => {
     const source = slideSources[i];
@@ -556,8 +571,8 @@ function generateMockBrief(
     const slideLabel = source?.label;
     const visualConcept =
       i === 0
-        ? `Photorealistic wide-angle documentary photography related to "${title}", shot by a professional photographer. Real work environment, natural lighting, ready-for-action attitude. No plastic retouching, no collage, no graphic design layout, no text, no typography, no watermarks in the image.${wantsVideoPrompt ? " Vertical 9:16 still frame." : ""}`
-        : `Complementary photorealistic visual for slide ${i + 1}, consistent with the Industrial-Premium aesthetic of "${title}". Shot by a professional photographer. No collage, no graphic design, no text or typography in the image.${wantsVideoPrompt ? " Vertical 9:16 still frame." : ""}`;
+        ? `${imageAspect} aspect ratio. Photorealistic wide-angle documentary photography related to "${title}", shot by a professional photographer. Real work environment, natural lighting, ready-for-action attitude. Full subject visible in frame, do not crop. No plastic retouching, no collage, no graphic design layout, no text, no typography, no watermarks in the image.`
+        : `${imageAspect} aspect ratio. Complementary photorealistic visual for slide ${i + 1}, consistent with the Industrial-Premium aesthetic of "${title}". Shot by a professional photographer. Full subject visible in frame, do not crop. No collage, no graphic design, no text or typography in the image.`;
 
     return {
       slide: i + 1,
@@ -571,7 +586,7 @@ function generateMockBrief(
       visual_concept: visualConcept,
       ...(wantsVideoPrompt
         ? {
-            video_prompt: `Vertical 9:16 photorealistic cinematic clip related to "${title}", filmed by a professional cinematographer. Slow documentary push-in, natural lighting, ready-for-action attitude, subtle ambient motion, no plastic retouching. No collage, no graphic design overlays, no text, no typography, no watermarks in frame. Keep subject identity locked if a reference image is attached.`,
+            video_prompt: `9:16 aspect ratio. Photorealistic cinematic clip related to "${title}", filmed by a professional cinematographer. Slow documentary push-in, natural lighting, ready-for-action attitude, subtle ambient motion. Full subject visible in frame, do not crop. No plastic retouching. No collage, no graphic design overlays, no text, no typography, no watermarks in frame. Keep subject identity locked if a reference image is attached; the entire reference subject must be seen completely.`,
           }
         : {}),
       text_instructions: postProcessTextInstructions(
