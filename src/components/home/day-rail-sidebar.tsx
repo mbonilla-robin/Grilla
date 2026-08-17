@@ -2,6 +2,8 @@ import Link from "next/link";
 import { formatTaskLabel } from "@/lib/post-display";
 import {
   formatTaskShortDate,
+  TU_DIA_LOOKAHEAD_DAYS,
+  UPCOMING_WINDOW_DAYS,
   type TaskWithPost,
 } from "@/lib/task-due";
 import { effectiveTaskStatus } from "@/lib/task-sync";
@@ -267,7 +269,7 @@ export function DayRailSidebar({
     if (!hasUrgent && !hasUpcoming) {
       return (
         <p className="text-body-muted text-center py-4 text-sm">
-          Nada urgente en los próximos 5 días.
+          Nada urgente en los próximos {TU_DIA_LOOKAHEAD_DAYS} días.
         </p>
       );
     }
@@ -289,7 +291,7 @@ export function DayRailSidebar({
             />
             {urgentOverflow > 0 && (
               <p className="text-[10px] text-muted mt-1.5 tabular-nums">
-                +{urgentOverflow} más en los próximos 5 días
+                +{urgentOverflow} más en los próximos {TU_DIA_LOOKAHEAD_DAYS} días
               </p>
             )}
           </div>
@@ -311,7 +313,7 @@ export function DayRailSidebar({
             />
             {upcomingOverflow > 0 && (
               <p className="text-[10px] text-muted mt-1.5 tabular-nums">
-                +{upcomingOverflow} más programadas
+                +{upcomingOverflow} más en los {UPCOMING_WINDOW_DAYS} días siguientes
               </p>
             )}
           </div>
@@ -327,7 +329,7 @@ export function DayRailSidebar({
       <div className="px-3 pb-3">
         <DayRailTaskList
           tasks={urgentShown}
-          emptyText="Nada urgente en los próximos 5 días."
+          emptyText={`Nada urgente en los próximos ${TU_DIA_LOOKAHEAD_DAYS} días.`}
           getTaskHref={getTaskHref}
         />
       </div>
@@ -339,7 +341,7 @@ export function DayRailSidebar({
       <div className="px-3 pb-3">
         <DayRailTaskList
           tasks={upcomingShown}
-          emptyText="Sin próximas entregas."
+          emptyText={`Sin entregas en los ${UPCOMING_WINDOW_DAYS} días siguientes.`}
           getTaskHref={getTaskHref}
           startIndex={tuDiaTasks.length}
         />

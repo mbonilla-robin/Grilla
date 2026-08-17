@@ -7,6 +7,7 @@ import { EditPostDialog } from "@/components/grilla/edit-post-dialog";
 import { PostAssetUploader } from "@/components/grilla/post-asset-uploader";
 import { PostStatusBadge } from "@/components/grilla/post-status-badge";
 import {
+  cn,
   formatDate,
   parseCopyFields,
   captionExcerpt,
@@ -22,6 +23,22 @@ import { formatPostLabel } from "@/lib/post-display";
 import { effectivePostStatus } from "@/lib/post-progress";
 import { parseIdentifierValues } from "@/lib/resolve-post-identifier";
 
+export type PostTimingLabel = "hoy" | "siguiente";
+
+const TIMING_BADGE: Record<
+  PostTimingLabel,
+  { text: string; className: string }
+> = {
+  hoy: {
+    text: "Hoy",
+    className: "bg-foreground text-background",
+  },
+  siguiente: {
+    text: "Siguiente",
+    className: "bg-brand text-brand-foreground",
+  },
+};
+
 interface GrillaCardProps {
   post: PostWithAssets;
   orgId: string;
@@ -29,6 +46,7 @@ interface GrillaCardProps {
   hashtagGroups?: OrgHashtagGroup[];
   identifierConfig?: OrgIdentifierConfig;
   identifiers?: OrgIdentifier[];
+  timingLabel?: PostTimingLabel;
 }
 
 export function GrillaCard({
@@ -38,6 +56,7 @@ export function GrillaCard({
   hashtagGroups,
   identifierConfig,
   identifiers,
+  timingLabel,
 }: GrillaCardProps) {
   const [post, setPost] = useState(initialPost);
 
@@ -66,8 +85,20 @@ export function GrillaCard({
 
   return (
     <article className="group grid h-full min-w-0 grid-rows-[auto_1fr_auto] rounded-2xl border border-border bg-surface overflow-hidden shadow-sm hover:border-brand/40 transition-colors">
-      <div className="flex shrink-0 items-center justify-between px-2.5 pt-2 pb-1">
-        <PostStatusBadge status={post.status} assetCount={assets.length} />
+      <div className="flex shrink-0 items-center justify-between gap-2 px-2.5 pt-2 pb-1">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {timingLabel && (
+            <span
+              className={cn(
+                "inline-flex shrink-0 items-center rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide",
+                TIMING_BADGE[timingLabel].className
+              )}
+            >
+              {TIMING_BADGE[timingLabel].text}
+            </span>
+          )}
+          <PostStatusBadge status={post.status} assetCount={assets.length} />
+        </div>
         <div className="flex items-center gap-0.5">
           <EditPostDialog
             post={post}

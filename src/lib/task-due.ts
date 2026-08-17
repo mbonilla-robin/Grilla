@@ -13,6 +13,11 @@ export type TaskWithPost = Omit<Task, "organization" | "post"> & {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+/** Today plus this many following days appear in "Tu día". */
+export const TU_DIA_LOOKAHEAD_DAYS = 3;
+/** Days shown in "Próximas entregas", starting after the Tu día window. */
+export const UPCOMING_WINDOW_DAYS = 7;
+
 /** Calendar day number in UTC so date-only due dates don't shift by timezone. */
 function utcDayNumber(date: Date): number {
   return Math.floor(
@@ -99,7 +104,7 @@ export function sortByDueAt(tasks: TaskWithPost[]): TaskWithPost[] {
 
 export function filterUrgentTasks(
   tasks: TaskWithPost[],
-  withinDays = 5,
+  withinDays = TU_DIA_LOOKAHEAD_DAYS,
   now = new Date()
 ) {
   return sortByDueAt(tasks.filter((t) => isDueWithinDays(t, withinDays, now)));
@@ -107,15 +112,18 @@ export function filterUrgentTasks(
 
 export function filterUpcomingTasks(
   tasks: TaskWithPost[],
-  afterDays = 5,
+  afterDays = TU_DIA_LOOKAHEAD_DAYS,
+  windowDays = UPCOMING_WINDOW_DAYS,
   now = new Date()
 ) {
-  const cutoffDay = todayUtcDay(now) + afterDays;
+  const today = todayUtcDay(now);
+  const startDay = today + afterDays;
+  const endDay = startDay + windowDays;
 
   return sortByDueAt(
     tasks.filter((t) => {
       const dueDay = taskDueDay(t);
-      return dueDay !== null && dueDay > cutoffDay;
+      return dueDay !== null && dueDay > startDay && dueDay <= endDay;
     })
   );
 }

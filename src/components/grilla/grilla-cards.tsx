@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { GrillaCard } from "@/components/grilla/grilla-card";
+import { GrillaCard, type PostTimingLabel } from "@/components/grilla/grilla-card";
 import { formatPostLabel } from "@/lib/post-display";
 import { isSuspendedStatus } from "@/lib/post-progress";
+import { scheduledAtToDate } from "@/lib/grilla-slot-utils";
 import { formatDate } from "@/lib/utils";
 import type { OrgHashtagGroup, OrgIdentifier, PostWithAssets } from "@/lib/types";
 import type { OrgIdentifierConfig } from "@/lib/org-identifier";
@@ -13,6 +14,35 @@ interface GrillaCardsProps {
   hashtagGroups?: OrgHashtagGroup[];
   identifierConfig?: OrgIdentifierConfig;
   identifiers?: OrgIdentifier[];
+}
+
+function localDateKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function timingLabelsByPostId(
+  posts: PostWithAssets[]
+): Map<string, PostTimingLabel> {
+  const today = localDateKey();
+  const labels = new Map<string, PostTimingLabel>();
+
+  const dated = posts
+    .map((post) => ({
+      id: post.id,
+      day: post.scheduled_at ? scheduledAtToDate(post.scheduled_at) : null,
+      at: post.scheduled_at || "",
+    }))
+    .filter((post): post is { id: string; day: string; at: string } => !!post.day)
+    .sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id));
+
+  for (const post of dated) {
+    if (post.day === today) labels.set(post.id, "hoy");
+  }
+
+  const next = dated.find((post) => post.day > today);
+  if (next) labels.set(next.id, "siguiente");
+
+  return labels;
 }
 
 function SuspendedPostButton({
@@ -59,6 +89,7 @@ export function GrillaCards({
 
   const activePosts = posts.filter((post) => !isSuspendedStatus(post.status));
   const suspendedPosts = posts.filter((post) => isSuspendedStatus(post.status));
+  const timingLabels = timingLabelsByPostId(activePosts);
 
   return (
     <div className="space-y-6">
@@ -73,6 +104,7 @@ export function GrillaCards({
               hashtagGroups={hashtagGroups}
               identifierConfig={identifierConfig}
               identifiers={identifiers}
+              timingLabel={timingLabels.get(post.id)}
             />
           ))}
         </div>
