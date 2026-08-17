@@ -11,6 +11,26 @@ export type TaskWithPost = Omit<Task, "organization" | "post"> & {
   } | null;
 };
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** Calendar day number in UTC so date-only due dates don't shift by timezone. */
+function utcDayNumber(date: Date): number {
+  return Math.floor(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) /
+      MS_PER_DAY
+  );
+}
+
+function taskDueDay(task: TaskWithPost): number | null {
+  const due = taskDueAt(task);
+  if (!due) return null;
+  return utcDayNumber(due);
+}
+
+function todayUtcDay(now = new Date()): number {
+  return utcDayNumber(now);
+}
+
 export function taskDueAt(task: TaskWithPost): Date | null {
   const raw = task.due_at || task.post?.scheduled_at;
   if (!raw) return null;
@@ -25,27 +45,22 @@ export function formatTaskDue(task: TaskWithPost): string | null {
   return formatDate(due.toISOString());
 }
 
-export function isDueWithinDays(task: TaskWithPost, days: number): boolean {
-  const due = taskDueAt(task);
-  if (!due) return false;
+export function isDueWithinDays(
+  task: TaskWithPost,
+  days: number,
+  now = new Date()
+): boolean {
+  const dueDay = taskDueDay(task);
+  if (dueDay === null) return false;
 
-  const end = new Date();
-  end.setDate(end.getDate() + days);
-  end.setHours(23, 59, 59, 999);
-
-  return due <= end;
+  const today = todayUtcDay(now);
+  return dueDay >= today && dueDay <= today + days;
 }
 
-export function isDueToday(task: TaskWithPost): boolean {
-  const due = taskDueAt(task);
-  if (!due) return false;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const end = new Date(today);
-  end.setHours(23, 59, 59, 999);
-
-  return due >= today && due <= end;
+export function isDueToday(task: TaskWithPost, now = new Date()): boolean {
+  const dueDay = taskDueDay(task);
+  if (dueDay === null) return false;
+  return dueDay === todayUtcDay(now);
 }
 
 export function formatTaskShortDate(date: string | null | undefined): string | null {
@@ -56,16 +71,18 @@ export function formatTaskShortDate(date: string | null | undefined): string | n
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: "UTC",
   }).format(parsed);
 }
 
-export function taskPriorityLabel(task: TaskWithPost): "Alta" | "Media" | null {
-  const due = taskDueAt(task);
-  if (!due) return null;
+export function taskPriorityLabel(
+  task: TaskWithPost,
+  now = new Date()
+): "Alta" | "Media" | null {
+  const dueDay = taskDueDay(task);
+  if (dueDay === null) return null;
 
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const diffDays = dueDay - todayUtcDay(now);
 
   if (diffDays <= 2) return "Alta";
   if (diffDays <= 7) return "Media";
@@ -80,19 +97,25 @@ export function sortByDueAt(tasks: TaskWithPost[]): TaskWithPost[] {
   });
 }
 
-export function filterUrgentTasks(tasks: TaskWithPost[], withinDays = 5) {
-  return sortByDueAt(tasks.filter((t) => isDueWithinDays(t, withinDays)));
+export function filterUrgentTasks(
+  tasks: TaskWithPost[],
+  withinDays = 5,
+  now = new Date()
+) {
+  return sortByDueAt(tasks.filter((t) => isDueWithinDays(t, withinDays, now)));
 }
 
-export function filterUpcomingTasks(tasks: TaskWithPost[], afterDays = 5) {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() + afterDays);
-  cutoff.setHours(23, 59, 59, 999);
+export function filterUpcomingTasks(
+  tasks: TaskWithPost[],
+  afterDays = 5,
+  now = new Date()
+) {
+  const cutoffDay = todayUtcDay(now) + afterDays;
 
   return sortByDueAt(
     tasks.filter((t) => {
-      const due = taskDueAt(t);
-      return due !== null && due > cutoff;
+      const dueDay = taskDueDay(t);
+      return dueDay !== null && dueDay > cutoffDay;
     })
   );
 }
