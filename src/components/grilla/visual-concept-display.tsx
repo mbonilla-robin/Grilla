@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Languages } from "lucide-react";
+import { CopyableText } from "@/components/grilla/copyable-text";
 
 function ColorSwatch({ hex }: { hex: string }) {
   return (
@@ -92,9 +93,11 @@ export function VisualConceptDisplay({
           {loading ? "…" : lang === "en" ? "ES" : "EN"}
         </button>
       </div>
-      <div className="text-sm leading-relaxed text-foreground/90">
-        <ColorRichText text={displayText} />
-      </div>
+      <CopyableText text={displayText}>
+        <div className="text-sm leading-relaxed text-foreground/90">
+          <ColorRichText text={displayText} />
+        </div>
+      </CopyableText>
     </div>
   );
 }

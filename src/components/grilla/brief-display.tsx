@@ -7,6 +7,7 @@ import {
   parseInlineEmphasis,
 } from "@/lib/brief-emphasis";
 import { VisualConceptDisplay } from "@/components/grilla/visual-concept-display";
+import { CopyableText } from "@/components/grilla/copyable-text";
 
 function ColorSwatch({
   hex,
@@ -105,7 +106,11 @@ function TextInstructionsDisplay({ text }: { text: string }) {
   const blocks = parseTextInstructionBlocks(text);
 
   if (!blocks) {
-    return <ColorRichText text={text} />;
+    return (
+      <CopyableText text={text}>
+        <ColorRichText text={text} />
+      </CopyableText>
+    );
   }
 
   return (
@@ -120,49 +125,55 @@ function TextInstructionsDisplay({ text }: { text: string }) {
             );
           case "labeled":
             return (
-              <div key={i} className="space-y-0.5">
-                <p className="text-sm leading-snug">
-                  <span className="font-semibold text-foreground">{block.label}:</span>{" "}
-                  <span className="text-foreground/90">
-                    <InlineEmphasisText text={block.content} details={block.details} />
-                  </span>
-                </p>
-                {block.details && (
-                  <p className="text-xs leading-relaxed text-muted pl-0">
-                    <ColorRichText text={block.details} />
+              <CopyableText key={i} text={block.content}>
+                <div className="space-y-0.5">
+                  <p className="text-sm leading-snug">
+                    <span className="font-semibold text-foreground">{block.label}:</span>{" "}
+                    <span className="text-foreground/90">
+                      <InlineEmphasisText text={block.content} details={block.details} />
+                    </span>
                   </p>
-                )}
-              </div>
+                  {block.details && (
+                    <p className="text-xs leading-relaxed text-muted pl-0">
+                      <ColorRichText text={block.details} />
+                    </p>
+                  )}
+                </div>
+              </CopyableText>
             );
           case "bullets":
             return (
               <ul key={i} className="list-disc pl-5 space-y-1.5 text-sm leading-snug text-foreground/90">
                 {block.items.map((item, j) => (
                   <li key={j}>
-                    <span>
-                      <InlineEmphasisText text={item.text} details={item.details} />
-                    </span>
-                    {item.details && (
-                      <span className="block text-xs text-muted mt-0.5">
-                        <ColorRichText text={item.details} />
+                    <CopyableText text={item.text}>
+                      <span>
+                        <InlineEmphasisText text={item.text} details={item.details} />
                       </span>
-                    )}
+                      {item.details && (
+                        <span className="block text-xs text-muted mt-0.5">
+                          <ColorRichText text={item.details} />
+                        </span>
+                      )}
+                    </CopyableText>
                   </li>
                 ))}
               </ul>
             );
           case "paragraph":
             return (
-              <div key={i} className="space-y-0.5">
-                <p className="text-sm leading-relaxed text-foreground/90">
-                  <InlineEmphasisText text={block.content} details={block.details} />
-                </p>
-                {block.details && (
-                  <p className="text-xs leading-relaxed text-muted">
-                    <ColorRichText text={block.details} />
+              <CopyableText key={i} text={block.content}>
+                <div className="space-y-0.5">
+                  <p className="text-sm leading-relaxed text-foreground/90">
+                    <InlineEmphasisText text={block.content} details={block.details} />
                   </p>
-                )}
-              </div>
+                  {block.details && (
+                    <p className="text-xs leading-relaxed text-muted">
+                      <ColorRichText text={block.details} />
+                    </p>
+                  )}
+                </div>
+              </CopyableText>
             );
         }
       })}
@@ -293,13 +304,27 @@ function LegacySlide({ slide }: { slide: DesignBriefSlide }) {
       <p className="text-[10px] font-medium text-muted uppercase tracking-wide">
         Slide {slide.slide}
       </p>
-      {slide.title && <p className="text-sm font-semibold">{slide.title}</p>}
-      {slide.subtitle && <p className="text-sm text-muted">{slide.subtitle}</p>}
-      {slide.body && <p className="text-sm leading-relaxed">{slide.body}</p>}
+      {slide.title && (
+        <CopyableText text={slide.title}>
+          <p className="text-sm font-semibold">{slide.title}</p>
+        </CopyableText>
+      )}
+      {slide.subtitle && (
+        <CopyableText text={slide.subtitle}>
+          <p className="text-sm text-muted">{slide.subtitle}</p>
+        </CopyableText>
+      )}
+      {slide.body && (
+        <CopyableText text={slide.body}>
+          <p className="text-sm leading-relaxed">{slide.body}</p>
+        </CopyableText>
+      )}
       {slide.image_prompt && (
-        <p className="text-xs text-muted border border-border rounded px-2 py-1.5 bg-surface mt-2">
-          {slide.image_prompt}
-        </p>
+        <CopyableText text={slide.image_prompt}>
+          <p className="text-xs text-muted border border-border rounded px-2 py-1.5 bg-surface mt-2">
+            {slide.image_prompt}
+          </p>
+        </CopyableText>
       )}
       {colors.length > 0 && <ColorPalette colors={colors} />}
     </div>
