@@ -57,6 +57,7 @@ import {
   languageLabel,
   type ContentLang,
 } from "@/lib/bilingual-copy";
+import { PostHeaderDate } from "@/components/layout/header-title-context";
 import { PostPhaseTimeline } from "@/components/grilla/post-phase-timeline";
 import {
   WORKFLOW_PHASES,
@@ -623,6 +624,7 @@ export function PostDetail({
 
   return (
     <>
+      <PostHeaderDate date={post.scheduled_at} />
       {mobileDesignPanel}
       <div className="grid h-full min-h-0 w-full max-w-6xl mx-auto grid-cols-1 md:grid-cols-2 md:divide-x divide-border">
       <div className="min-h-0 overflow-y-auto px-4 md:px-6 py-6 space-y-8">
