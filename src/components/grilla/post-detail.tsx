@@ -514,6 +514,8 @@ export function PostDetail({
         postId={post.id}
         orgId={orgId}
         assets={sortPostAssets(assets)}
+        previewPost={{ ...post, assets: sortPostAssets(assets) }}
+        previewAccountName={orgName}
         onAssetsChanged={(next) => {
           setAssets(next);
           setStatus((s) => effectivePostStatus(s, next.length));

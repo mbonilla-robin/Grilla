@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { sortPostAssets } from "@/lib/utils";
 import type { PostWithAssets } from "@/lib/types";
@@ -9,16 +9,22 @@ interface StoryPreviewModalProps {
   post: PostWithAssets;
   accountName: string;
   onClose: () => void;
+  initialSlide?: number;
 }
 
 export function StoryPreviewModal({
   post,
   accountName,
   onClose,
+  initialSlide = 0,
 }: StoryPreviewModalProps) {
   const assets = sortPostAssets(post.assets || []);
-  const [slide, setSlide] = useState(0);
+  const [slide, setSlide] = useState(initialSlide);
   const current = assets[slide];
+
+  useEffect(() => {
+    setSlide(initialSlide);
+  }, [post.id, initialSlide]);
 
   function prev() {
     setSlide((s) => (s > 0 ? s - 1 : assets.length - 1));

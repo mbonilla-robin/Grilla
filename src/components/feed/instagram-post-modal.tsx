@@ -19,6 +19,7 @@ interface InstagramPostModalProps {
   post: PostWithAssets;
   accountName: string;
   onClose: () => void;
+  initialSlide?: number;
 }
 
 function parseCaption(text: string) {
@@ -252,11 +253,16 @@ export function InstagramPostModal({
   post,
   accountName,
   onClose,
+  initialSlide = 0,
 }: InstagramPostModalProps) {
   const assets = sortPostAssets(post.assets || []);
-  const [slide, setSlide] = useState(0);
+  const [slide, setSlide] = useState(initialSlide);
   const captionText = post.caption || post.copy || post.title || "";
   const { body, tags } = parseCaption(captionText);
+
+  useEffect(() => {
+    setSlide(initialSlide);
+  }, [post.id, initialSlide]);
 
   function prev() {
     setSlide((s) => (s > 0 ? s - 1 : assets.length - 1));

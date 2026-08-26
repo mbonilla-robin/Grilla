@@ -15,8 +15,14 @@ import {
   VideoCoverPicker,
   isGeneratedVideoCover,
 } from "@/components/grilla/video-cover-picker";
+import { InstagramPostModal } from "@/components/feed/instagram-post-modal";
+import { ReelPreviewModal } from "@/components/feed/reel-preview-modal";
+import { StoryPreviewModal } from "@/components/feed/story-preview-modal";
+import type { PostFormat, PostWithAssets } from "@/lib/types";
 
 const ASSET_DRAG_TYPE = "text/post-asset-id";
+const REEL_FORMATS: PostFormat[] = ["reel", "video_carousel"];
+const STORY_FORMATS: PostFormat[] = ["story"];
 
 interface PostAssetUploaderProps {
   postId: string;
@@ -25,6 +31,8 @@ interface PostAssetUploaderProps {
   compact?: boolean;
   mini?: boolean;
   uploadOnly?: boolean;
+  previewPost?: PostWithAssets | null;
+  previewAccountName?: string;
   onAssetsChanged?: (assets: PostAsset[]) => void;
   onStatusChanged?: (status: PostStatus) => void;
 }
@@ -36,6 +44,8 @@ export function PostAssetUploader({
   compact = false,
   mini = false,
   uploadOnly = false,
+  previewPost = null,
+  previewAccountName = "",
   onAssetsChanged,
   onStatusChanged,
 }: PostAssetUploaderProps) {
@@ -48,7 +58,10 @@ export function PostAssetUploader({
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [coverVideo, setCoverVideo] = useState<PostAsset | null>(null);
+  const [previewSlide, setPreviewSlide] = useState<number | null>(null);
+  const suppressPreviewClickRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const canPreview = !!previewPost && !!previewAccountName;
 
   useEffect(() => {
     setLocalAssets(initialAssets);
@@ -218,6 +231,7 @@ export function PostAssetUploader({
       e.preventDefault();
       return;
     }
+    suppressPreviewClickRef.current = true;
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData(ASSET_DRAG_TYPE, assetId);
     // Firefox needs some data set to allow drag
@@ -291,6 +305,9 @@ export function PostAssetUploader({
   function handleAssetDragEnd() {
     setDraggingId(null);
     setDropTargetId(null);
+    requestAnimationFrame(() => {
+      suppressPreviewClickRef.current = false;
+    });
   }
 
   async function handleCoverFromFrame(file: File) {
@@ -369,6 +386,46 @@ export function PostAssetUploader({
   const hasVideo = sorted.some((a) => a.file_type === "video");
   const thumbSize = mini ? "h-7 w-7" : "h-14 w-14";
   const canReorder = !mini && sorted.length > 1;
+
+  function isTempAsset(asset: PostAsset | undefined) {
+    return !!asset?.id.startsWith("temp-");
+  }
+
+  function openFeedPreview(slideIndex: number) {
+    if (!canPreview || isTempAsset(sorted[slideIndex])) return;
+    setPreviewSlide(slideIndex);
+  }
+
+  function handleThumbClick(slideIndex: number) {
+    if (suppressPreviewClickRef.current || !canPreview) return;
+    openFeedPreview(slideIndex);
+  }
+
+  const previewModal =
+    canPreview &&
+    previewSlide !== null &&
+    previewPost &&
+    (REEL_FORMATS.includes(previewPost.format) ? (
+      <ReelPreviewModal
+        post={{ ...previewPost, assets: sorted }}
+        accountName={previewAccountName}
+        onClose={() => setPreviewSlide(null)}
+      />
+    ) : STORY_FORMATS.includes(previewPost.format) ? (
+      <StoryPreviewModal
+        post={{ ...previewPost, assets: sorted }}
+        accountName={previewAccountName}
+        initialSlide={previewSlide}
+        onClose={() => setPreviewSlide(null)}
+      />
+    ) : (
+      <InstagramPostModal
+        post={{ ...previewPost, assets: sorted }}
+        accountName={previewAccountName}
+        initialSlide={previewSlide}
+        onClose={() => setPreviewSlide(null)}
+      />
+    ));
 
   if (mini) {
     return (
@@ -479,16 +536,37 @@ export function PostAssetUploader({
                 onDragLeave={(e) => handleAssetDragLeave(e, asset.id)}
                 onDrop={(e) => handleAssetDrop(e, asset.id)}
                 onDragEnd={handleAssetDragEnd}
+                onClick={() => handleThumbClick(i)}
+                onKeyDown={(e) => {
+                  if (
+                    (e.key === "Enter" || e.key === " ") &&
+                    canPreview &&
+                    !isTemp
+                  ) {
+                    e.preventDefault();
+                    handleThumbClick(i);
+                  }
+                }}
+                role={canPreview && !isTemp ? "button" : undefined}
+                tabIndex={canPreview && !isTemp ? 0 : undefined}
                 title={
-                  canReorder && !isTemp
-                    ? "Arrastra para cambiar el orden"
-                    : undefined
+                  canPreview && !isTemp
+                    ? "Ver preview en Feed"
+                    : canReorder && !isTemp
+                      ? "Arrastra para cambiar el orden"
+                      : undefined
                 }
                 className={cn(
                   `relative group ${thumbSize} rounded-md overflow-hidden border border-border bg-background shrink-0`,
+                  canPreview && !isTemp && "cursor-pointer",
                   canReorder &&
                     !isTemp &&
+                    !canPreview &&
                     "cursor-grab active:cursor-grabbing",
+                  canReorder &&
+                    !isTemp &&
+                    canPreview &&
+                    "active:cursor-grabbing",
                   isDragging && "opacity-40",
                   isDropTarget && "ring-2 ring-accent border-accent"
                 )}
@@ -513,9 +591,12 @@ export function PostAssetUploader({
                 </span>
                 <button
                   type="button"
-                  onClick={() => handleDelete(asset.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(asset.id);
+                  }}
                   disabled={deletingId === asset.id || isTemp}
-                  className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-0.5 right-0.5 z-10 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   {deletingId === asset.id ? (
                     <Loader2 size={10} className="animate-spin" />
@@ -531,7 +612,7 @@ export function PostAssetUploader({
                       setCoverVideo(asset);
                     }}
                     draggable={false}
-                    className="absolute bottom-0.5 left-0.5 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute bottom-0.5 left-0.5 z-10 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Elegir portada desde un frame"
                   >
                     <ImagePlay size={10} />
@@ -545,7 +626,7 @@ export function PostAssetUploader({
                   }}
                   disabled={downloadingId === asset.id || isTemp}
                   draggable={false}
-                  className="absolute bottom-0.5 right-0.5 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40"
+                  className="absolute bottom-0.5 right-0.5 z-10 bg-black/60 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40"
                   title="Descargar original"
                 >
                   {downloadingId === asset.id ? (
@@ -600,7 +681,8 @@ export function PostAssetUploader({
         <p className="text-[10px] text-muted">
           Archivo 1 = portada del Feed
           {hasVideo ? " · En videos puedes elegir un frame como portada" : ""}
-          {canReorder ? " · Arrastra para reordenar" : ""} · Calidad original
+          {canReorder ? " · Arrastra para reordenar" : ""}
+          {canPreview ? " · Clic en un archivo para ver preview" : ""} · Calidad original
           para publicar
         </p>
       )}
@@ -614,6 +696,8 @@ export function PostAssetUploader({
           onConfirm={handleCoverFromFrame}
         />
       )}
+
+      {previewModal}
     </div>
   );
 }
