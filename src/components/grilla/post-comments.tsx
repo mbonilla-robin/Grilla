@@ -4,7 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { createPostComment } from "@/lib/notifications";
-import { splitMentionSegments } from "@/lib/mentions";
+import {
+  findMentionRangeForBackspace,
+  findMentionRangeForDelete,
+  getActiveMentionQuery,
+  parseMentionsFromBody,
+  splitBodyWithKnownMentions,
+} from "@/lib/mentions";
 import { getProfileDisplayName, getProfileInitials } from "@/lib/profile-display-name";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -50,6 +56,12 @@ export function PostComments({
   const [activeIndex, setActiveIndex] = useState(0);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLDivElement>(null);
+
+  const highlightMembers = [...initialMembers, ...teamMembers].filter(
+    (member, index, list) =>
+      list.findIndex((item) => item.user_id === member.user_id) === index
+  );
 
   const suggestions = teamMembers.filter((m) =>
     matchesMentionQuery(m, mentionQuery)
@@ -108,11 +120,11 @@ export function PostComments({
 
   const syncMentionState = (value: string, cursor: number) => {
     const before = value.slice(0, cursor);
-    const atMatch = before.match(/@([^\n@]*)$/);
+    const query = getActiveMentionQuery(before, highlightMembers);
 
-    if (atMatch) {
+    if (query !== null) {
       setShowSuggestions(true);
-      setMentionQuery(atMatch[1]);
+      setMentionQuery(query);
       setActiveIndex(0);
       requestAnimationFrame(updateMenuPos);
     } else {
@@ -120,6 +132,14 @@ export function PostComments({
       setMentionQuery("");
       setActiveIndex(0);
     }
+  };
+
+  const syncHighlightScroll = () => {
+    const textarea = textareaRef.current;
+    const highlight = highlightRef.current;
+    if (!textarea || !highlight) return;
+    highlight.scrollTop = textarea.scrollTop;
+    highlight.scrollLeft = textarea.scrollLeft;
   };
 
   useEffect(() => {
@@ -134,6 +154,10 @@ export function PostComments({
       window.removeEventListener("resize", updateMenuPos);
     };
   }, [showSuggestions, body]);
+
+  useEffect(() => {
+    syncHighlightScroll();
+  }, [body]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -205,7 +229,56 @@ export function PostComments({
     setSaving(false);
   };
 
+  const removeMentionRange = (
+    range: { start: number; end: number },
+    nextCursor: number
+  ) => {
+    const next = body.slice(0, range.start) + body.slice(range.end);
+    setBody(next);
+    setMentionedIds(parseMentionsFromBody(next, highlightMembers));
+    syncMentionState(next, nextCursor);
+
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(nextCursor, nextCursor);
+    });
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const textarea = e.currentTarget;
+    const selectionStart = textarea.selectionStart ?? 0;
+    const selectionEnd = textarea.selectionEnd ?? 0;
+
+    if (selectionStart === selectionEnd) {
+      if (e.key === "Backspace") {
+        const range = findMentionRangeForBackspace(
+          body,
+          selectionStart,
+          highlightMembers
+        );
+        if (range) {
+          e.preventDefault();
+          removeMentionRange(range, range.start);
+          return;
+        }
+      }
+
+      if (e.key === "Delete") {
+        const range = findMentionRangeForDelete(
+          body,
+          selectionStart,
+          highlightMembers
+        );
+        if (range) {
+          e.preventDefault();
+          removeMentionRange(range, range.start);
+          return;
+        }
+      }
+    }
+
     if (showSuggestions && suggestions.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -290,7 +363,7 @@ export function PostComments({
               <span className="font-medium">{comment.author_name}</span>
               <span className="text-muted"> · </span>
               <span className="whitespace-pre-wrap">
-                <CommentBody body={comment.body} members={teamMembers} />
+                <CommentBody body={comment.body} members={highlightMembers} />
               </span>
             </li>
           ))}
@@ -298,19 +371,30 @@ export function PostComments({
       )}
 
       <div className="space-y-2">
-        <textarea
-          ref={textareaRef}
-          value={body}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          onClick={(e) =>
-            syncMentionState(body, e.currentTarget.selectionStart ?? body.length)
-          }
-          placeholder="Comentar… usa @ para mencionar"
-          rows={2}
-          disabled={saving}
-          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-foreground/10 disabled:opacity-50"
-        />
+        <div className="relative rounded-md border border-border bg-surface focus-within:ring-1 focus-within:ring-foreground/10">
+          <div
+            ref={highlightRef}
+            aria-hidden
+            className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-3 py-2 text-sm leading-[1.4285714286] text-foreground"
+          >
+            <MentionHighlightText body={body} members={highlightMembers} />
+            {body.endsWith("\n") ? " " : null}
+          </div>
+          <textarea
+            ref={textareaRef}
+            value={body}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            onScroll={syncHighlightScroll}
+            onClick={(e) =>
+              syncMentionState(body, e.currentTarget.selectionStart ?? body.length)
+            }
+            placeholder="Comentar… usa @ para mencionar"
+            rows={2}
+            disabled={saving}
+            className="relative block w-full resize-none bg-transparent px-3 py-2 text-sm leading-[1.4285714286] text-transparent caret-foreground placeholder:text-muted/60 focus:outline-none disabled:opacity-50"
+          />
+        </div>
 
         {mentionMenu}
 
@@ -353,6 +437,30 @@ function MemberAvatar({
   );
 }
 
+function MentionHighlightText({
+  body,
+  members,
+}: {
+  body: string;
+  members: CommentMember[];
+}) {
+  const segments = splitBodyWithKnownMentions(body, members);
+
+  return (
+    <>
+      {segments.map((seg, i) =>
+        seg.type === "mention" ? (
+          <span key={i} className="font-medium text-blue-600">
+            @{seg.value}
+          </span>
+        ) : (
+          <span key={i}>{seg.value}</span>
+        )
+      )}
+    </>
+  );
+}
+
 function CommentBody({
   body,
   members,
@@ -360,20 +468,7 @@ function CommentBody({
   body: string;
   members: CommentMember[];
 }) {
-  const segments = splitMentionSegments(body);
-  const nameSet = new Set(members.map((m) => m.name.toLowerCase()));
-
   return (
-    <>
-      {segments.map((seg, i) =>
-        seg.type === "mention" && nameSet.has(seg.value.toLowerCase()) ? (
-          <span key={i} className={cn("font-medium text-foreground/80")}>
-            @{seg.value}
-          </span>
-        ) : (
-          <span key={i}>{seg.type === "mention" ? `@${seg.value}` : seg.value}</span>
-        )
-      )}
-    </>
+    <MentionHighlightText body={body} members={members} />
   );
 }
