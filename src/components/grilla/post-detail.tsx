@@ -16,8 +16,10 @@ import {
   Play,
   Circle,
   Check,
+  Copy,
   ExternalLink,
   Trash2,
+  Pencil,
   Palette,
   Languages,
 } from "lucide-react";
@@ -57,8 +59,8 @@ import {
   languageLabel,
   type ContentLang,
 } from "@/lib/bilingual-copy";
-import { PostHeaderDate } from "@/components/layout/header-title-context";
 import { PostPhaseTimeline } from "@/components/grilla/post-phase-timeline";
+import { HeaderBanner } from "@/components/layout/header-banner-context";
 import {
   WORKFLOW_PHASES,
   SUSPENDED_STATUS,
@@ -136,6 +138,7 @@ export function PostDetail({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [designPanelOpen, setDesignPanelOpen] = useState(false);
+  const [contentEditOpen, setContentEditOpen] = useState(false);
   const [status, setStatus] = useState(() =>
     effectivePostStatus(post.status, initialAssets.length)
   );
@@ -150,6 +153,7 @@ export function PostDetail({
   );
   const [captionSaving, setCaptionSaving] = useState(false);
   const [captionSaved, setCaptionSaved] = useState(false);
+  const [captionCopied, setCaptionCopied] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const FormatIcon = formatIcons[post.format] || ImageIcon;
 
@@ -331,6 +335,90 @@ export function PostDetail({
       : !captionHasEs && captionHasEn
         ? "en"
         : null;
+
+  function getCaptionCopyText() {
+    if (!captionHasEs && !captionHasEn) return "";
+    if (bilingualCaption || (captionHasEs && captionHasEn)) {
+      const parts = [
+        captionHasEs ? caption.trim() : "",
+        captionHasEn ? captionEn.trim() : "",
+      ].filter(Boolean);
+      return parts.join("\n\n");
+    }
+    if (captionHasEn && !captionHasEs) return captionEn.trim();
+    return caption.trim();
+  }
+
+  async function handleCopyCaption() {
+    const text = getCaptionCopyText();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCaptionCopied(true);
+      setTimeout(() => setCaptionCopied(false), 2000);
+    } catch {
+      // silent
+    }
+  }
+
+  const captionReadOnlySection = (
+    <section>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <h2 className="text-label">Caption</h2>
+        {(captionHasEs || captionHasEn) && (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={handleCopyCaption}
+            title="Copiar caption con hashtags"
+          >
+            {captionCopied ? <Check size={13} /> : <Copy size={13} />}
+            {captionCopied ? "Copiado" : "Copiar"}
+          </Button>
+        )}
+      </div>
+      {!captionHasEs && !captionHasEn ? (
+        <p className="text-sm text-muted">Sin caption aún.</p>
+      ) : bilingualCaption || (captionHasEs && captionHasEn) ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {captionHasEs && (
+            <div className="space-y-1">
+              <span className="text-[11px] font-medium text-muted">Español</span>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                {caption}
+              </p>
+            </div>
+          )}
+          {captionHasEn && (
+            <div className="space-y-1">
+              <span className="text-[11px] font-medium text-muted">English</span>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                {captionEn}
+              </p>
+            </div>
+          )}
+        </div>
+      ) : captionHasEn && !captionHasEs ? (
+        <div className="space-y-1">
+          <span className="text-[11px] font-medium text-muted">English</span>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            {captionEn}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          <span className="text-[11px] font-medium text-muted">
+            {languageLabel(captionMonoLang || "es")}
+          </span>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            {caption}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+
   const captionSection = (
     <section>
       <div className="flex items-center justify-between mb-3 gap-2">
@@ -569,8 +657,10 @@ export function PostDetail({
 
   const mainContentSections = (
     <>
-      <CreativeBriefForm post={post} orgId={orgId} />
-      {captionSection}
+      {contentEditOpen && (
+        <CreativeBriefForm post={post} orgId={orgId} />
+      )}
+      {contentEditOpen ? captionSection : captionReadOnlySection}
       {assetsSection}
       <PostMetricsForm
         postId={post.id}
@@ -624,7 +714,7 @@ export function PostDetail({
 
   return (
     <>
-      <PostHeaderDate date={post.scheduled_at} />
+      <HeaderBanner message={contentEditOpen ? "Estás editando" : null} />
       {mobileDesignPanel}
       <div className="grid h-full min-h-0 w-full max-w-6xl mx-auto grid-cols-1 md:grid-cols-2 md:divide-x divide-border">
       <div className="min-h-0 overflow-y-auto px-4 md:px-6 py-6 space-y-8">
@@ -646,6 +736,19 @@ export function PostDetail({
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setContentEditOpen((open) => !open)}
+              title={contentEditOpen ? "Cerrar edición" : "Editar contenido"}
+              className={
+                contentEditOpen
+                  ? "bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 hover:text-amber-950"
+                  : undefined
+              }
+            >
+              <Pencil size={13} />
+            </Button>
             <Button
               size="sm"
               variant="secondary"

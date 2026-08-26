@@ -730,6 +730,56 @@ export async function bulkCreatePosts(
   };
 }
 
+export async function bulkUpdatePosts(
+  orgId: string,
+  posts: Array<{ postId: string; data: BulkPostInput }>
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "No autenticado" };
+  if (posts.length === 0) return { error: "No hay posts para actualizar" };
+
+  let updatedCount = 0;
+
+  for (const item of posts) {
+    const { postId, data } = item;
+    const updates = {
+      title: data.title,
+      scheduled_at: data.scheduled_at,
+      format: data.format,
+      pillar: data.pillar || null,
+      copy: data.copy || null,
+      copy_en: data.copy_en || null,
+      caption: data.caption || null,
+      caption_en: data.caption_en || null,
+      plate: data.plate || null,
+      org_identifier_id: data.org_identifier_id || null,
+      identifier_photo_url: data.identifier_photo_url || null,
+      in_drive: data.in_drive ?? false,
+      references_text: data.references_text || null,
+    };
+
+    const { error } = await supabase
+      .from("posts")
+      .update(updates)
+      .eq("id", postId)
+      .eq("organization_id", orgId);
+
+    if (error) return { error: error.message };
+
+    const { syncTaskDueAtForPost } = await import("@/lib/task-sync");
+    await syncTaskDueAtForPost(supabase, postId, data.scheduled_at);
+    updatedCount += 1;
+  }
+
+  revalidatePath(`/org/${orgId}/grilla`);
+  revalidatePath(`/org/${orgId}/calendario`);
+  return { count: updatedCount };
+}
+
 export async function getGrillaDraft(
   orgId: string,
   period: GrillaPeriod,

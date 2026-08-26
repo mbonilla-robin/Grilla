@@ -21,16 +21,6 @@ export function formatDate(date: string | null): string {
   }).format(new Date(date));
 }
 
-/** Header label like "August 18" for `Grilla-August 18`. */
-export function formatPostHeaderDate(date: string | null): string | null {
-  if (!date) return null;
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(date));
-}
-
 import type { PostAsset } from "@/lib/types";
 
 export function sortPostAssets(assets: PostAsset[]): PostAsset[] {

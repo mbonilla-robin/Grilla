@@ -101,7 +101,7 @@ export function AddToGrillaButton({
               <Grid3x3 size={14} className="text-muted shrink-0" />
               <div>
                 <p className="font-medium">Crear grilla</p>
-                <p className="text-[11px] text-muted">Planificar el mes completo</p>
+                <p className="text-[11px] text-muted">Planificar o actualizar el mes</p>
               </div>
             </button>
             <button

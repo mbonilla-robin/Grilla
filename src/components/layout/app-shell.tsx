@@ -12,8 +12,8 @@ import {
   Rss,
   Settings,
 } from "lucide-react";
-import { useHeaderTitle } from "./header-title-context";
 import { Logo } from "./logo";
+import { useHeaderBanner } from "./header-banner-context";
 import { MobileTabBar } from "./mobile-tab-bar";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -44,7 +44,7 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const headerTitle = useHeaderTitle();
+  const headerBanner = useHeaderBanner();
 
   const organizations = memberships.map((m) => m.organizations);
   const membership = memberships.find((m) => m.organizations.id === currentOrgId);
@@ -169,9 +169,11 @@ export function AppShell({
           <Link href="/home" className="md:hidden shrink-0">
             <Logo size="sm" showText={false} />
           </Link>
-          <span className="text-sm font-medium truncate min-w-0">
-            {headerTitle}
-          </span>
+          {headerBanner && (
+            <span className="text-sm font-medium text-amber-800 truncate min-w-0">
+              {headerBanner}
+            </span>
+          )}
           <div className="flex-1" />
           <NotificationBell userId={userId} initialCount={unreadNotifications} />
         </header>

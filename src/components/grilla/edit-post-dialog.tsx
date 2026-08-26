@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, X } from "lucide-react";
+import { Languages, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updatePost } from "@/lib/actions";
 import { CaptionEditor } from "@/components/grilla/caption-editor";
+import { GrillaCopyEditor } from "@/components/grilla/grilla-copy-editor";
 import { toDateInputValue } from "@/lib/utils";
 import { PostIdentifierField } from "@/components/grilla/post-identifier-field";
 import { PostPillarField } from "@/components/grilla/post-pillar-field";
@@ -62,8 +63,14 @@ export function EditPostDialog({
     toDateInputValue(post.scheduled_at)
   );
   const [copy, setCopy] = useState(post.copy || "");
+  const [copyEn, setCopyEn] = useState(post.copy_en || "");
   const [caption, setCaption] = useState(post.caption || "");
+  const [captionEn, setCaptionEn] = useState(post.caption_en || "");
   const [plate, setPlate] = useState(post.plate || "");
+  const [references, setReferences] = useState(post.references_text || "");
+  const [bilingual, setBilingual] = useState(
+    () => !!(post.copy_en?.trim() || post.caption_en?.trim())
+  );
   const [orgIdentifierIds, setOrgIdentifierIds] = useState<string[]>(() =>
     selectedIdentifierIdsFromPost(post, identifiers)
   );
@@ -80,8 +87,12 @@ export function EditPostDialog({
     setPillars(initialPillars(post.pillar, pillarOptions));
     setScheduledAt(toDateInputValue(post.scheduled_at));
     setCopy(post.copy || "");
+    setCopyEn(post.copy_en || "");
     setCaption(post.caption || "");
+    setCaptionEn(post.caption_en || "");
     setPlate(post.plate || "");
+    setReferences(post.references_text || "");
+    setBilingual(!!(post.copy_en?.trim() || post.caption_en?.trim()));
     setOrgIdentifierIds(selectedIdentifierIdsFromPost(post, identifiers));
     setOrgIdentifierId(post.org_identifier_id);
     setIdentifierPhotoUrl(post.identifier_photo_url);
@@ -93,6 +104,8 @@ export function EditPostDialog({
     setLoading(true);
 
     const pillarValue = formatPillars(pillars) || null;
+    const nextCopyEn = bilingual ? copyEn || null : null;
+    const nextCaptionEn = bilingual ? captionEn || null : null;
 
     const result = await updatePost(orgId, post.id, {
       title: title.trim() || post.title,
@@ -100,10 +113,13 @@ export function EditPostDialog({
       pillar: pillarValue,
       scheduled_at: scheduledAt || null,
       copy: copy || null,
+      copy_en: nextCopyEn,
       caption: caption || null,
+      caption_en: nextCaptionEn,
       plate: plate || null,
       org_identifier_id: orgIdentifierId,
       identifier_photo_url: identifierPhotoUrl,
+      references_text: references || null,
     });
 
     if (!result.error) {
@@ -113,10 +129,13 @@ export function EditPostDialog({
         pillar: pillarValue,
         scheduled_at: scheduledAt || null,
         copy: copy || null,
+        copy_en: nextCopyEn,
         caption: caption || null,
+        caption_en: nextCaptionEn,
         plate: plate || null,
         org_identifier_id: orgIdentifierId,
         identifier_photo_url: identifierPhotoUrl,
+        references_text: references || null,
       });
       setOpen(false);
     }
@@ -189,13 +208,66 @@ export function EditPostDialog({
                 </select>
               </div>
 
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted">Copy y caption</p>
+                <Button
+                  type="button"
+                  variant={bilingual ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setBilingual((v) => !v)}
+                >
+                  <Languages size={12} />
+                  {bilingual ? "Un idioma" : "Otro idioma"}
+                </Button>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-muted">
+                  Copy (texto en slides / video)
+                </label>
+                <GrillaCopyEditor
+                  key={`${post.id}-${format}-${bilingual ? "bi" : "mono"}`}
+                  format={format}
+                  value={copy}
+                  onChange={setCopy}
+                  bilingual={bilingual}
+                  valueEn={copyEn}
+                  onChangeEn={setCopyEn}
+                />
+              </div>
+
               <div className="space-y-1">
                 <label className="text-xs text-muted">Caption</label>
-                <CaptionEditor
-                  value={caption}
-                  onChange={setCaption}
-                  hashtagGroups={hashtagGroups}
-                />
+                {bilingual ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-medium text-muted">
+                        Español
+                      </span>
+                      <CaptionEditor
+                        value={caption}
+                        onChange={setCaption}
+                        hashtagGroups={hashtagGroups}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[11px] font-medium text-muted">
+                        English
+                      </span>
+                      <CaptionEditor
+                        value={captionEn}
+                        onChange={setCaptionEn}
+                        hashtagGroups={hashtagGroups}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <CaptionEditor
+                    value={caption}
+                    onChange={setCaption}
+                    hashtagGroups={hashtagGroups}
+                  />
+                )}
               </div>
 
               <PostIdentifierField
@@ -210,6 +282,17 @@ export function EditPostDialog({
                   setIdentifierPhotoUrl(photoUrl);
                 }}
               />
+
+              <div className="space-y-1">
+                <label className="text-xs text-muted">Referencias</label>
+                <textarea
+                  value={references}
+                  onChange={(e) => setReferences(e.target.value)}
+                  rows={2}
+                  placeholder="Links, inspiración, notas internas..."
+                  className="flex w-full rounded-md border border-border bg-surface px-2 py-1.5 text-xs placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-foreground/10 resize-none"
+                />
+              </div>
 
               <div className="flex justify-end gap-2 pt-1">
                 <Button

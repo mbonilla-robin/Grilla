@@ -1,13 +1,13 @@
 "use client";
 
-import { HeaderTitleProvider } from "./header-title-context";
+import { HeaderBannerProvider } from "./header-banner-context";
 import { NavigationLoader } from "./navigation-loader";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
-    <HeaderTitleProvider>
+    <HeaderBannerProvider>
       <NavigationLoader />
       {children}
-    </HeaderTitleProvider>
+    </HeaderBannerProvider>
   );
 }

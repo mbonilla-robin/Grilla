@@ -30,6 +30,31 @@ export function isPublishedSlot(slot: GrillaSlot): boolean {
   return !!slot.postId || !!slot.published;
 }
 
+/** Content fields used to detect edits on an already-published slot. */
+export function slotContentFingerprint(slot: GrillaSlot): string {
+  const identifierId =
+    slot.orgIdentifierId || slot.orgIdentifierIds?.[0] || "";
+  return [
+    slot.date,
+    slot.pillar,
+    slot.format,
+    slot.title.trim(),
+    slot.copy,
+    slot.copyEn || "",
+    slot.caption,
+    slot.captionEn || "",
+    slot.plate,
+    identifierId,
+    slot.identifierPhotoUrl || "",
+    slot.inDrive ? "1" : "0",
+    slot.references,
+  ].join("\u0001");
+}
+
+export function slotContentEquals(a: GrillaSlot, b: GrillaSlot): boolean {
+  return slotContentFingerprint(a) === slotContentFingerprint(b);
+}
+
 export function scheduledAtToDate(scheduledAt: string): string {
   return scheduledAt.slice(0, 10);
 }
@@ -120,7 +145,7 @@ export function draftExtrasForPublishedDay(
   });
 }
 
-/** Merge existing grilla posts with draft WIP. Published posts win; draft only fills empty days / intentional extras. */
+/** Merge existing grilla posts with draft WIP. Draft overrides matching published posts; extras fill empty days. */
 export function mergePublishedAndDraftSlots(
   dates: string[],
   posts: Post[],
@@ -140,6 +165,12 @@ export function mergePublishedAndDraftSlots(
     {}
   );
 
+  const draftOverridesByPostId = new Map<string, GrillaSlot>();
+  for (const slot of draftSlots || []) {
+    if (!slot.postId || !dateSet.has(slot.date)) continue;
+    draftOverridesByPostId.set(slot.postId, normalizeGrillaSlot(slot));
+  }
+
   const draftByDate = (draftSlots || [])
     .filter((slot) => !isPublishedSlot(slot) && dateSet.has(slot.date))
     .reduce<Record<string, GrillaSlot[]>>((acc, slot) => {
@@ -149,7 +180,19 @@ export function mergePublishedAndDraftSlots(
     }, {});
 
   return dates.flatMap((date) => {
-    const published = publishedByDate[date] || [];
+    const published = (publishedByDate[date] || []).map((slot) => {
+      const override = slot.postId
+        ? draftOverridesByPostId.get(slot.postId)
+        : undefined;
+      if (!override) return slot;
+      return {
+        ...override,
+        id: slot.id,
+        postId: slot.postId,
+        published: true,
+        date: override.date || slot.date,
+      };
+    });
     const draft = draftByDate[date] || [];
 
     if (published.length > 0) {
