@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const models = (
     process.env.GEMINI_MODEL
       ? [process.env.GEMINI_MODEL]
-      : ["gemini-2.5-flash", "gemini-2.0-flash"]
+      : ["gemini-3.6-flash", "gemini-2.5-flash"]
   ) as string[];
 
   const fromLang = LANG_NAMES[from] || from;

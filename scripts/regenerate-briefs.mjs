@@ -187,7 +187,7 @@ if (!apiKey) {
 
 const models = env.GEMINI_MODEL
   ? [env.GEMINI_MODEL]
-  : ["gemini-2.5-flash", "gemini-2.0-flash"];
+  : ["gemini-3.6-flash", "gemini-2.5-flash"];
 
 const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
